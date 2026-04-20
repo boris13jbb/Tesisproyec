@@ -1,0 +1,55 @@
+---
+description: Prisma + XAMPP (MySQL/MariaDB) — verificación, migraciones y documentación del modelo
+alwaysApply: true
+---
+
+# Prisma + XAMPP (MySQL / MariaDB)
+
+Al trabajar la capa de datos con Prisma contra XAMPP:
+
+## Antes de migraciones o cambios destructivos
+
+1. **Servicio**: Confirmar que en XAMPP estén activos **MySQL** o **MariaDB** (no asumir que el puerto 3306 está levantado).
+2. **Base de datos**: Verificar que la base exista (`DATABASE_URL` coherente). Si falta, indicar los pasos de creación (SQL o script) en documentación, no solo en chat.
+3. **ORM**: **Prisma** es la única capa ORM oficial; no introducir otros ORMs ni SQL crudo como sustituto del flujo Prisma sin acuerdo explícito.
+
+## Schema y motor
+
+4. Mantener `schema.prisma` **alineado** con la estructura real en MySQL/MariaDB (tablas, columnas, índices, FKs).
+5. **Compatibilidad XAMPP**: Asumir MySQL/MariaDB típicos de XAMPP; **no** usar características exclusivas de PostgreSQL (tipos, índices, sintaxis).
+6. Revisar **nombres de columnas**, **índices**, **foreign keys** y **tipos** compatibles con MySQL (`@db.*` cuando haga falta).
+7. Si surgen diferencias entre **MySQL y MariaDB** en el entorno concreto, documentar el ajuste y la versión probada.
+
+## Documentación obligatoria
+
+8. **Migraciones ejecutadas**: registrar qué migraciones se aplicaron y cuándo (en el flujo del proyecto / changelog acordado, y reflejar en documentación de modelo cuando corresponda).
+9. **Tablas**: documentar tablas **esperadas** vs **reales** creadas tras migrar (en `docs/04-modelo-base-de-datos.md` o sección equivalente).
+
+## Obligatorio para el agente (Cursor)
+
+Tras **crear o modificar** `prisma/schema.prisma` o añadir carpetas en `prisma/migrations/`, el agente debe **ejecutar** (desde `backend/`), salvo bloqueo real del entorno:
+
+1. **`npx prisma migrate deploy`** — aplicar migraciones pendientes a la BD del `.env` (o `npx prisma migrate dev` cuando toque **generar** una migración nueva a partir del esquema).
+2. **`npx prisma generate`** — regenerar el cliente. En Windows, si aparece **EPERM** al renombrar `query_engine`, ejecutar **`npm run prisma:generate:clean`**; si sigue fallando, indicar al usuario cerrar Node/Prisma Studio/Cursor y repetir.
+
+No dar por cerrada una tarea de datos sin haber intentado al menos **deploy + generate** y reportar el resultado (éxito o error).
+
+## Después de cada cambio en el schema
+
+- Revisar `prisma/schema.prisma` (coherencia y convenciones del repo).
+- Validar **migración** (`migrate` / flujo definido en el proyecto).
+- Validar **conexión** con la BD de XAMPP.
+- Validar **generación del cliente** Prisma (`prisma generate`).
+- Actualizar **`docs/04-modelo-base-de-datos.md`** con el resultado (resumen, tablas, notas).
+- Registrar **errores o riesgos** en los documentos o bitácoras que el proyecto use para seguimiento técnico.
+
+## Ejemplo de verificación rápida (adaptar al stack del repo)
+
+```bash
+# Con BD y XAMPP activos: migrar y generar cliente
+npx prisma migrate dev
+npx prisma generate
+npx prisma db pull   # solo si se sincroniza desde BD existente
+```
+
+Si algún paso falla por motor, puerto o credenciales, documentar el mensaje de error y la causa probable antes de “parchear” el schema.

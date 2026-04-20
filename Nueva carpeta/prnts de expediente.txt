@@ -1,0 +1,576 @@
+Actúa como un arquitecto de software senior, analista funcional, ingeniero de requisitos, especialista en gestión documental, experto en seguridad de la información, diseñador de bases de datos relacionales y redactor técnico de proyectos de software para instituciones públicas.
+
+Tu tarea es elaborar un EXPEDIENTE TÉCNICO INTEGRAL, EXTENSO, FORMAL, MINUCIOSO Y PASO A PASO para el proyecto:
+
+“Desarrollo de una aplicación web para la gestión documental institucional digitalizada basada en estándares de seguridad con énfasis en ISO/IEC 27001:2022, ISO 15489 y OWASP ASVS, en el GADPR-LM”.
+
+Debes redactar el documento como si fuera un expediente técnico real para iniciar el desarrollo del sistema web, con nivel profesional, estructura académica y utilidad práctica para análisis, diseño, construcción, pruebas e implementación.
+
+El documento debe estar escrito en español formal, técnico y claro, orientado a nivel universitario-profesional, con profundidad máxima, coherencia, lenguaje preciso y enfoque aplicado.
+
+### CONTEXTO DEL PROYECTO
+El sistema será una aplicación web institucional para la gestión documental digitalizada del GADPR-LM, destinada a organizar, registrar, almacenar, consultar, controlar, proteger y dar trazabilidad a documentos institucionales digitalizados.
+
+La solución debe considerar:
+- Operación en entorno de red local institucional (intranet).
+- Control de acceso por roles.
+- Gestión segura de credenciales.
+- Validación de entradas.
+- Trazabilidad de acciones.
+- Clasificación documental.
+- Respaldo de la información.
+- Protección de la confidencialidad, integridad y disponibilidad.
+- Aplicación de controles alineados con ISO/IEC 27001:2022.
+- Principios de gestión documental basados en ISO 15489.
+- Requisitos de seguridad de aplicaciones web inspirados en OWASP ASVS.
+
+El expediente debe asumir como base que el sistema será desarrollado para una institución pública con necesidades de:
+- orden documental,
+- consulta rápida,
+- control de usuarios,
+- seguridad de la información,
+- trazabilidad,
+- reportes administrativos,
+- resguardo de documentos digitalizados.
+
+Si algún dato específico institucional no está disponible, debes plantear supuestos técnicos razonables, pero debes marcarlos claramente como “supuesto propuesto”.
+
+---
+
+# OBJETIVO DE TU RESPUESTA
+Genera un expediente técnico completo del sistema web, detallando de forma minuciosa cómo debe estructurarse, diseñarse y desarrollarse el sistema desde cero, incluyendo desde la base de datos hasta la interfaz de usuario, los procesos, los botones, los menús, los formularios, los reportes y la lógica de funcionamiento interna.
+
+NO entregues una simple explicación general. Debes construir un documento técnico exhaustivo, organizado por capítulos y secciones, con explicaciones profundas y aplicables.
+
+---
+
+# ESTRUCTURA OBLIGATORIA DEL EXPEDIENTE TÉCNICO
+
+## 1. Portada técnica del proyecto
+Incluye:
+- Nombre del proyecto
+- Institución beneficiaria
+- Área de desarrollo
+- Tema técnico
+- Versión del expediente
+- Fecha
+- Autor o equipo técnico (genérico si no se conoce)
+- Entorno de aplicación
+- Tipo de sistema
+
+## 2. Resumen ejecutivo
+Redacta un resumen técnico del sistema:
+- qué problema resuelve,
+- qué hace el sistema,
+- qué beneficios aporta,
+- por qué es importante para el GADPR-LM,
+- cómo se relaciona con seguridad de la información y gestión documental.
+
+## 3. Antecedentes y problemática
+Explica:
+- situación actual de la gestión documental manual o no estructurada,
+- riesgos por pérdida de información,
+- accesos no autorizados,
+- falta de organización,
+- carencia de trazabilidad,
+- debilidades de seguridad,
+- necesidad de digitalización y control.
+
+## 4. Justificación técnica
+Desarrolla la justificación desde:
+- perspectiva institucional,
+- operativa,
+- tecnológica,
+- documental,
+- seguridad de la información,
+- cumplimiento de estándares,
+- eficiencia administrativa.
+
+## 5. Objetivo general y objetivos específicos
+Formula:
+- 1 objetivo general
+- varios objetivos específicos alineados con análisis, diseño, desarrollo, seguridad, pruebas e implementación.
+
+## 6. Alcance del sistema
+Detalla claramente:
+- qué sí incluye el sistema,
+- qué no incluye,
+- límites funcionales,
+- límites técnicos,
+- límites operativos,
+- módulos contemplados,
+- exclusiones como integración con sistemas externos o firma electrónica avanzada si no forman parte del alcance base.
+
+## 7. Marco normativo y técnico aplicable
+Explica de forma práctica y aplicada cómo se usará cada estándar:
+### ISO/IEC 27001:2022
+Relaciona controles como:
+- control de acceso,
+- gestión de identidades,
+- autenticación,
+- segregación de funciones,
+- registro de eventos,
+- respaldo,
+- gestión segura de la información.
+### ISO 15489
+Relaciona:
+- autenticidad documental,
+- integridad,
+- fiabilidad,
+- usabilidad,
+- clasificación,
+- organización,
+- conservación,
+- trazabilidad de documentos.
+### OWASP ASVS
+Relaciona:
+- autenticación,
+- sesiones,
+- validación de entradas,
+- control de acceso,
+- protección de datos,
+- registros de auditoría,
+- manejo de errores,
+- almacenamiento seguro,
+- archivos subidos,
+- protección contra ataques comunes.
+
+No te limites a definir las normas; explica cómo se traducen en funcionalidades concretas del sistema.
+
+## 8. Metodología de desarrollo recomendada
+Propón la metodología más adecuada para este proyecto y justifícala.
+Por ejemplo:
+- Scrum,
+- híbrida,
+- incremental.
+Debes indicar:
+- fases,
+- entregables,
+- roles,
+- artefactos,
+- cronograma sugerido por etapas.
+
+## 9. Levantamiento y análisis de requerimientos
+Desarrolla:
+### Requerimientos funcionales
+Deben estar numerados y muy bien explicados.
+Ejemplos:
+- autenticación,
+- gestión de usuarios,
+- gestión de roles,
+- gestión de documentos,
+- carga de archivos,
+- clasificación documental,
+- búsqueda avanzada,
+- reportes,
+- bitácora,
+- respaldos,
+- gestión de estados documentales,
+- consultas históricas.
+### Requerimientos no funcionales
+Detalla:
+- seguridad,
+- rendimiento,
+- usabilidad,
+- mantenibilidad,
+- disponibilidad,
+- respaldo,
+- integridad,
+- escalabilidad básica,
+- compatibilidad,
+- trazabilidad,
+- auditoría,
+- restricciones de intranet.
+
+## 10. Identificación de actores del sistema
+Describe cada actor:
+- Administrador del sistema
+- Secretario/a o gestor documental
+- Usuario institucional
+- Auditor interno
+- Supervisor o autoridad
+Para cada actor indica:
+- responsabilidades,
+- permisos,
+- restricciones,
+- acciones permitidas.
+
+## 11. Arquitectura general del sistema
+Explica minuciosamente:
+- arquitectura por capas,
+- frontend,
+- backend,
+- base de datos,
+- almacenamiento documental,
+- autenticación,
+- auditoría,
+- módulo de reportes,
+- seguridad,
+- respaldos.
+Incluye:
+- arquitectura lógica,
+- arquitectura física,
+- arquitectura de despliegue en intranet,
+- flujo de interacción entre componentes.
+
+Debes proponer una arquitectura moderna y justificarla.
+Por ejemplo:
+- Frontend: React, Vue o Angular
+- Backend: Laravel, Django, Spring Boot, Node.js o ASP.NET
+- Base de datos: PostgreSQL o MySQL
+- Almacenamiento documental: repositorio estructurado o almacenamiento híbrido
+- Servidor: Linux o Windows Server según criterio técnico
+- Control de sesiones y autenticación segura
+- Logs y bitácoras de auditoría
+
+Debes elegir una pila tecnológica recomendada y justificarla técnicamente.
+
+## 12. Diseño completo del sistema por módulos
+Aquí debes describir TODO el sistema, desde el splash hasta el último proceso.
+
+### 12.1 Flujo general del sistema desde el inicio
+Explica secuencialmente:
+- pantalla splash,
+- validación inicial,
+- login,
+- recuperación de acceso,
+- dashboard,
+- navegación principal,
+- acceso por rol,
+- ingreso a módulos,
+- procesos de gestión documental,
+- reportes,
+- cierre de sesión.
+
+### 12.2 Descripción detallada de cada pantalla, vista o módulo
+Para CADA módulo o pantalla debes indicar:
+- nombre del módulo,
+- objetivo,
+- actor que lo usa,
+- ruta de acceso,
+- descripción funcional,
+- campos del formulario,
+- tipo de dato de cada campo,
+- validaciones,
+- botones,
+- acción exacta de cada botón,
+- menús,
+- submenús,
+- mensajes del sistema,
+- alertas,
+- permisos por rol,
+- reglas de negocio,
+- flujo del proceso,
+- qué se guarda en base de datos,
+- qué se muestra al usuario,
+- qué pasa si hay error,
+- qué controles de seguridad se aplican.
+
+### Módulos mínimos obligatorios a desarrollar
+Debes describirlos uno por uno y de forma extremadamente detallada:
+
+1. Splash o pantalla inicial
+2. Inicio de sesión
+3. Recuperación de contraseña
+4. Dashboard principal
+5. Gestión de usuarios
+6. Gestión de roles y permisos
+7. Gestión de dependencias o áreas institucionales
+8. Gestión de tipos documentales
+9. Gestión de series y subseries documentales
+10. Registro de documentos
+11. Carga y digitalización de archivos
+12. Indexación documental
+13. Consulta y búsqueda avanzada
+14. Visualización de documentos
+15. Descarga de documentos
+16. Control de versiones documentales
+17. Estados del trámite documental
+18. Historial y trazabilidad
+19. Bitácora de auditoría
+20. Módulo de reportes
+21. Configuración general del sistema
+22. Respaldo y recuperación
+23. Gestión de sesiones
+24. Cierre de sesión seguro
+
+## 13. Diseño detallado de navegación
+Explica:
+- estructura del menú principal,
+- submenús,
+- barra superior,
+- panel lateral,
+- breadcrumbs,
+- accesos rápidos,
+- botones de acción,
+- comportamiento de navegación por rol.
+Debes detallar cómo funciona cada botón típico, por ejemplo:
+- Nuevo
+- Guardar
+- Editar
+- Eliminar
+- Buscar
+- Filtrar
+- Ver detalle
+- Cargar archivo
+- Descargar
+- Aprobar
+- Rechazar
+- Archivar
+- Restaurar
+- Exportar PDF
+- Exportar Excel
+- Imprimir
+- Cerrar sesión
+
+Debes explicar qué hace cada botón internamente, qué valida antes de ejecutarse y qué resultado produce.
+
+## 14. Flujo de procesos del sistema
+Describe paso a paso y minuciosamente procesos como:
+- registro de un documento nuevo,
+- carga del archivo digital,
+- clasificación documental,
+- validación de datos,
+- almacenamiento del archivo,
+- asignación de responsable,
+- cambio de estado,
+- consulta posterior,
+- edición de metadatos,
+- control de acceso,
+- generación de reporte,
+- auditoría de acciones.
+Cada flujo debe ir descrito de extremo a extremo.
+
+## 15. Reglas de negocio
+Construye reglas claras, por ejemplo:
+- un usuario no puede ver documentos de áreas no autorizadas,
+- un documento no puede pasar a archivado sin metadatos completos,
+- no se permite carga de archivos peligrosos,
+- no se puede eliminar físicamente un documento sin privilegios especiales,
+- toda modificación debe dejar trazabilidad,
+- los nombres de documentos deben seguir estructura definida,
+- la clasificación debe ser obligatoria,
+- las sesiones expiran tras inactividad,
+- contraseñas deben cumplir políticas seguras.
+Debes generar un conjunto amplio de reglas de negocio bien formuladas.
+
+## 16. Diseño de la base de datos
+Esta sección debe ser extremadamente detallada y pedagógica.
+
+### 16.1 Modelo conceptual
+Explica las entidades principales del sistema.
+
+### 16.2 Modelo lógico
+Describe relaciones entre entidades.
+
+### 16.3 Modelo relacional completo
+Debes proponer TODAS las tablas necesarias para el sistema.
+
+Para CADA tabla debes detallar:
+- nombre de la tabla,
+- propósito,
+- descripción,
+- campos,
+- tipo de dato,
+- longitud,
+- si permite nulos,
+- valor por defecto,
+- clave primaria,
+- claves foráneas,
+- restricciones,
+- índices,
+- observaciones técnicas.
+
+### 16.4 Relaciones entre tablas
+Explica relación por relación:
+- uno a uno,
+- uno a muchos,
+- muchos a muchos.
+Indica claramente para qué sirve cada relación.
+
+### 16.5 Diccionario de datos
+Entrega un diccionario de datos completo.
+
+### 16.6 Script SQL propuesto
+Genera ejemplo de scripts SQL de creación de tablas para las tablas principales.
+
+### 16.7 Integridad y normalización
+Explica:
+- integridad referencial,
+- normalización sugerida,
+- control de redundancia,
+- consistencia de metadatos.
+
+### 16.8 Tablas mínimas sugeridas
+Incluye y desarrolla, como mínimo, tablas como:
+- usuarios
+- roles
+- permisos
+- usuario_rol
+- rol_permiso
+- dependencias
+- cargos
+- tipos_documentales
+- series_documentales
+- subseries_documentales
+- documentos
+- documentos_versiones
+- archivos
+- clasificaciones
+- estados_documento
+- historial_documento
+- auditoria
+- sesiones
+- respaldos
+- configuracion
+- notificaciones
+- recuperacion_credenciales
+
+Puedes agregar más tablas si son necesarias, pero debes justificarlas.
+
+## 17. Diseño de formularios y campos
+Detalla cada formulario del sistema:
+- nombre,
+- objetivo,
+- campos,
+- validaciones,
+- mensajes,
+- máscaras,
+- listas desplegables,
+- controles de fecha,
+- adjuntos,
+- restricciones.
+Debes indicar exactamente cómo se ingresan los datos y cómo se procesan.
+
+## 18. Reportes del sistema
+Debes proponer reportes útiles y explicarlos uno por uno:
+- inventario documental,
+- documentos por área,
+- documentos por tipo,
+- documentos por rango de fechas,
+- documentos por estado,
+- historial de movimientos,
+- usuarios activos,
+- auditoría de accesos,
+- reportes de carga documental,
+- reportes de respaldos.
+Para cada reporte indica:
+- objetivo,
+- filtros,
+- columnas,
+- fuente de datos,
+- formato de salida,
+- periodicidad,
+- usuario autorizado.
+
+## 19. Seguridad del sistema
+Desarrolla con profundidad:
+- autenticación segura,
+- hash de contraseñas,
+- control de acceso basado en roles,
+- gestión de sesiones,
+- expiración de sesión,
+- protección CSRF,
+- validación de entradas,
+- sanitización,
+- control de archivos cargados,
+- control de extensiones y tamaño,
+- auditoría,
+- cifrado de datos sensibles,
+- manejo de errores sin exponer información,
+- bloqueo por intentos fallidos,
+- uso de HTTPS si aplica incluso en intranet,
+- copias de respaldo,
+- restauración,
+- segregación de privilegios.
+Relaciona cada punto con ISO/IEC 27001:2022, ISO 15489 y OWASP ASVS.
+
+## 20. Diseño de experiencia de usuario e interfaz
+Explica:
+- criterios de usabilidad,
+- consistencia visual,
+- accesibilidad básica,
+- distribución de componentes,
+- mensajes de confirmación,
+- mensajes de error,
+- jerarquía visual,
+- navegación intuitiva.
+Debes describir cómo se vería el sistema, aunque sea textual.
+
+## 21. Diseño de pruebas
+Incluye:
+- plan de pruebas funcionales,
+- pruebas de seguridad,
+- pruebas de validación de formularios,
+- pruebas de permisos,
+- pruebas de carga de archivos,
+- pruebas de reportes,
+- pruebas de respaldo,
+- pruebas de sesión.
+Debes proponer casos de prueba con:
+- código,
+- objetivo,
+- precondición,
+- pasos,
+- resultado esperado.
+
+## 22. Plan de implementación
+Explica por etapas:
+- preparación del entorno,
+- configuración del servidor,
+- despliegue de base de datos,
+- despliegue de backend,
+- despliegue de frontend,
+- pruebas,
+- capacitación,
+- puesta en marcha.
+Incluye recomendaciones de control de cambios y versionamiento.
+
+## 23. Plan de mantenimiento
+Detalla:
+- mantenimiento preventivo,
+- correctivo,
+- evolutivo,
+- monitoreo,
+- gestión de incidencias,
+- revisión de logs,
+- revisión de respaldos,
+- actualizaciones de seguridad.
+
+## 24. Riesgos del proyecto y mitigación
+Identifica riesgos técnicos, funcionales, operativos y de seguridad.
+Para cada riesgo indica:
+- descripción,
+- impacto,
+- probabilidad,
+- estrategia de mitigación.
+
+## 25. Conclusiones y recomendaciones técnicas
+Redacta conclusiones sólidas y recomendaciones para iniciar el desarrollo real del sistema.
+
+---
+
+# FORMA DE REDACCIÓN OBLIGATORIA
+Tu respuesta debe:
+- estar organizada por capítulos y subtítulos numerados;
+- ser muy extensa y profundamente detallada;
+- evitar generalidades;
+- describir paso a paso cada proceso;
+- explicar técnicamente el funcionamiento del sistema;
+- incluir tablas cuando sea útil;
+- incluir listas estructuradas de requerimientos, reglas y campos;
+- usar lenguaje formal y profesional;
+- pensar como si el documento fuera a entregarse a desarrolladores, analistas, docentes y autoridades;
+- proponer una solución realista, robusta y desarrollable;
+- justificar decisiones técnicas;
+- incluir ejemplos concretos de tablas, formularios, flujos y validaciones;
+- indicar supuestos cuando falte información;
+- mantener coherencia entre módulos, base de datos, seguridad y procesos.
+
+---
+
+# INSTRUCCIÓN FINAL MUY IMPORTANTE
+No resumes ni simplifiques. Construye el expediente técnico completo como documento profesional. 
+Quiero que lo desarrolles de forma MINUCIOSA, PASO A PASO, desde la creación de la base de datos, la relación de cada tabla, la estructura del sistema web, el funcionamiento de cada pantalla, cada botón, cada menú, cada reporte, cada formulario, cada flujo documental y cada control de seguridad.
+
+Empieza por el CAPÍTULO 1 y continúa en orden, desarrollando todo el expediente técnico.

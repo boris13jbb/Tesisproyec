@@ -1,0 +1,33 @@
+# Dependencias
+node_modules/
+
+# Build / salida
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Entorno (secretos)
+.env
+.env.local
+.env.*.local
+
+# Logs y cachés
+*.log
+npm-debug.log*
+.cache/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Almacenamiento de archivos reales (metadatos en BD)
+/storage/*
+!/storage/.gitkeep
+
+# Prisma (opcional: descomentar si se generan artefactos locales no deseados)
+# backend/prisma/*.db
+# backend/prisma/*.db-journal

@@ -1,0 +1,46 @@
+---
+description: ngrok — exposición temporal del backend/frontend, registro obligatorio y hardening
+alwaysApply: true
+---
+
+# Uso de ngrok (temporal y documentado)
+
+Si hace falta **exponer** backend o frontend con **ngrok**, úsalo solo de forma **temporal** y **registrada** en documentación. No tratar el túnel como entorno de producción.
+
+## Registro obligatorio (antes o justo después de levantar el túnel)
+
+Documentar en `docs/17-seguridad-y-hardening.md` y reflejar el hecho en `docs/21-changelog-tecnico.md`:
+
+| Dato | Qué anotar |
+|------|------------|
+| Comando | Comando exacto ejecutado (ej. `ngrok http 3000`). |
+| Puerto | Puerto local expuesto. |
+| URL pública | URL que devuelve ngrok (y cambios si se reinicia). |
+| Duración / contexto | Por cuánto tiempo o para qué prueba/demo. |
+| Endpoints | Rutas o módulos afectados (API, webhooks, OAuth, etc.). |
+| Riesgos | Exposición pública, filtrado de datos, abuso, credenciales en logs. |
+| Medidas | Qué se hizo para limitar daño (revocar URL, cortar túnel, no datos reales, etc.). |
+
+## Ejemplos de comandos (referencia)
+
+- Backend NestJS (puerto típico): `ngrok http 3000`
+- Frontend Vite (dev): `ngrok http 5173`
+
+Adaptar el puerto al definido en el proyecto (`PORT`, scripts, `vite.config`).
+
+## Backend con JWT y cookies HttpOnly
+
+Si el backend usa **JWT** y/o **cookies HttpOnly**, antes o al documentar el túnel revisar y anotar si aplica:
+
+- **CORS**: orígenes permitidos vs dominio ngrok.
+- **Cookies**: `Secure`, `SameSite`, dominio y path; compatibilidad con HTTPS del túnel ngrok.
+- **Dominios y URLs**: callbacks OAuth, redirects, enlaces en emails de prueba.
+- **Riesgos**: fuga de tokens en headers, logs, referrer; sesiones válidas en dominio público temporal.
+- **Compensación**: URLs de callback solo para prueba, revocación de tokens, duración mínima del túnel, datos de prueba.
+
+## Dónde escribir
+
+- **`/docs/17-seguridad-y-hardening.md`**: detalle de exposición, riesgos y medidas.
+- **`/docs/21-changelog-tecnico.md`**: entrada breve tipo changelog (fecha, comando, puerto, propósito, enlace a la sección de seguridad si existe).
+
+Si esos archivos aún no existen en el repo, crearlos o usar la ruta equivalente bajo `docs/` que defina el proyecto y mantener la misma intención de trazabilidad.

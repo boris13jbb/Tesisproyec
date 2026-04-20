@@ -1,0 +1,120 @@
+// SGD-GADPR-LM — MySQL/MariaDB (XAMPP). Ver docs/04-modelo-base-de-datos.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// Cuentas de aplicación (credenciales Argon2id en capa auth, ETAPA 3).
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  nombres      String?  @db.VarChar(120)
+  apellidos    String?  @db.VarChar(120)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+/// Refresh opaco (hash SHA-256 en BD); el valor en claro solo en cookie HttpOnly.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  codigo      String   @unique @db.VarChar(64)
+  nombre      String   @db.VarChar(120)
+  descripcion String?  @db.VarChar(500)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  codigo      String   @unique @db.VarChar(128)
+  descripcion String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// Unidad organizativa (catálogo ETAPA 5).
+model Dependencia {
+  id          String   @id @default(uuid())
+  codigo      String   @unique @db.VarChar(32)
+  nombre      String   @db.VarChar(200)
+  descripcion String?  @db.VarChar(500)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cargos Cargo[]
+
+  @@map("dependencias")
+}
+
+/// Cargo / puesto (catálogo ETAPA 5); dependencia opcional.
+model Cargo {
+  id            String   @id @default(uuid())
+  codigo        String   @unique @db.VarChar(32)
+  nombre        String   @db.VarChar(200)
+  descripcion   String?  @db.VarChar(500)
+  dependenciaId String?  @map("dependencia_id")
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  dependencia Dependencia? @relation(fields: [dependenciaId], references: [id], onDelete: SetNull)
+
+  @@index([dependenciaId])
+  @@map("cargos")
+}

@@ -1,0 +1,121 @@
+# Changelog técnico — SGD-GADPR-LM
+
+## Objetivo
+
+Registrar cambios relevantes en **entorno**, **migraciones Prisma**, **exposición ngrok** y decisiones que afecten despliegue local o seguridad.
+
+## Alcance
+
+Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando aplique.
+
+## Estado actual
+
+- Activo desde baseline 2026-04-19.
+
+## Formato por entrada
+
+```
+### YYYY-MM-DD — Título corto
+- Qué cambió (migración, variable, puerto, etc.).
+- Referencia a sección en docs/ si aplica.
+```
+
+---
+
+## Registro
+
+### 2026-04-21 — ETAPA 5: catálogo Cargos
+
+- **Prisma:** modelo `Cargo` + FK opcional a `Dependencia`; migración `20260421140000_add_cargos`.
+- **API:** `CargosModule` en `/api/v1/cargos` (mismo patrón JWT / ADMIN que dependencias).
+- **Util:** `src/common/prisma-util.ts` (`isPrismaCode`) usado por dependencias y cargos.
+- **Frontend:** `/catalogos/cargos`, menú bajo Catálogos.
+- **Seed:** cargos `DIR-GEN` (con GADPR-LM) y `ASIST` (sin dependencia).
+
+### 2026-04-21 — ETAPA 5 (inicio): catálogo Dependencias
+
+- **Prisma:** modelo `Dependencia`, migración `20260421120000_add_dependencias`.
+- **API:** `DependenciasModule`, `GET/POST/PATCH` bajo `/api/v1/dependencias` (JWT; mutaciones solo `ADMIN`).
+- **Seed:** dos dependencias de ejemplo (`GADPR-LM`, `SGD`) tras migración.
+- **Frontend:** ruta `/catalogos/dependencias`, entrada de menú **Catálogos → Dependencias**.
+- Tras pull: `npx prisma migrate deploy` y `npx prisma generate` (o `npm run prisma:generate:clean` en Windows si EPERM).
+
+### 2026-04-20 — Documentación: comandos Prisma CLI
+
+- Nuevo `docs/24-prisma-comandos-cli.md` (tablas de referencia + scripts `backend/package.json` + nota EPERM Windows); entrada en `docs/README.md`.
+
+### 2026-04-20 — ETAPA 4: shell UI + rutas protegidas + RBAC en API
+
+- **Frontend:** `MainLayout` (AppBar, drawer de navegación, salida de sesión), `ProtectedRoute` (redirección a `/login`), `DashboardPage` (salud API + verificación `GET /admin/ping` para ADMIN), `ForbiddenPage` (`/forbidden`), login con redirección si ya hay sesión; eliminada `HomePage` pública en favor del panel autenticado.
+- **Backend:** `@Roles()` + `RolesGuard`, `GET /api/v1/admin/ping` (JWT + rol `ADMIN`).
+- **Docs:** `00-roadmap-general.md`, `03-estructura-de-carpetas.md`, `07-modulo-roles-permisos.md`.
+
+### 2026-04-20 — ETAPA 3: auth JWT + refresh HttpOnly + login frontend
+
+- **Migración:** `20260420103000_add_refresh_tokens` — tabla `refresh_tokens` (hash SHA-256 del refresh opaco).
+- **Backend:** `AuthModule` (`login`, `refresh`, `logout`, `me`); cookie HttpOnly para refresh; `JWT_ACCESS_EXPIRES`, `JWT_REFRESH_DAYS`, `REFRESH_COOKIE_NAME`; tipos `JwtSignOptions` para `signAsync`; `JwtStrategy` devuelve usuario con roles para `GET /api/v1/auth/me`.
+- **Seed:** `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` en `backend/.env.example`; `npx prisma db seed`.
+- **Frontend:** `AuthProvider`, `useAuth`, token de acceso en memoria, interceptores axios (Bearer + reintento con `/auth/refresh`), ruta `/login`, `HomePage` con sesión y cierre de sesión.
+- **Validado:** `npm run build` + `npm run lint` (backend y frontend), `npm test` y `npm run test:e2e` en backend.
+
+### 2026-04-20 — Script `prisma:generate:clean` (EPERM Windows)
+
+- `backend/scripts/clean-prisma-client.js` + `npm run prisma:generate:clean`: borra `node_modules/.prisma` y ejecuta `prisma generate` para evitar bloqueo del motor en Windows.
+
+### 2026-04-20 — ETAPA 2: Prisma 5 + MySQL, RBAC inicial
+
+- **ORM:** `prisma` y `@prisma/client` **5.22.0** (evita cambios de configuración de Prisma 7 sobre `datasource url`).
+- **Esquema:** `User`, `Role`, `Permission`, `UserRole`, `RolePermission`; tablas en inglés con `@@map` a nombres SQL coherentes.
+- **NestJS:** `PrismaModule` global + `PrismaService`; `GET /api/v1/health` incluye `database: 'up' | 'down'` según `SELECT 1` (API puede arrancar sin MySQL).
+- **Migración:** `prisma/migrations/20260420001500_init_rbac/migration.sql` — aplicar con `npx prisma migrate dev` desde `backend/` con XAMPP y BD creada.
+- **Frontend:** `HomePage` muestra estado de la base de datos según el health.
+- **Scripts:** `prisma:generate`, `prisma:migrate`, `prisma:studio` en `backend/package.json`.
+
+### 2026-04-19 — Script `free:3000` (puerto ocupado)
+
+- `npm run free:3000` en raíz o en `backend/`: libera el puerto 3000 (`npx kill-port`) antes de `start:dev` cuando aparece `EADDRINUSE`.
+
+### 2026-04-19 — `package.json` en raíz del monorepo
+
+- Scripts de conveniencia: `npm run install:all` (instala `backend` + `frontend`), `npm run start:dev`, `npm run dev`, `build`, `lint`, `test` desde la raíz sin `cd`.
+- Motivo: evitar error `ENOENT` al ejecutar npm en la raíz sin `package.json`.
+
+### 2026-04-19 — ETAPA 1: frontend Vite + React 18 y API shell NestJS
+
+- **Frontend:** proyecto en `frontend/` (Vite, React 18, TS, MUI, React Router, axios, RHF y Zod instalados; shell con `HomePage` que llama a `GET /health`, `NotFoundPage`, tema MUI).
+- **Backend:** `@nestjs/config`, `class-validator`/`class-transformer`; prefijo global `api/v1`; CORS desde `CORS_ORIGIN`; `ValidationPipe` global; endpoint `GET /api/v1/health`; eliminado `AppService` boilerplate.
+- **Pruebas:** `npm run test` y `npm run test:e2e` en backend actualizados; frontend `npm run build` y `npm run lint` OK.
+- **Entorno:** `frontend/.env.example` con `VITE_API_URL`. React fijado a **18.x** (stack oficial).
+- **Siguiente:** ETAPA 2 — Prisma + MySQL (XAMPP).
+
+### 2026-04-19 — Toma de control técnico: auditoría, docs `00`–`23`, saneamiento mínimo
+
+- Auditoría de estructura: solo `backend/` (Nest sin Prisma); sin `frontend/`; sin `schema.prisma`.
+- Documentación: creados `00`, `05`–`17`, `18`–`21`, `23`, `docs/README.md`; eliminados archivos vacíos/erróneos (`17-seguridad` duplicado, `21-changelog` duplicado); referencias `17`→`18` en `01` y `02`.
+- Raíz: `README.md`, `.gitignore`, `storage/.gitkeep`, `backend/.env.example`.
+- Código: `void bootstrap()` en `main.ts` para cumplir ESLint (`no-floating-promises`).
+- Validado en backend: `npm run build`, `npm run lint` (0 errores), `npm run test` (pass).
+- Próximo hito planificado: **ETAPA 1** — scaffolding `frontend/`, ConfigModule NestJS, prefijo `/api/v1`, CORS (sin pantallas de negocio hasta ordenar base).
+
+### 2026-04-19 — ETAPA 0: auditoría inicial y baseline documental
+
+- Repositorio sin código de aplicación previo; existían borradores parciales en `docs/` con numeración distinta.
+- Unificación de documentación bajo esquema `00`–`23`; referencias cruzadas actualizadas.
+- Inicio de **ETAPA 1** (base técnica): scaffolding planificado de `frontend/` (Vite + React + TS) y `backend/` (NestJS + TS), más `storage/` y `.env.example`.
+
+### 2026-04-19 — Documentación inicial de infraestructura local (histórico)
+
+- Línea base conceptual: XAMPP (MySQL/MariaDB), Prisma, NestJS, Vite; ngrok solo para exposición temporal documentada.
+
+---
+
+### Plantilla — Sesión ngrok (copiar y rellenar)
+
+```
+### YYYY-MM-DD — ngrok — [API | Frontend | ambos]
+- Comando: `ngrok http PUERTO`
+- URL pública: https://...
+- Propósito: (demo, callback, prueba móvil, ...)
+- Endpoints / alcance: ...
+- Cierre: (hora / túnel detenido sí/no)
+```
