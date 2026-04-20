@@ -24,6 +24,54 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-04-20 — ETAPA 9: reportes (Excel/PDF)
+
+- **Backend:** `GET /api/v1/reportes/documentos.xlsx` (ExcelJS) y `GET /api/v1/reportes/documentos.pdf` (pdfkit).
+- **Permisos:** solo `ADMIN` puede exportar.
+- **Frontend:** botones “Exportar Excel / Exportar PDF” en `/documentos` usando filtros actuales.
+
+### 2026-04-20 — ETAPA 8: búsqueda y paginación de documentos
+
+- **API:** `GET /api/v1/documentos` con filtros (`q`, catálogos, estado, fechas) y paginación (`page`, `pageSize`).
+- **API (mejora):** ordenamiento (`sortBy`, `sortDir`) y búsqueda por adjuntos (`archivoNombre`, `archivoMime`, `archivoSha256`).
+- **Frontend:** `/documentos` con filtros, ordenamiento por columnas (click) y navegación Anterior/Siguiente.
+
+### 2026-04-20 — ETAPA 7: archivos (upload/download) con trazabilidad
+
+- **Prisma:** modelos `DocumentoArchivo` + `DocumentoArchivoEvento`; migración `20260421193000_add_documento_archivos`.
+- **Prisma (mejora):** versionado en `documento_archivos.version`; migración `20260421194500_documento_archivos_versionado`.
+- **Storage:** guardado físico bajo `storage/` (no público), nombres internos seguros.
+- **API:** listado, upload (ADMIN) y descarga (JWT) por documento.
+- **API (mejora):** eventos por archivo + borrado lógico (ADMIN) y registro de IP en descargas.
+- **Frontend:** sección Archivos en `/documentos/:id` (subir/descargar/historial/eliminar).
+
+### 2026-04-20 — ETAPA 6 (cierre): historial de documentos + detalle/edición
+
+- **Prisma:** modelo `DocumentoEvento`; migración `20260421190000_add_documento_eventos`.
+- **API:** `GET /api/v1/documentos/:id/eventos` y registro automático de eventos `CREADO/ACTUALIZADO`.
+- **Frontend:** ruta `/documentos/:id` (detalle + edición + historial) y navegación desde el listado.
+
+### 2026-04-21 — ETAPA 6 (inicio): registro documental MVP
+
+- **Prisma:** modelo `Documento`; migración `20260421180000_add_documentos_mvp`.
+- **API:** `DocumentosModule` en `/api/v1/documentos` (JWT; mutaciones solo `ADMIN`).
+- **Frontend:** `/documentos` (listado + registrar documento).
+- **Seed:** `DOC-0001` (tipo `MEMO`, subserie `ADM-CORR`).
+
+### 2026-04-21 — ETAPA 5: catálogo Series/Subseries
+
+- **Prisma:** modelos `Serie` y `Subserie`; migración `20260421170000_add_series_subseries`.
+- **API:** `SeriesModule` (`/api/v1/series`) y `SubseriesModule` (`/api/v1/subseries`) con JWT; mutaciones solo `ADMIN`.
+- **Frontend:** `/catalogos/series` y `/catalogos/subseries`, menú bajo Catálogos.
+- **Seed:** `ADM` y `ADM-CORR`.
+
+### 2026-04-21 — ETAPA 5: catálogo Tipos documentales
+
+- **Prisma:** modelo `TipoDocumental`; migración `20260421160000_add_tipos_documentales`.
+- **API:** `TiposDocumentalesModule` en `/api/v1/tipos-documentales` (JWT; mutaciones solo `ADMIN`).
+- **Frontend:** `/catalogos/tipos-documentales`, menú bajo Catálogos.
+- **Seed:** `MEMO`, `OFICIO`.
+
 ### 2026-04-21 — ETAPA 5: catálogo Cargos
 
 - **Prisma:** modelo `Cargo` + FK opcional a `Dependencia`; migración `20260421140000_add_cargos`.
@@ -47,6 +95,7 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 ### 2026-04-20 — ETAPA 4: shell UI + rutas protegidas + RBAC en API
 
 - **Frontend:** `MainLayout` (AppBar, drawer de navegación, salida de sesión), `ProtectedRoute` (redirección a `/login`), `DashboardPage` (salud API + verificación `GET /admin/ping` para ADMIN), `ForbiddenPage` (`/forbidden`), login con redirección si ya hay sesión; eliminada `HomePage` pública en favor del panel autenticado.
+- **Frontend (refinamiento):** menú y rutas condicionados por rol (`ADMIN`) + notificaciones globales (API caída / sesión expirada).
 - **Backend:** `@Roles()` + `RolesGuard`, `GET /api/v1/admin/ping` (JWT + rol `ADMIN`).
 - **Docs:** `00-roadmap-general.md`, `03-estructura-de-carpetas.md`, `07-modulo-roles-permisos.md`.
 

@@ -10,9 +10,13 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 ## Estado actual
 
-**Completado:** ETAPA 0–1 (shell API + SPA), ETAPA 2 (Prisma + RBAC + migraciones), ETAPA 3 (auth JWT + refresh HttpOnly + seed admin), **ETAPA 4** parcial: layout con AppBar y drawer, panel principal (`/`), rutas protegidas, página 403, demo `GET /admin/ping` con `@Roles('ADMIN')`.
+**Completado:** ETAPA 0–3 (base técnica + Prisma + RBAC + auth), ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
 
-**Siguiente foco:** ETAPA 5 — continuar catálogos (**tipos documentales**, series/subseries) tras **dependencias** y **cargos** (`08`, `09`); opcional: refinamientos de shell (menú por permisos, estados de red globales).
+**Completado:** ETAPA 4 (shell UI): layout, rutas protegidas, 403/404, **menú condicionado por rol** y **alertas globales** (API caída / sesión expirada).
+
+**Completado:** ETAPA 7 (archivos con versionado, borrado lógico y trazabilidad), ETAPA 8 (búsqueda + ordenamiento + adjuntos), ETAPA 9 (reportes Excel/PDF).
+
+**Siguiente foco:** ETAPA 10 — Hardening y cierre (checklist final + documentación de entrega).
 
 ---
 

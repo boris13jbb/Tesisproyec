@@ -31,8 +31,16 @@
 |-------|-----------|-----------|
 | `dependencias` | `20260421120000_add_dependencias` | Unidades organizativas (`codigo` único, `nombre`, `activo`). |
 | `cargos` | `20260421140000_add_cargos` | Cargos/puestos; `dependencia_id` opcional (FK a `dependencias`, `ON DELETE SET NULL`). |
+| `tipos_documentales` | `20260421160000_add_tipos_documentales` | Tipologías documentales (`codigo` único, `nombre`, `activo`). |
+| `series` | `20260421170000_add_series_subseries` | Series documentales (`codigo` único, `nombre`, `activo`). |
+| `subseries` | `20260421170000_add_series_subseries` | Subseries documentales (FK `serie_id` a `series`, `codigo` único). |
+| `documentos` | `20260421180000_add_documentos_mvp` | Registro documental MVP (FK a `tipos_documentales`, `subseries`, `users`). |
+| `documento_eventos` | `20260421190000_add_documento_eventos` | Historial/trazabilidad de documentos (eventos `CREADO` / `ACTUALIZADO`). |
+| `documento_archivos` | `20260421193000_add_documento_archivos` | Adjuntos de documentos (MIME, tamaño, sha256, ruta relativa en `storage/`). |
+| `documento_archivo_eventos` | `20260421193000_add_documento_archivos` | Trazabilidad de archivos (eventos `SUBIDO` / `DESCARGADO`). |
+| `documento_archivos.version` | `20260421194500_documento_archivos_versionado` | Versionado incremental por documento + nombre (`unique(documento_id, original_name, version)`). |
 
-Otros catálogos (tipos documentales, series, etc.) se añadirán en migraciones posteriores alineadas al expediente.
+Otros catálogos (vínculos con documentos, etc.) se añadirán en migraciones posteriores alineadas al expediente.
 
 ---
 

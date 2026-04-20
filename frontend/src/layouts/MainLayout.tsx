@@ -19,17 +19,22 @@ const drawerWidth = 260;
 
 const navItems: { to: string; label: string }[] = [
   { to: '/', label: 'Inicio' },
+  { to: '/documentos', label: 'Documentos' },
 ];
 
 const catalogNav: { to: string; label: string }[] = [
   { to: '/catalogos/dependencias', label: 'Dependencias' },
   { to: '/catalogos/cargos', label: 'Cargos' },
+  { to: '/catalogos/tipos-documentales', label: 'Tipos documentales' },
+  { to: '/catalogos/series', label: 'Series' },
+  { to: '/catalogos/subseries', label: 'Subseries' },
 ];
 
 export function MainLayout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
 
   const handleNav = (to: string) => {
     setOpen(false);
@@ -48,14 +53,18 @@ export function MainLayout() {
             <ListItemText primary={item.label} />
           </ListItemButton>
         ))}
-        <ListSubheader sx={{ bgcolor: 'transparent', lineHeight: 2 }}>
-          Catálogos
-        </ListSubheader>
-        {catalogNav.map((item) => (
-          <ListItemButton key={item.to} onClick={() => handleNav(item.to)}>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
+        {isAdmin && (
+          <>
+            <ListSubheader sx={{ bgcolor: 'transparent', lineHeight: 2 }}>
+              Catálogos
+            </ListSubheader>
+            {catalogNav.map((item) => (
+              <ListItemButton key={item.to} onClick={() => handleNav(item.to)}>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            ))}
+          </>
+        )}
       </List>
     </Box>
   );

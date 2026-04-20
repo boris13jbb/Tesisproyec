@@ -37,6 +37,7 @@
 |---------|-----------|
 | [18-seguridad-y-hardening.md](./18-seguridad-y-hardening.md) | Controles, JWT, archivos, ASVS (referencia) |
 | [19-pruebas-y-validaciones.md](./19-pruebas-y-validaciones.md) | Comandos y criterios de prueba |
+| [19-mapeo-iso27001-iso15489-owasp-asvs.md](./19-mapeo-iso27001-iso15489-owasp-asvs.md) | Explicación y mapeo (ISO/ASVS → código) |
 | [20-problemas-detectados.md](./20-problemas-detectados.md) | Registro de incidencias |
 | [21-riesgos-pendientes.md](./21-riesgos-pendientes.md) | Registro de riesgos |
 | [22-changelog-tecnico.md](./22-changelog-tecnico.md) | Historial técnico y sesiones ngrok |

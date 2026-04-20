@@ -113,8 +113,78 @@ async function main() {
     update: {},
   });
 
+  await prisma.tipoDocumental.upsert({
+    where: { codigo: 'MEMO' },
+    create: {
+      codigo: 'MEMO',
+      nombre: 'Memorando',
+      descripcion: 'Tipo documental de ejemplo (seed)',
+      activo: true,
+    },
+    update: {},
+  });
+
+  await prisma.tipoDocumental.upsert({
+    where: { codigo: 'OFICIO' },
+    create: {
+      codigo: 'OFICIO',
+      nombre: 'Oficio',
+      descripcion: 'Tipo documental de ejemplo (seed)',
+      activo: true,
+    },
+    update: {},
+  });
+
+  const serieAdm = await prisma.serie.upsert({
+    where: { codigo: 'ADM' },
+    create: {
+      codigo: 'ADM',
+      nombre: 'Administración',
+      descripcion: 'Serie de ejemplo (seed)',
+      activo: true,
+    },
+    update: {},
+  });
+
+  await prisma.subserie.upsert({
+    where: { codigo: 'ADM-CORR' },
+    create: {
+      codigo: 'ADM-CORR',
+      nombre: 'Correspondencia',
+      descripcion: 'Subserie de ejemplo (seed)',
+      serieId: serieAdm.id,
+      activo: true,
+    },
+    update: {},
+  });
+
+  const tipoMemo = await prisma.tipoDocumental.findUnique({
+    where: { codigo: 'MEMO' },
+  });
+  const subAdmCorr = await prisma.subserie.findUnique({
+    where: { codigo: 'ADM-CORR' },
+  });
+
+  if (tipoMemo && subAdmCorr) {
+    await prisma.documento.upsert({
+      where: { codigo: 'DOC-0001' },
+      create: {
+        codigo: 'DOC-0001',
+        asunto: 'Documento de ejemplo (seed)',
+        descripcion: 'Registro documental inicial para pruebas',
+        fechaDocumento: new Date(),
+        estado: 'REGISTRADO',
+        activo: true,
+        tipoDocumentalId: tipoMemo.id,
+        subserieId: subAdmCorr.id,
+        createdById: user.id,
+      },
+      update: {},
+    });
+  }
+
   console.log(
-    `Seed OK: usuario ${email} con rol ADMIN; dependencias y cargos de ejemplo`,
+    `Seed OK: usuario ${email} con rol ADMIN; catálogos y documento de ejemplo`,
   );
 }
 

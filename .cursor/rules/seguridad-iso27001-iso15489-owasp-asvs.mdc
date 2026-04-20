@@ -1,0 +1,89 @@
+---
+description: Estándar global del proyecto: ISO/IEC 27001:2022 + ISO 15489 + OWASP ASVS
+alwaysApply: true
+---
+
+# Estándar global del proyecto (Seguridad + Registros + ASVS)
+
+Esta regla aplica a **todo el repositorio**. Toda decisión técnica, cambio de código, diseño de datos, API, UI y despliegue debe alinearse con:
+
+- **ISO/IEC 27001:2022**: enfoque de gestión de riesgos, controles de seguridad, trazabilidad y mejora continua.
+- **ISO 15489**: gestión de registros (records) confiables, íntegros, recuperables, con retención y auditoría.
+- **OWASP ASVS**: requisitos verificables de seguridad de aplicaciones (por defecto **ASVS Nivel 2**; **Nivel 3** si hay datos sensibles/financieros/salud, o exposición alta).
+
+## Principios obligatorios (siempre)
+
+- **Seguridad por diseño**: modelar amenazas y definir controles antes de implementar funcionalidades riesgosas.
+- **Mínimo privilegio**: permisos y roles estrictos; evitar “admin por defecto”.
+- **Defensa en profundidad**: UI + backend + base de datos + reglas (si aplica) deben reforzarse mutuamente.
+- **Fail secure**: ante error, denegar por defecto y registrar; no “silenciar” fallos.
+- **No secretos en el repo**: nunca commitear `.env`, credenciales, tokens, llaves privadas, archivos de servicio, ni URLs con tokens.
+- **Trazabilidad y evidencia**: cada acción relevante debe poder auditarse (quién, qué, cuándo, desde dónde, resultado).
+
+## Reglas prácticas de implementación (alineadas a OWASP ASVS)
+
+### Autenticación y sesión (ASVS V2)
+- Usar mecanismos robustos (tokens/refresh con rotación si aplica; expiraciones claras).
+- Bloquear elevación de privilegios; validar rol/permiso en el servidor, no solo en la UI.
+- Proteger endpoints sensibles contra fuerza bruta (rate limit / lockout / backoff).
+
+### Control de acceso (ASVS V4)
+- Validar autorización **en cada operación** (lectura/escritura/actualización/borrado).
+- Diseñar checks por recurso (ownership/tenant) y por acción (scope/permiso).
+- Evitar “IDOR”: no confiar en IDs enviados por cliente sin verificar pertenencia.
+
+### Validación de entrada y salida (ASVS V5)
+- Validar *tipo, rango, formato y presencia* en el borde (API/backend).
+- Sanitizar y/o codificar salidas para prevenir inyección (SQL/NoSQL/HTML/CSV/Log).
+- Evitar construir queries dinámicas sin parámetros.
+
+### Criptografía y secretos (ASVS V6/V7)
+- En reposo: cifrar datos sensibles cuando corresponda (y nunca “casero”).
+- En tránsito: TLS obligatorio para tráfico externo.
+- Hash de contraseñas con algoritmo moderno (p.ej. Argon2/bcrypt/scrypt), con configuración segura.
+- Rotación y almacenamiento seguro de secretos (variables de entorno / secret manager).
+
+### Errores, logging y monitoreo (ASVS V10)
+- No exponer detalles internos (stack traces, queries, claves) al cliente.
+- Logs con contexto y sin PII/secretos; usar IDs de correlación si aplica.
+- Registrar intentos fallidos de auth, cambios de permisos/roles, acciones administrativas.
+
+### Seguridad de datos y privacidad (ASVS V8/V9)
+- Minimizar PII; recolectar solo lo necesario.
+- Definir políticas de retención y borrado seguro cuando aplique.
+- Enmascarar datos sensibles en UI y logs.
+
+## Gestión de registros / evidencia (ISO 15489)
+
+Cuando una funcionalidad genere o modifique información relevante (operaciones, auditoría, reportes, transacciones), debe cumplir:
+
+- **Autenticidad**: poder atribuir la acción a un usuario/servicio y contexto.
+- **Integridad**: proteger contra modificaciones no autorizadas (controles de acceso, inmutabilidad donde aplique).
+- **Fiabilidad**: registros completos, consistentes y con timestamps.
+- **Usabilidad**: recuperación fácil (índices, claves de búsqueda, relaciones, exportación).
+
+Requisitos mínimos para “registros” del sistema:
+- **Estructura**: incluir `actor`, `acción`, `recurso`, `resultado`, `timestamp`, `origen` (p.ej. IP/cliente), `correlación`.
+- **Retención**: definir duración y criterio de eliminación/archivado por tipo de registro.
+- **Auditoría**: distinguir eventos de seguridad (auth, roles, permisos) y eventos de negocio (transacciones).
+
+## Definition of Done (checklist obligatoria por cambio)
+
+Antes de dar por “terminado” cualquier cambio:
+
+- [ ] **Amenaza/riesgo**: el cambio fue evaluado (qué puede salir mal, abuso, datos afectados) y se agregaron controles.
+- [ ] **Acceso**: permisos verificados en backend/servicio (no solo UI). No hay rutas/operaciones expuestas.
+- [ ] **Validación**: inputs validados y salidas seguras (no inyección, no filtración).
+- [ ] **Errores**: manejo controlado; sin `catch {}` vacío; sin mensajes con datos sensibles.
+- [ ] **Logging/Auditoría**: eventos críticos registrados sin PII/secretos y con trazabilidad.
+- [ ] **Datos**: minimización, retención considerada si aplica, y protección de datos sensibles.
+- [ ] **Dependencias**: no se introdujeron librerías inseguras/obsoletas; se revisaron implicaciones.
+- [ ] **Calidad**: compila/build OK y lint/format OK (o se documenta explícitamente qué queda pendiente).
+
+## Entregables esperados cuando el cambio es sensible
+
+Si el cambio toca auth, permisos, pagos, PII, archivos, exportaciones, integraciones externas o infraestructura:
+
+- **Resumen de riesgos y mitigaciones** (2–6 bullets).
+- **Casos de abuso** (al menos 2) y cómo se bloquean.
+- **Plan de prueba**: pasos, resultado esperado y fallos a revisar.

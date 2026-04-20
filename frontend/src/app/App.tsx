@@ -5,11 +5,17 @@ import { useAuth } from '../auth/useAuth';
 import { MainLayout } from '../layouts/MainLayout';
 import { CargosPage } from '../pages/catalogos/CargosPage';
 import { DependenciasPage } from '../pages/catalogos/DependenciasPage';
+import { SeriesPage } from '../pages/catalogos/SeriesPage';
+import { SubseriesPage } from '../pages/catalogos/SubseriesPage';
+import { TiposDocumentalesPage } from '../pages/catalogos/TiposDocumentalesPage';
+import { DocumentoDetallePage } from '../pages/documentos/DocumentoDetallePage';
+import { DocumentosPage } from '../pages/documentos/DocumentosPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
+import { RoleRoute } from '../routes/RoleRoute';
 
 function SessionGate({ children }: { children: ReactNode }) {
   const { ready } = useAuth();
@@ -41,11 +47,21 @@ export function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/" element={<DashboardPage />} />
-            <Route
-              path="/catalogos/dependencias"
-              element={<DependenciasPage />}
-            />
-            <Route path="/catalogos/cargos" element={<CargosPage />} />
+            <Route path="/documentos" element={<DocumentosPage />} />
+            <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
+            <Route element={<RoleRoute roles={['ADMIN']} />}>
+              <Route
+                path="/catalogos/dependencias"
+                element={<DependenciasPage />}
+              />
+              <Route path="/catalogos/cargos" element={<CargosPage />} />
+              <Route
+                path="/catalogos/tipos-documentales"
+                element={<TiposDocumentalesPage />}
+              />
+              <Route path="/catalogos/series" element={<SeriesPage />} />
+              <Route path="/catalogos/subseries" element={<SubseriesPage />} />
+            </Route>
           </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />

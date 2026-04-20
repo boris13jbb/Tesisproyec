@@ -10,7 +10,11 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 
 ## Estado actual
 
-**No implementado.**
+**Completado (ETAPA 6).**  
+- **BD:** `documentos` + tabla de historial `documento_eventos` (trazabilidad de creación/actualización).
+- **API:** `GET /api/v1/documentos` y `GET /api/v1/documentos/:id` (JWT), `POST/PATCH` (ADMIN), `GET /api/v1/documentos/:id/eventos` (JWT).
+- **Frontend:** `/documentos` (listado + registrar), `/documentos/:id` (detalle + edición + historial).
+- **Seed:** `DOC-0001` y eventos asociados al crear/editar.
 
 ## Decisiones técnicas
 
@@ -22,7 +26,8 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 
 ## Tablas relacionadas
 
-- Documento, metadatos, estados, FKs a catálogos.
+- `documentos`: registro documental MVP (FKs a catálogos y usuario).
+- `documento_eventos`: eventos `CREADO` / `ACTUALIZADO` con `cambios_json` y `created_by_id`.
 
 ## Dependencias
 

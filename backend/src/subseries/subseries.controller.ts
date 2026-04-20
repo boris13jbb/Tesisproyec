@@ -1,0 +1,54 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateSubserieDto } from './dto/create-subserie.dto';
+import { UpdateSubserieDto } from './dto/update-subserie.dto';
+import { SubseriesService } from './subseries.service';
+
+@Controller('subseries')
+@UseGuards(JwtAuthGuard)
+export class SubseriesController {
+  constructor(private readonly service: SubseriesService) {}
+
+  @Get()
+  findAll(
+    @Query('incluirInactivos') incluirInactivos?: string,
+    @Query('serieId') serieId?: string,
+  ) {
+    const todos = incluirInactivos === 'true' || incluirInactivos === '1';
+    return this.service.findAll(todos, serieId);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.findOne(id);
+  }
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  create(@Body() dto: CreateSubserieDto) {
+    return this.service.create(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSubserieDto,
+  ) {
+    return this.service.update(id, dto);
+  }
+}

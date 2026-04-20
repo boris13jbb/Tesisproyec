@@ -10,7 +10,7 @@ Jerarquía, códigos únicos, relación con tipos documentales y documentos regi
 
 ## Estado actual
 
-**No implementado.**
+**Parcial (prototipo).** Tablas `series` y `subseries` (jerarquía 1:N). API `GET /api/v1/series` y `GET /api/v1/subseries` (JWT); `POST/PATCH` para ambos (ADMIN). Frontend: `/catalogos/series` y `/catalogos/subseries`. Seed: serie `ADM` y subserie `ADM-CORR`.
 
 ## Decisiones técnicas
 
@@ -22,4 +22,4 @@ Jerarquía, códigos únicos, relación con tipos documentales y documentos regi
 
 ## Tablas relacionadas
 
-- Serie, Subserie, FKs a documentos.
+- `series`, `subseries` (FK `subseries.serie_id` → `series.id`). FKs a documentos se implementarán en la etapa de gestión documental.

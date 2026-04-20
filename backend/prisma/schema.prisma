@@ -22,6 +22,10 @@ model User {
 
   roles         UserRole[]
   refreshTokens RefreshToken[]
+  Documento     Documento[]
+  DocumentoEvento DocumentoEvento[]
+  DocumentoArchivo DocumentoArchivo[]
+  DocumentoArchivoEvento DocumentoArchivoEvento[]
 
   @@map("users")
 }
@@ -78,8 +82,8 @@ model UserRole {
 }
 
 model RolePermission {
-  roleId       String @map("role_id")
-  permissionId String @map("permission_id")
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
@@ -117,4 +121,137 @@ model Cargo {
 
   @@index([dependenciaId])
   @@map("cargos")
+}
+
+/// Tipología documental (catálogo ETAPA 5).
+model TipoDocumental {
+  id          String      @id @default(uuid())
+  codigo      String      @unique @db.VarChar(32)
+  nombre      String      @db.VarChar(200)
+  descripcion String?     @db.VarChar(500)
+  activo      Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  Documento   Documento[]
+
+  @@map("tipos_documentales")
+}
+
+/// Serie documental (catálogo ETAPA 5).
+model Serie {
+  id          String   @id @default(uuid())
+  codigo      String   @unique @db.VarChar(32)
+  nombre      String   @db.VarChar(200)
+  descripcion String?  @db.VarChar(500)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  subseries Subserie[]
+
+  @@map("series")
+}
+
+/// Subserie documental (catálogo ETAPA 5).
+model Subserie {
+  id          String   @id @default(uuid())
+  serieId     String   @map("serie_id")
+  codigo      String   @unique @db.VarChar(32)
+  nombre      String   @db.VarChar(200)
+  descripcion String?  @db.VarChar(500)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  serie     Serie       @relation(fields: [serieId], references: [id], onDelete: Restrict)
+  Documento Documento[]
+
+  @@index([serieId])
+  @@map("subseries")
+}
+
+/// Documento registrado (ETAPA 6 — MVP).
+model Documento {
+  id               String   @id @default(uuid())
+  codigo           String   @unique @db.VarChar(64)
+  asunto           String   @db.VarChar(250)
+  descripcion      String?  @db.VarChar(1000)
+  fechaDocumento   DateTime @map("fecha_documento")
+  estado           String   @default("REGISTRADO") @db.VarChar(32)
+  activo           Boolean  @default(true)
+  tipoDocumentalId String   @map("tipo_documental_id")
+  subserieId       String   @map("subserie_id")
+  createdById      String   @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tipoDocumental TipoDocumental @relation(fields: [tipoDocumentalId], references: [id], onDelete: Restrict)
+  subserie       Subserie       @relation(fields: [subserieId], references: [id], onDelete: Restrict)
+  createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  eventos        DocumentoEvento[]
+  archivos       DocumentoArchivo[]
+
+  @@index([tipoDocumentalId])
+  @@index([subserieId])
+  @@index([createdById])
+  @@map("documentos")
+}
+
+/// Evento de trazabilidad del documento (ETAPA 6).
+model DocumentoEvento {
+  id          String   @id @default(uuid())
+  documentoId String   @map("documento_id")
+  tipo        String   @db.VarChar(32)
+  cambiosJson String?  @map("cambios_json") @db.Text
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  documento Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([documentoId])
+  @@index([createdById])
+  @@map("documento_eventos")
+}
+
+/// Archivo adjunto a un documento (ETAPA 7).
+model DocumentoArchivo {
+  id           String   @id @default(uuid())
+  documentoId  String   @map("documento_id")
+  version      Int      @default(1)
+  originalName String   @map("original_name") @db.VarChar(255)
+  storedName   String   @map("stored_name") @db.VarChar(255)
+  mimeType     String   @map("mime_type") @db.VarChar(127)
+  sizeBytes    Int      @map("size_bytes")
+  sha256       String   @db.VarChar(64)
+  pathRel      String   @map("path_rel") @db.VarChar(500)
+  activo       Boolean  @default(true)
+  createdById  String   @map("created_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  documento Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  eventos   DocumentoArchivoEvento[]
+
+  @@index([documentoId])
+  @@index([createdById])
+  @@unique([documentoId, originalName, version])
+  @@map("documento_archivos")
+}
+
+/// Evento de trazabilidad del archivo (ETAPA 7).
+model DocumentoArchivoEvento {
+  id                String   @id @default(uuid())
+  documentoArchivoId String  @map("documento_archivo_id")
+  tipo              String   @db.VarChar(32)
+  metaJson          String?  @map("meta_json") @db.Text
+  createdById       String   @map("created_by_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  archivo   DocumentoArchivo @relation(fields: [documentoArchivoId], references: [id], onDelete: Cascade)
+  createdBy User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([documentoArchivoId])
+  @@index([createdById])
+  @@map("documento_archivo_eventos")
 }

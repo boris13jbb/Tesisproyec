@@ -64,7 +64,12 @@ export class AuthController {
     const name = this.cookieName();
     const raw = req.cookies?.[name] as string | undefined;
     await this.authService.logout(raw);
-    res.clearCookie(name, { path: '/' });
+    res.clearCookie(name, {
+      path: '/',
+      httpOnly: true,
+      secure: this.config.get('NODE_ENV') === 'production',
+      sameSite: 'lax',
+    });
   }
 
   @Get('me')

@@ -10,7 +10,7 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 
 ## Estado actual
 
-**Implementación:** pendiente (backend sin JWT/Prisma aún). Este documento es la **especificación de referencia** para iteraciones futuras.
+**Implementación:** aplicada en el MVP. Este documento se mantiene como **referencia** y registro de controles implementados.
 
 ## Decisiones técnicas
 
@@ -22,6 +22,7 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 | Errores | Mensajes genéricos al cliente; no filtrar stack ni detalles internos |
 | Archivos | Lista blanca MIME/extensión, tamaño máximo, nombres seguros; servir vía API con permiso |
 | Auditoría | Eventos críticos (login, cambios sensibles, descarga) en modelo dedicado |
+| Headers | **Helmet** para headers de seguridad; deshabilitar `x-powered-by` |
 | HTTPS local | Opcional; **ngrok** aporta HTTPS en demos temporales |
 
 ## Estructura prevista (código)
@@ -34,6 +35,17 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 1. Login → access + Set-Cookie refresh → requests con `Authorization: Bearer`.
 2. Refresh → nuevo access; rotación de refresh según diseño.
 3. Logout → invalidar refresh en servidor (lista/bloqueo) cuando exista persistencia.
+
+## Controles implementados (resumen)
+
+- **Headers seguridad**: Helmet en `backend/src/main.ts`.
+- **Cookies refresh**: `HttpOnly`, `secure` en producción, `sameSite=lax`, `path=/`; `clearCookie` con mismos flags.
+- **Validación API**: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
+- **RBAC por rol**: `RolesGuard` + `@Roles('ADMIN')` en mutaciones y reportes.
+- **Archivos**: lista blanca MIME, tamaño máximo, nombres seguros, descarga controlada vía API.
+- **Trazabilidad**:
+  - `documento_eventos` (CREADO/ACTUALIZADO)
+  - `documento_archivo_eventos` (SUBIDO/DESCARGADO/ELIMINADO)
 
 ## Controles OWASP ASVS (resumen)
 

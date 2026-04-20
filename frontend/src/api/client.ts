@@ -8,6 +8,7 @@ import {
   notifySessionLost,
   setAccessToken,
 } from '../auth/accessToken';
+import { notifyGlobalError } from '../app/notifications';
 
 const baseURL =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
@@ -33,6 +34,11 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
+    if (!error.response) {
+      notifyGlobalError(
+        'No se pudo conectar con la API. Verifica que el backend esté levantado.',
+      );
+    }
     const status = error.response?.status;
     const original = error.config as RetryConfig | undefined;
     if (!original || status !== 401) {
@@ -43,6 +49,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
     if (original._retry) {
+      notifyGlobalError('Tu sesión expiró. Vuelve a iniciar sesión.');
       notifySessionLost();
       return Promise.reject(error);
     }
@@ -58,6 +65,7 @@ apiClient.interceptors.response.use(
       return apiClient(original);
     } catch {
       setAccessToken(null);
+      notifyGlobalError('Tu sesión expiró. Vuelve a iniciar sesión.');
       notifySessionLost();
       return Promise.reject(error);
     }
