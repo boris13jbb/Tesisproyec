@@ -10,8 +10,10 @@ import {
 } from '../auth/accessToken';
 import { notifyGlobalError } from '../app/notifications';
 
+// En dev, URL relativa + proxy en `vite.config` evita mixed content (p. ej. UI en https://*.ngrok-free.app y API en http://localhost).
+const envUrl = import.meta.env.VITE_API_URL?.trim();
 const baseURL =
-  import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
+  envUrl && envUrl.length > 0 ? envUrl : '/api/v1';
 
 export const apiClient = axios.create({
   baseURL,

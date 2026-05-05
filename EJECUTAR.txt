@@ -1,0 +1,23 @@
+RUTA:
+C:\Users\BRS\Documents\Tesisproyec
+
+PARA EJECUTAR EL SISTEMA DE GERTOR DE ARCHIVOS
+
+cd "c:\Users\BRS\Documents\Tesisproyec\backend" && npm run start:dev
+
+cd "c:\Users\BRS\Documents\Tesisproyec\frontend" && npm run dev
+
+ALTERNATIVA RECOMENDADA (Windows, sin depender de pwsh.exe):
+
+- Doble click en:
+  - dev-all.cmd (levanta backend y frontend)
+  - dev-backend.cmd (solo backend)
+  - dev-frontend.cmd (solo frontend)
+
+usuario:
+
+admin@local.test
+
+contraceña:
+
+AdminSeguro2026!

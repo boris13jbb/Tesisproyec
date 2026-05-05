@@ -1,0 +1,273 @@
+# Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
+
+**Versión del manual:** 2026-05-05  
+**Audiencia:** personal institucional (usuario final), administradores (ADMIN) y evaluadores (pruebas).  
+
+---
+
+## 0. Propósito del manual
+
+Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GADPR-LM desde el primer ingreso hasta el registro, consulta, adjuntos y trazabilidad de documentos.
+
+> Importante: varias acciones están restringidas por rol. En este MVP, el rol clave es `ADMIN`.
+
+---
+
+## 1. Requisitos previos (antes de usar)
+
+### 1.1 Acceso
+
+- Tener un usuario activo en el sistema.
+- Tener credenciales válidas (correo y contraseña).
+
+### 1.2 Navegador recomendado
+
+- Chrome / Edge actualizado (modo normal, sin extensiones que bloqueen cookies).
+
+### 1.3 URL del sistema
+
+- En local: `http://localhost:5173/`
+- El backend debe estar disponible en `http://localhost:3000/api/v1`
+
+---
+
+## 2. Ingreso al sistema (Inicio de sesión)
+
+### 2.1 Abrir la pantalla de login
+
+1. Abre el navegador.
+2. Ingresa a `http://localhost:5173/login`.
+
+### 2.2 Iniciar sesión
+
+1. En **Correo**, escribe tu correo institucional.
+2. En **Contraseña**, escribe tu contraseña.
+3. Presiona **Entrar**.
+
+**Resultado esperado**
+- El sistema te redirige al **Panel principal**.
+- En la barra superior verás tu correo y la indicación de **sesión activa**.
+
+**Posibles fallos**
+- **“Credenciales inválidas…”**: correo/contraseña incorrectos o usuario inactivo.
+- **“No se pudo conectar con la API…”**: backend no levantado o URL mal configurada.
+
+**Siguiente paso**
+- Verifica tu rol y navega a Documentos.
+
+---
+
+## 3. Recuperación de credenciales (si olvidaste tu contraseña)
+
+### 3.1 Solicitar restablecimiento
+
+1. En `/login`, presiona **¿Olvidaste tu contraseña?**
+2. En la pantalla **Recuperación de credenciales**, ingresa tu correo.
+3. Presiona **Solicitar restablecimiento**.
+
+**Resultado esperado**
+- El sistema muestra un mensaje genérico: “Si el correo está registrado…”.
+
+### 3.2 Restablecer contraseña
+
+1. Abre la pantalla `/restablecer`.
+2. Ingresa el **token** y la **nueva contraseña** (mínimo 8 caracteres).
+3. Presiona **Restablecer**.
+
+**Resultado esperado**
+- Mensaje de éxito y posibilidad de volver a iniciar sesión.
+
+---
+
+## 4. Panel principal (Inicio)
+
+### 4.1 Qué verás
+
+- **Accesos rápidos**: atajos hacia Documentos y Catálogos.
+- **Estado del servicio**: confirmación de API y base de datos.
+- **Comprobación de rol administrador** (si aplica): indicador de acceso ADMIN.
+
+### 4.2 Menú lateral (navegación)
+
+- **Inicio**
+- **Documentos**
+- **Administración → Usuarios** (solo `ADMIN`)
+- **Catálogos** (solo `ADMIN`):
+  - Dependencias
+  - Cargos
+  - Tipos documentales
+  - Series
+  - Subseries
+
+---
+
+## 5. Administración (solo ADMIN)
+
+### 5.1 Gestión de usuarios (crear/editar/desactivar/reset)
+
+1. En el menú lateral, entra a **Administración → Usuarios**.
+2. Para crear un usuario:
+   - Presiona **Crear usuario**
+   - Completa **Correo**, **Contraseña temporal**, (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles**
+   - Presiona **Crear**
+3. Para editar:
+   - En el usuario, presiona **Editar**
+   - Ajusta roles/dependencia/cargo y presiona **Guardar**
+4. Para activar/desactivar:
+   - Presiona **Activar** o **Desactivar**
+5. Para restablecer contraseña:
+   - Presiona **Reset pass**
+   - Ingresa nueva contraseña y confirma
+
+**Resultado esperado**
+- El listado se actualiza con los cambios.
+
+**Fallos a revisar**
+- `403`: tu usuario no tiene rol `ADMIN`.
+- Error de validación: correo duplicado o contraseña corta.
+
+---
+
+## 6. Catálogos (solo ADMIN)
+
+Los catálogos son requisitos para registrar documentos correctamente.
+
+### 6.1 Dependencias
+
+1. Menú → **Catálogos → Dependencias**
+2. Crea/edita una dependencia (código único y nombre).
+
+### 6.2 Cargos
+
+1. Menú → **Catálogos → Cargos**
+2. Crea/edita un cargo y (opcionalmente) asígnalo a una dependencia.
+
+### 6.3 Tipos documentales
+
+1. Menú → **Catálogos → Tipos documentales**
+2. Crea/edita tipos (ej. MEMO, OFICIO).
+
+### 6.4 Series y Subseries
+
+1. Menú → **Catálogos → Series**
+2. Crea series.
+3. Menú → **Catálogos → Subseries**
+4. Crea subseries y vincúlalas a una serie.
+
+**Resultado esperado**
+- Los catálogos quedan disponibles para el registro documental.
+
+---
+
+## 7. Registro documental (Documentos)
+
+### 7.1 Abrir el módulo Documentos
+
+1. Menú → **Documentos**.
+
+### 7.2 Buscar documentos (simple y avanzada)
+
+En la barra de filtros puedes usar:
+- Texto libre (`q`) por código/asunto/descr.
+- Estado
+- Tipo documental
+- Serie/Subserie
+- Rango de fechas
+- Filtros por adjuntos (nombre, MIME, sha256)
+
+**Acción**
+1. Ajusta filtros.
+2. Presiona **Aplicar**.
+
+**Resultado esperado**
+- Lista paginada con resultados.
+
+### 7.3 Crear documento (solo ADMIN)
+
+1. En **Documentos**, presiona **Nuevo documento** (o botón equivalente).
+2. Completa:
+   - Código (único)
+   - Asunto
+   - Descripción (opcional)
+   - Fecha
+   - Tipo documental
+   - Subserie (clasificación)
+3. Presiona **Crear**.
+
+**Resultado esperado**
+- El documento aparece en el listado y se puede abrir el detalle.
+
+---
+
+## 8. Detalle del documento (donde se adjuntan archivos)
+
+### 8.1 Abrir el detalle
+
+1. En el listado de Documentos, haz clic sobre un registro.
+2. El sistema navega a `/documentos/:id`.
+
+### 8.2 Sección “Archivos” (adjuntos)
+
+> Esta sección está dentro del **detalle** del documento. No aparece en Inicio.
+
+#### 8.2.1 Subir archivo (solo ADMIN)
+
+1. Dentro del detalle del documento, ubica la tarjeta **Archivos**.
+2. Presiona **Subir archivo**.
+3. Selecciona un archivo permitido (máx 10MB).
+
+**Resultado esperado**
+- El archivo aparece como `v1` (o `v2`, `v3` si ya existía el mismo nombre).
+
+#### 8.2.2 Descargar archivo (JWT)
+
+1. En el archivo listado, presiona **Descargar**.
+
+**Resultado esperado**
+- Se descarga el binario y se registra un evento `DESCARGADO`.
+
+#### 8.2.3 Ver historial del archivo (JWT)
+
+1. Presiona **Historial**.
+
+**Resultado esperado**
+- Se muestran eventos `SUBIDO/DESCARGADO/ELIMINADO` con fecha y usuario.
+
+#### 8.2.4 Eliminar archivo (borrado lógico, solo ADMIN)
+
+1. Presiona **Eliminar**.
+2. Confirma.
+
+**Resultado esperado**
+- El archivo se marca inactivo (no se borra físicamente por defecto) y aparece un evento `ELIMINADO`.
+
+---
+
+## 9. Historial del documento (trazabilidad)
+
+En el detalle del documento existe una tarjeta **Historial**:
+- Muestra eventos de creación y actualización del documento.
+- Sirve como evidencia de trazabilidad (ISO 15489).
+
+---
+
+## 10. Cierre de sesión
+
+1. En la barra superior, abre el menú del usuario.
+2. Presiona **Cerrar sesión**.
+
+**Resultado esperado**
+- Se limpia la sesión y vuelves a `/login`.
+
+---
+
+## 11. Checklist de uso “de principio a fin” (resumen rápido)
+
+1. Login
+2. (ADMIN) Crear catálogos: dependencias/cargos/tipos/series/subseries
+3. (ADMIN) Crear documento
+4. Abrir detalle del documento
+5. (ADMIN) Subir archivo y generar versión
+6. Descargar y revisar historial
+7. Logout
+

@@ -30,11 +30,18 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 | **3** | Seguridad y auth | Usuarios, roles, permisos, JWT + refresh HttpOnly, Argon2id, guards, auditoría de login |
 | **4** | Navegación y shell UI | Layout, dashboard, menú, 403/404, estados de error/red |
 | **5** | Catálogos | Dependencias, cargos, tipos documentales, series/subseries, estados, configuración |
-| **6** | Gestión documental | CRUD documento, metadatos, estados, historial |
+| **6** | Gestión documental | CRUD documento, metadatos, estados, historial (**incluye trazabilidad mínima por dominio**) |
 | **7** | Archivos | Subida, validación, `storage/`, versiones, descarga con trazabilidad |
 | **8** | Búsqueda | Simple y avanzada, filtros, paginación, permisos por rol |
 | **9** | Reportes | ExcelJS, pdfkit, permisos |
 | **10** | Hardening y cierre | Limpieza, revisión seguridad, documentación final, backlog |
+
+### Nota sobre “6A” (sub-entregable)
+
+En el expediente y en evaluaciones académicas suele aparecer “**6A**” como sub-entregable asociado a **trazabilidad/auditoría mínima** dentro de Gestión Documental.  
+En este proyecto se considera “6A” como **toda evidencia verificable de historial de cambios del documento** (y su atribución a usuario), implementada mediante `documento_eventos` y sus endpoints asociados (ver `12-modulo-documentos.md` y `19-mapeo-iso27001-iso15489-owasp-asvs.md`).
+
+La **auditoría transversal institucional** (bitácora central unificada para seguridad/administración) se gestiona como extensión posterior dentro del módulo `15-modulo-auditoria.md` y se robustece en ETAPA 10.
 
 ## Decisiones técnicas
 

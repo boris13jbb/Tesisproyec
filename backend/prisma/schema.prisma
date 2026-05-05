@@ -16,17 +16,24 @@ model User {
   passwordHash String   @map("password_hash") @db.VarChar(255)
   nombres      String?  @db.VarChar(120)
   apellidos    String?  @db.VarChar(120)
+  dependenciaId String? @map("dependencia_id")
+  cargoId       String? @map("cargo_id")
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   roles         UserRole[]
   refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  dependencia   Dependencia? @relation(fields: [dependenciaId], references: [id], onDelete: SetNull)
+  cargo         Cargo?       @relation(fields: [cargoId], references: [id], onDelete: SetNull)
   Documento     Documento[]
   DocumentoEvento DocumentoEvento[]
   DocumentoArchivo DocumentoArchivo[]
   DocumentoArchivoEvento DocumentoArchivoEvento[]
 
+  @@index([dependenciaId])
+  @@index([cargoId])
   @@map("users")
 }
 
@@ -43,6 +50,27 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/// Token de recuperación de credenciales (flujo "olvidé mi contraseña").
+/// - Se almacena solo el hash SHA-256 del token (nunca el token en claro).
+/// - El token es de un solo uso (`used_at`) y puede revocarse (`revoked_at`).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  revokedAt DateTime? @map("revoked_at")
+  requestedIp String? @map("requested_ip") @db.VarChar(64)
+  userAgent  String?  @map("user_agent") @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model Role {
@@ -102,6 +130,7 @@ model Dependencia {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   cargos Cargo[]
+  users  User[]
 
   @@map("dependencias")
 }
@@ -118,6 +147,7 @@ model Cargo {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   dependencia Dependencia? @relation(fields: [dependenciaId], references: [id], onDelete: SetNull)
+  users       User[]
 
   @@index([dependenciaId])
   @@map("cargos")

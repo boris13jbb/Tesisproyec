@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  Container,
   Paper,
   Table,
   TableBody,
@@ -17,7 +18,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useState } from 'react';
@@ -25,6 +25,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { EmptyState } from '../../components/EmptyState';
+import { PageHeader } from '../../components/PageHeader';
 
 export type DependenciaRow = {
   id: string;
@@ -146,14 +148,17 @@ export function DependenciasPage() {
   });
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Dependencias
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Catálogo de unidades organizativas. La edición y el alta requieren rol{' '}
-        <strong>ADMIN</strong>.
-      </Typography>
+    <>
+      <Container maxWidth="lg">
+        <PageHeader
+          title="Dependencias"
+          description={
+            <>
+              Catálogo de unidades organizativas. La edición y el alta requieren rol{' '}
+              <strong>ADMIN</strong>.
+            </>
+          }
+        />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -221,14 +226,15 @@ export function DependenciasPage() {
               ))}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4}>
-                  No hay registros.
+                <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
+                  <EmptyState dense title="No hay dependencias en este listado." />
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
+      </Container>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Nueva dependencia</DialogTitle>
@@ -310,6 +316,6 @@ export function DependenciasPage() {
           </DialogActions>
         </Box>
       </Dialog>
-    </Box>
+    </>
   );
 }

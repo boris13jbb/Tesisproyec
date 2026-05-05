@@ -10,6 +10,7 @@ import { SeriesModule } from './series/series.module';
 import { SubseriesModule } from './subseries/subseries.module';
 import { TiposDocumentalesModule } from './tipos-documentales/tipos-documentales.module';
 import { ReportesModule } from './reportes/reportes.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ReportesModule } from './reportes/reportes.module';
     }),
     PrismaModule,
     AuthModule,
+    UsuariosModule,
     DependenciasModule,
     CargosModule,
     TiposDocumentalesModule,

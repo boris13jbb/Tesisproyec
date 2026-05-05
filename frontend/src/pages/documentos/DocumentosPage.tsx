@@ -10,6 +10,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  Container,
   InputLabel,
   MenuItem,
   Paper,
@@ -30,6 +31,8 @@ import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { EmptyState } from '../../components/EmptyState';
+import { PageHeader } from '../../components/PageHeader';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -363,22 +366,29 @@ export function DocumentosPage() {
   }, [subseries]);
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Documentos
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Registro documental (MVP). Creación/edición está restringida a{' '}
-        <strong>ADMIN</strong> por ahora.
-      </Typography>
+    <>
+      <Container maxWidth="lg">
+        <PageHeader
+          title="Documentos"
+          description={
+            <>
+              Registro documental (MVP). Creación/edición está restringida a{' '}
+              <strong>ADMIN</strong> por ahora.
+            </>
+          }
+        />
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Filtros y exportación
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
         <FormControlLabel
           control={
             <Checkbox
@@ -512,7 +522,8 @@ export function DocumentosPage() {
             Registrar documento
           </Button>
         )}
-      </Box>
+          </Box>
+        </Paper>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Resultados: <strong>{total}</strong> — Página <strong>{page}</strong>
@@ -579,7 +590,13 @@ export function DocumentosPage() {
               ))}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6}>No hay registros.</TableCell>
+                <TableCell colSpan={6} sx={{ py: 0 }}>
+                  <EmptyState
+                    dense
+                    title="No hay documentos que coincidan con los criterios."
+                    description="Pruebe a limpiar filtros o registre un nuevo documento si tiene permiso."
+                  />
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -602,6 +619,7 @@ export function DocumentosPage() {
           Siguiente
         </Button>
       </Box>
+      </Container>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Registrar documento</DialogTitle>
@@ -687,7 +705,7 @@ export function DocumentosPage() {
           </DialogActions>
         </Box>
       </Dialog>
-    </Box>
+    </>
   );
 }
 

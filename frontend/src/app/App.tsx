@@ -11,9 +11,12 @@ import { TiposDocumentalesPage } from '../pages/catalogos/TiposDocumentalesPage'
 import { DocumentoDetallePage } from '../pages/documentos/DocumentoDetallePage';
 import { DocumentosPage } from '../pages/documentos/DocumentosPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { UsuariosPage } from '../pages/admin/UsuariosPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
+import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { RoleRoute } from '../routes/RoleRoute';
 
@@ -43,6 +46,8 @@ export function App() {
     <SessionGate>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/recuperar" element={<ForgotPasswordPage />} />
+        <Route path="/restablecer" element={<ResetPasswordPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
@@ -50,6 +55,7 @@ export function App() {
             <Route path="/documentos" element={<DocumentosPage />} />
             <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
             <Route element={<RoleRoute roles={['ADMIN']} />}>
+              <Route path="/admin/usuarios" element={<UsuariosPage />} />
               <Route
                 path="/catalogos/dependencias"
                 element={<DependenciasPage />}

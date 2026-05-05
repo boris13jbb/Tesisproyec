@@ -6,36 +6,91 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 
 ## Alcance
 
-Perfil, asignación a dependencia/cargo, estado activo/inactivo.
+- **Administración de usuarios (ADMIN):** alta, edición, **activación/desactivación**, asignación de **roles**, asignación de **dependencia** y **cargo**, y restablecimiento de contraseña (temporal) con invalidación de sesiones.
+- **Perfil propio (usuario final):** se resuelve vía `GET /api/v1/auth/me` (sin edición en este MVP).
 
 ## Estado actual
 
-**No implementado.**
+**Implementado (prototipo, completo para el alcance MVP).**
+
+- **Backend:** módulo `UsuariosModule` con endpoints administrativos bajo JWT + rol `ADMIN`.
+  - `GET /api/v1/usuarios` (ADMIN)
+  - `GET /api/v1/usuarios/:id` (ADMIN)
+  - `POST /api/v1/usuarios` (ADMIN)
+  - `PATCH /api/v1/usuarios/:id` (ADMIN)
+  - `POST /api/v1/usuarios/:id/reset-password` (ADMIN)
+- **Frontend:** pantalla `/admin/usuarios` (ADMIN) con:
+  - listado,
+  - creación,
+  - edición (roles/dependencia/cargo),
+  - activar/desactivar,
+  - restablecer contraseña.
+
+**Notas de seguridad (ASVS):**
+- No se expone `password_hash`.
+- Email se normaliza a minúsculas.
+- Contraseñas se almacenan con **Argon2id**.
+- La gestión de usuarios está restringida a `ADMIN` (mínimo privilegio).
+- Restablecer contraseña **revoca refresh tokens** (fuerza re-login).
 
 ## Decisiones técnicas
 
 - Hash Argon2id; no exponer hash ni datos innecesarios en API.
+- `dependencia_id` y `cargo_id` son **opcionales** y usan `ON DELETE SET NULL` para no bloquear el catálogo.
 
 ## Estructura prevista
 
-- Backend: `UsersModule`; DTOs con validación.
+- Backend: `UsuariosModule`; DTOs con validación.
 - Frontend: listado, formulario, detalle (según permisos).
 
-## Endpoints (previstos)
+## Endpoints (implementados)
 
-- CRUD bajo permiso administrativo; `GET /me` para perfil actual.
+- `GET /api/v1/usuarios` (ADMIN) — lista usuarios (sin hash) con roles y referencias.
+- `GET /api/v1/usuarios/:id` (ADMIN) — detalle.
+- `POST /api/v1/usuarios` (ADMIN) — crea usuario:
+  - body: `{ email, password, nombres?, apellidos?, activo?, dependenciaId?, cargoId?, roles? }`
+  - regla: si `roles` se omite → asigna `USUARIO`
+- `PATCH /api/v1/usuarios/:id` (ADMIN) — actualiza usuario:
+  - permite cambiar `email`, `nombres`, `apellidos`, `activo`, `dependenciaId`, `cargoId`, `roles`
+  - si se envía `roles` → reemplaza asignación actual
+- `POST /api/v1/usuarios/:id/reset-password` (ADMIN) — restablece contraseña y revoca sesiones.
+- Perfil actual: `GET /api/v1/auth/me` (JWT).
 
 ## Pantallas
 
-- Lista usuarios, crear/editar usuario, perfil propio.
+- `/admin/usuarios` (ADMIN): lista, crear, editar, activar/desactivar, reset pass.
 
 ## Tablas relacionadas
 
-- Pendiente de modelo Prisma (`User`, relaciones a rol, dependencia, cargo).
+- `users` (incluye `dependencia_id`, `cargo_id`), `roles`, `user_roles`.
+- Catálogos usados por UI: `dependencias`, `cargos`.
+
+## Campos principales (UI/API)
+
+- **Email** (único, normalizado a minúsculas)
+- **Nombres / Apellidos**
+- **Dependencia** (opcional)
+- **Cargo** (opcional)
+- **Roles** (`ADMIN`, `USUARIO`)
+- **Activo** (habilitado / inhabilitado)
+
+## Validaciones
+
+- `email`: formato válido.
+- `password` / `newPassword`: mínimo 8 caracteres.
+- `dependenciaId`, `cargoId`: UUID (opcional).
+- `roles`: lista no vacía cuando se envía; valida contra catálogo de `roles`.
 
 ## Permisos
 
 - Típicamente solo administradores gestionan terceros; usuario edita perfil limitado.
+
+## Eventos auditables (pendiente de bitácora central)
+
+Cuando exista `audit_logs` (ver `15-modulo-auditoria.md`), registrar:
+- `USER_CREATED`, `USER_UPDATED`, `USER_ACTIVATED`, `USER_DEACTIVATED`
+- `USER_ROLES_CHANGED`
+- `USER_PASSWORD_RESET` (sin almacenar contraseñas)
 
 ## Dependencias
 

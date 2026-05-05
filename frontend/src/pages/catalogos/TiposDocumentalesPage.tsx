@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,7 +18,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useState } from 'react';
@@ -25,6 +25,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { EmptyState } from '../../components/EmptyState';
+import { PageHeader } from '../../components/PageHeader';
 
 export type TipoDocumentalRow = {
   id: string;
@@ -147,14 +149,16 @@ export function TiposDocumentalesPage() {
   });
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Tipos documentales
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Catálogo de tipologías documentales. Alta y edición requieren rol{' '}
-        <strong>ADMIN</strong>.
-      </Typography>
+    <>
+      <Container maxWidth="lg">
+        <PageHeader
+          title="Tipos documentales"
+          description={
+            <>
+              Catálogo de tipologías documentales. Alta y edición requieren rol <strong>ADMIN</strong>.
+            </>
+          }
+        />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -226,14 +230,15 @@ export function TiposDocumentalesPage() {
               ))}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4}>
-                  No hay registros.
+                <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
+                  <EmptyState dense title="No hay tipos documentales en este listado." />
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
+      </Container>
 
       <Dialog
         open={createOpen}
@@ -324,7 +329,7 @@ export function TiposDocumentalesPage() {
           </DialogActions>
         </Box>
       </Dialog>
-    </Box>
+    </>
   );
 }
 

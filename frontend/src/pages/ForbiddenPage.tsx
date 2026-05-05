@@ -1,21 +1,20 @@
-import { Button, Container, Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { AuthLayout } from '../layouts/AuthLayout';
 
 export function ForbiddenPage() {
   return (
-    <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
-      <Typography variant="h3" component="h1" gutterBottom>
-        403
+    <AuthLayout title="Acceso denegado">
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        No tiene permiso para acceder a este recurso. Si cree que es un error, contacte al
+        administrador del sistema.
       </Typography>
-      <Typography variant="h6" color="text.secondary" gutterBottom>
-        No tienes permiso para acceder a este recurso.
+      <Typography variant="overline" color="text.secondary" sx={{ mb: 2, letterSpacing: 1, display: 'block' }}>
+        Código 403
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Si crees que es un error, contacta al administrador del sistema.
-      </Typography>
-      <Button component={RouterLink} to="/" variant="contained">
+      <Button component={RouterLink} to="/" variant="contained" color="primary" fullWidth size="large">
         Volver al inicio
       </Button>
-    </Container>
+    </AuthLayout>
   );
 }

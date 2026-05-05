@@ -4,6 +4,8 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -20,10 +22,13 @@ import {
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { EmptyState } from '../../components/EmptyState';
+import { PageHeader } from '../../components/PageHeader';
+import { useRegisterBreadcrumbDetail } from '../../layouts/useBreadcrumbDetail';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -105,10 +110,11 @@ export function DocumentoDetallePage() {
   const { user } = useAuth();
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
 
+  const [doc, setDoc] = useState<DocumentoRow | null>(null);
+
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
 
-  const [doc, setDoc] = useState<DocumentoRow | null>(null);
   const [eventos, setEventos] = useState<DocumentoEventoRow[]>([]);
   const [archivos, setArchivos] = useState<DocumentoArchivoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +125,8 @@ export function DocumentoDetallePage() {
   const [archivoEventosOpen, setArchivoEventosOpen] = useState(false);
   const [archivoEventosTitle, setArchivoEventosTitle] = useState<string>('');
   const [archivoEventos, setArchivoEventos] = useState<DocumentoArchivoEventoRow[]>([]);
+
+  useRegisterBreadcrumbDetail(doc?.codigo);
 
   const subserieLabel = useMemo(() => {
     const map = new Map<string, string>();
@@ -329,45 +337,54 @@ export function DocumentoDetallePage() {
   }
 
   return (
-    <Box>
-      <Box sx={{ mb: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Documento
-        </Typography>
-        {doc && (
-          <Chip
-            size="small"
-            color={doc.activo ? 'success' : 'default'}
-            label={doc.activo ? 'Activo' : 'Inactivo'}
-          />
+    <>
+      <Container maxWidth="lg">
+        <PageHeader
+          title="Documento"
+          description={
+            doc ? (
+              <>
+                <strong>{doc.codigo}</strong>
+                {' — '}
+                {doc.asunto}
+              </>
+            ) : undefined
+          }
+          backTo={{ to: '/documentos', label: 'Volver al listado' }}
+          actions={
+            doc ? (
+              <Chip
+                size="small"
+                color={doc.activo ? 'success' : 'default'}
+                label={doc.activo ? 'Activo' : 'Inactivo'}
+              />
+            ) : null
+          }
+        />
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
         )}
-      </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        <Button component={RouterLink} to="/documentos" size="small">
-          Volver al listado
-        </Button>
-      </Typography>
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress aria-label="Cargando documento" />
+          </Box>
+        )}
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        {!loading && !doc && (
+          <Alert severity="warning">
+            No hay información para mostrar.{' '}
+            <Button onClick={() => navigate('/documentos')} size="small">
+              Ir al listado
+            </Button>
+          </Alert>
+        )}
 
-      {loading && <Typography>Cargando…</Typography>}
-
-      {!loading && !doc && (
-        <Alert severity="warning">
-          No hay información para mostrar.{' '}
-          <Button onClick={() => navigate('/documentos')} size="small">
-            Ir al listado
-          </Button>
-        </Alert>
-      )}
-
-      {!loading && doc && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {!loading && doc && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Box
               sx={{
@@ -494,7 +511,10 @@ export function DocumentoDetallePage() {
             )}
 
             {archivos.length === 0 ? (
-              <Typography variant="body2">Sin adjuntos.</Typography>
+              <EmptyState
+                title="Sin archivos adjuntos"
+                description="Aún no se ha cargado ningún documento digital asociado a este registro."
+              />
             ) : (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {archivos.map((a) => (
@@ -547,7 +567,11 @@ export function DocumentoDetallePage() {
             </Typography>
 
             {eventos.length === 0 ? (
-              <Typography variant="body2">Sin eventos.</Typography>
+              <EmptyState
+                dense
+                title="Sin eventos de auditoría en el documento."
+                description="Los cambios futuros aparecerán aquí."
+              />
             ) : (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {eventos.map((ev) => (
@@ -596,7 +620,8 @@ export function DocumentoDetallePage() {
             )}
           </Paper>
         </Box>
-      )}
+        )}
+      </Container>
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Editar documento</DialogTitle>
@@ -724,7 +749,7 @@ export function DocumentoDetallePage() {
         <DialogTitle>Historial del archivo — {archivoEventosTitle}</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           {archivoEventos.length === 0 ? (
-            <Typography variant="body2">Sin eventos.</Typography>
+            <EmptyState dense title="Sin eventos registrados para este archivo." />
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {archivoEventos.map((ev) => (
@@ -776,7 +801,7 @@ export function DocumentoDetallePage() {
           <Button onClick={() => setArchivoEventosOpen(false)}>Cerrar</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 }
 

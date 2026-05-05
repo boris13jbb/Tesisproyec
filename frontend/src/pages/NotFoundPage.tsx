@@ -1,19 +1,20 @@
-import { Container, Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { Link } from '@mui/material';
+import { AuthLayout } from '../layouts/AuthLayout';
 
 export function NotFoundPage() {
   return (
-    <Container maxWidth="sm" sx={{ py: 6, textAlign: 'center' }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        404
+    <AuthLayout title="Página no encontrada">
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        La dirección solicitada no existe o ha sido movida. Compruebe la URL o utilice el menú del
+        sistema.
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-        Página no encontrada.
+      <Typography variant="overline" color="text.secondary" sx={{ mb: 2, letterSpacing: 1, display: 'block' }}>
+        Código 404
       </Typography>
-      <Link component={RouterLink} to="/" underline="hover">
-        Volver al inicio
-      </Link>
-    </Container>
+      <Button component={RouterLink} to="/" variant="contained" color="primary" fullWidth size="large">
+        Ir al inicio
+      </Button>
+    </AuthLayout>
   );
 }

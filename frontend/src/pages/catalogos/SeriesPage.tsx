@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,7 +18,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useState } from 'react';
@@ -25,6 +25,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { EmptyState } from '../../components/EmptyState';
+import { PageHeader } from '../../components/PageHeader';
 
 export type SerieRow = {
   id: string;
@@ -139,14 +141,16 @@ export function SeriesPage() {
   });
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Series
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Catálogo del cuadro de clasificación. Alta y edición requieren rol{' '}
-        <strong>ADMIN</strong>.
-      </Typography>
+    <>
+      <Container maxWidth="lg">
+        <PageHeader
+          title="Series"
+          description={
+            <>
+              Catálogo del cuadro de clasificación. Alta y edición requieren rol <strong>ADMIN</strong>.
+            </>
+          }
+        />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -210,12 +214,15 @@ export function SeriesPage() {
               ))}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4}>No hay registros.</TableCell>
+                <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
+                  <EmptyState dense title="No hay series en este listado." />
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
+      </Container>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Nueva serie</DialogTitle>
@@ -292,7 +299,7 @@ export function SeriesPage() {
           </DialogActions>
         </Box>
       </Dialog>
-    </Box>
+    </>
   );
 }
 

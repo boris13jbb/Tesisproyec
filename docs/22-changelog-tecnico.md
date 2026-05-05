@@ -168,3 +168,16 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 - Endpoints / alcance: ...
 - Cierre: (hora / túnel detenido sí/no)
 ```
+
+### Plantilla — Sesión cloudflared (copiar y rellenar)
+
+```
+### YYYY-MM-DD — cloudflared — Frontend (5173)
+- Comando: `cloudflared tunnel --url http://localhost:5173`
+- URL pública: https://...
+- Propósito: (demo, prueba móvil, revisión externa, ...)
+- Duración: (inicio–fin)
+- Alcance: (solo frontend / rutas específicas)
+- Notas seguridad: (CORS, cookies, datos de prueba, etc.)
+- Cierre: túnel detenido (sí/no)
+```

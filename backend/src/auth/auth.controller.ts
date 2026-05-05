@@ -12,6 +12,8 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
+import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -76,5 +78,32 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@Req() req: Request & { user: unknown }) {
     return req.user;
+  }
+
+  @Post('password-reset/request')
+  @HttpCode(202)
+  async requestPasswordReset(
+    @Body() dto: PasswordResetRequestDto,
+    @Req() req: Request,
+  ) {
+    const requestedIp =
+      (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0] ??
+      req.ip ??
+      undefined;
+    const userAgent = req.headers['user-agent'] ?? undefined;
+    return this.authService.requestPasswordReset({
+      email: dto.email,
+      requestedIp,
+      userAgent: typeof userAgent === 'string' ? userAgent : undefined,
+    });
+  }
+
+  @Post('password-reset/confirm')
+  @HttpCode(200)
+  async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
+    return this.authService.confirmPasswordReset({
+      token: dto.token,
+      newPassword: dto.newPassword,
+    });
   }
 }

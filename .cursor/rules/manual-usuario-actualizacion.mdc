@@ -1,0 +1,34 @@
+---
+description: Mantener el manual de usuario actualizado con cada cambio funcional/UX
+alwaysApply: true
+---
+
+# Regla obligatoria — Actualización del Manual de Usuario
+
+Este proyecto mantiene un manual oficial en `docs/27-manual-usuario-sgd-gadpr-lm.md`.
+
+## Cuándo actualizarlo (obligatorio)
+
+Después de **cada implementación/corrección** que afecte el uso del sistema, se debe:
+
+- Actualizar el manual si cambian:
+  - rutas/pantallas/navegación,
+  - nombres de botones o flujos,
+  - requisitos de rol/permisos visibles,
+  - validaciones o mensajes que el usuario ve,
+  - pasos para crear/editar/buscar/adjuntar/descargar,
+  - credenciales de seed o forma de “ejecutar” el sistema.
+
+## Qué debe contener la actualización
+
+- Pasos exactos del usuario.
+- Resultado esperado.
+- Posibles fallos a revisar.
+- Siguiente paso recomendado (si aplica).
+
+## Definition of Done (para cerrar cambios)
+
+- [ ] El cambio fue implementado y validado (build/lint/tests según aplique).
+- [ ] **El manual fue revisado y actualizado** si el cambio impacta UX/uso.
+- [ ] `docs/README.md` mantiene enlace al manual.
+

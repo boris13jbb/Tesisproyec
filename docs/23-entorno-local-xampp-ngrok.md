@@ -35,6 +35,22 @@ ngrok http 5173
 2. Ajustar **CORS** en NestJS para incluir el origen `https://….ngrok-free.app` (o dominio que entregue ngrok en esa sesión).
 3. Si se usan cookies HttpOnly para refresh, validar `SameSite` y compatibilidad cross-site según el escenario.
 
+## Flujo cloudflared (referencia)
+
+Exposición temporal alternativa del **frontend** con HTTPS público (útil para pruebas rápidas en móvil o revisión remota).
+
+```powershell
+cloudflared tunnel --url http://localhost:5173
+```
+
+**Obligatorio al usar cloudflared:**
+
+1. Anotar en `22-changelog-tecnico.md`: comando, URL pública, propósito, duración y cierre del túnel.
+2. Usar **datos de prueba**; evitar exponer información real.
+3. Si hay login/refresh con cookies/JWT, revisar compatibilidad de `SameSite/Secure` y CORS del backend.
+
+Manual: `26-cloudflared-tunnel.md`.
+
 ## Riesgos
 
 - Filtración de endpoints o datos de prueba por URL pública.

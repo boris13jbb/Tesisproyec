@@ -1,17 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Alert,
-  Box,
-  Button,
-  Container,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '../auth/useAuth';
+import { AuthLayout } from '../layouts/AuthLayout';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Correo requerido').email('Correo no válido'),
@@ -46,17 +40,16 @@ export function LoginPage() {
       await login(data.email, data.password);
       await navigate('/', { replace: true });
     } catch {
-      setError('Credenciales inválidas o servicio no disponible.');
+      setError(
+        'No fue posible iniciar sesión. Verifique sus datos o intente más tarde.',
+      );
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: 6 }}>
-      <Typography variant="h5" component="h1" gutterBottom>
-        Iniciar sesión
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        SGD-GADPR-LM — acceso con correo y contraseña.
+    <AuthLayout title="Iniciar sesión">
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Acceso con correo y contraseña institucional.
       </Typography>
       <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
         {error && (
@@ -87,16 +80,22 @@ export function LoginPage() {
         <Button
           type="submit"
           variant="contained"
+          color="primary"
           fullWidth
+          size="large"
           sx={{ mt: 2 }}
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Entrando…' : 'Entrar'}
+          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
         </Button>
       </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-        Tras validar tus credenciales accederás al panel principal.
+      <Button component={RouterLink} to="/recuperar" variant="text" fullWidth sx={{ mt: 1 }}>
+        ¿Olvidó su contraseña?
+      </Button>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
+        El uso de este sistema está restringido a personal autorizado. Las sesiones pueden quedar
+        registradas con fines de seguridad y auditoría.
       </Typography>
-    </Container>
+    </AuthLayout>
   );
 }

@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,7 +22,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -29,6 +29,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { EmptyState } from '../../components/EmptyState';
+import { PageHeader } from '../../components/PageHeader';
 
 type SerieOption = { id: string; codigo: string; nombre: string };
 
@@ -178,14 +180,16 @@ export function SubseriesPage() {
   });
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Subseries
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Catálogo jerárquico bajo series. Alta y edición requieren rol{' '}
-        <strong>ADMIN</strong>.
-      </Typography>
+    <>
+      <Container maxWidth="lg">
+        <PageHeader
+          title="Subseries"
+          description={
+            <>
+              Catálogo jerárquico bajo series. Alta y edición requieren rol <strong>ADMIN</strong>.
+            </>
+          }
+        />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -271,12 +275,15 @@ export function SubseriesPage() {
               ))}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5}>No hay registros.</TableCell>
+                <TableCell colSpan={isAdmin ? 6 : 5} sx={{ py: 0 }}>
+                  <EmptyState dense title="No hay subseries en este listado." />
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
+      </Container>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Nueva subserie</DialogTitle>
@@ -370,7 +377,7 @@ export function SubseriesPage() {
           </DialogActions>
         </Box>
       </Dialog>
-    </Box>
+    </>
   );
 }
 
