@@ -51,7 +51,7 @@ Acreditar la **gestión de adjuntos digitales** del expediente: validación, alm
 
 ## Próximo hito oficial (roadmap)
 
-**ETAPA 8 — Búsqueda** (filtros/paginación en `GET /documentos`, UI): evidencia **`docs/37-etapa-8-cierre-y-evidencias.md`** (opcional). Detalle: `docs/14-modulo-busqueda.md`.
+**ETAPA 8 — Búsqueda:** cierre formal **`docs/37-etapa-8-cierre-y-evidencias.md`**. Detalle: **`docs/14-modulo-busqueda.md`**.
 
 ---
 

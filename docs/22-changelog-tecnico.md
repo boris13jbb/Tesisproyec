@@ -24,6 +24,11 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — ETAPA 8: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/37-etapa-8-cierre-y-evidencias.md` (`GET /documentos` con `q`, filtros catálogo/fechas, adjuntos `archivo*`, `sortBy`/`sortDir`, `page`/`pageSize`, UI `DocumentosPage`).
+- **Actualización:** `00-roadmap-general.md`; `36-etapa-7-cierre-y-evidencias.md`; `14-modulo-busqueda.md`; `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`.
+
 ### 2026-05-06 — ETAPA 7: cierre formal al 100 % (documentación y evidencias)
 
 - **Nuevo:** `docs/36-etapa-7-cierre-y-evidencias.md` (CRUD adjuntos, `storage/`, versiones, eventos `SUBIDO`/`DESCARGADO`/`ELIMINADO`, límite 10MB, UI `/documentos/:id`).

@@ -10,7 +10,8 @@ Listados paginados, ordenamiento, visor de documento/archivo según permisos.
 
 ## Estado actual
 
-**Implementado (ETAPA 8).**  
+**Implementado (ETAPA 8).** Evidencias de cierre: `docs/37-etapa-8-cierre-y-evidencias.md`.
+
 - **API:** `GET /api/v1/documentos` (JWT) con filtros y paginación.
 - **Filtros:** `q` (código/asunto/descr.), `estado`, `tipoDocumentalId`, `serieId`, `subserieId`, `fechaDesde`, `fechaHasta`, `incluirInactivos`.
 - **Adjuntos (búsqueda):** `archivoNombre`, `archivoMime`, `archivoSha256` (match sobre adjuntos activos).

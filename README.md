@@ -138,6 +138,7 @@ Suele ser un **archivo bloqueado** (`query_engine-windows.dll.node`). Orden reco
 - **ETAPA 5 cerrada (catálogos):** `docs/34-etapa-5-cierre-y-evidencias.md`
 - **ETAPA 6 cerrada (gestión documental):** `docs/35-etapa-6-cierre-y-evidencias.md`
 - **ETAPA 7 cerrada (archivos adjuntos):** `docs/36-etapa-7-cierre-y-evidencias.md`
+- **ETAPA 8 cerrada (búsqueda / listado):** `docs/37-etapa-8-cierre-y-evidencias.md`
 - Roadmap: `docs/00-roadmap-general.md`
 - Arquitectura: `docs/01-arquitectura-general.md`
 - Problemas y riesgos: `docs/20-problemas-detectados.md`, `docs/21-riesgos-pendientes.md`
