@@ -24,7 +24,9 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 **ETAPA 6 (gestión documental — MVP + trazabilidad “6A”):** **cerrada al 100 %** según evidencias (`docs/35-etapa-6-cierre-y-evidencias.md`, 2026-05-06). Máquina de estados/aprobación/por dependencia: backlog en `12-modulo-documentos.md`.
 
-**Completado:** ETAPA 7 (archivos con versionado, borrado lógico y trazabilidad), ETAPA 8 (búsqueda + ordenamiento + adjuntos), ETAPA 9 (reportes Excel/PDF).
+**ETAPA 7 (archivos — storage, versiones, borrado lógico, trazabilidad):** **cerrada al 100 %** según evidencias (`docs/36-etapa-7-cierre-y-evidencias.md`, 2026-05-06). AV/cuotas/política por dependencia: backlog (`13`, `21`, `28`).
+
+**Completado:** ETAPA 8 (búsqueda + ordenamiento + adjuntos), ETAPA 9 (reportes Excel/PDF).
 
 **Siguiente foco:** ETAPA 10 — Hardening y cierre (checklist final + documentación de entrega).
 

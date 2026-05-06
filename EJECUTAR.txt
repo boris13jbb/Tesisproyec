@@ -64,3 +64,7 @@ API directa: http://localhost:3000/api/v1
   docs/35-etapa-6-cierre-y-evidencias.md
   docs/12-modulo-documentos.md
 
+--- Evidencias ETAPA 7 (archivos)
+
+  docs/36-etapa-7-cierre-y-evidencias.md
+  docs/13-modulo-archivos.md

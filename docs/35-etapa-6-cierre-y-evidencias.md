@@ -11,7 +11,7 @@
 
 Acreditar el **registro documental** con metadatos vinculados a catálogos, **lectura** para usuarios autenticados, **alta/edición** para **ADMIN**, y **trazabilidad mínima por dominio** (sub-entregable “6A”: `documento_eventos`).
 
-> **Nota:** Los endpoints de **archivos** adjuntos viven en el mismo controlador `documentos`; el cierre **funcional y de evidencias** específico de versionado/borrado lógico/eventos de archivo se agrupa en **ETAPA 7** (`docs/36-etapa-7-cierre-y-evidencias.md` cuando exista). Aquí solo se referencian como soporte al expediente digital.
+> **Nota:** Los endpoints de **archivos** adjuntos viven en el mismo controlador `documentos`; el cierre **funcional y de evidencias** de esa capa está en **`docs/36-etapa-7-cierre-y-evidencias.md`**. Aquí solo se referencian como soporte al expediente digital.
 
 ---
 

@@ -10,7 +10,8 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 
 ## Estado actual
 
-**Implementado (ETAPA 7).**  
+**Implementado (ETAPA 7).** Evidencias de cierre: `docs/36-etapa-7-cierre-y-evidencias.md`.
+
 - **BD:** `documento_archivos` + `documento_archivo_eventos` (tamaño, MIME, sha256, trazabilidad).
 - **Storage:** guardado físico bajo `storage/documentos/<documentoId>/...` (ruta no expuesta directamente).
 - **Versionado:** versión incremental por documento + nombre (`version`), mantiene historial y permite múltiples cargas del “mismo” archivo.
