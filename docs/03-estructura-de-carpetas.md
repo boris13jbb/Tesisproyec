@@ -12,41 +12,52 @@ Este documento describe la **organización esperada** del repositorio alineada a
 
 ---
 
-## 2. Estructura real del repositorio (2026-04-20)
+## 2. Estructura real del repositorio (2026-05-06)
 
 ```
 /
-├── .cursor/rules/             # Reglas del IDE (Prisma/XAMPP, ngrok)
+├── .cursor/rules/             # Reglas del IDE (Prisma/XAMPP, ngrok, seguridad)
 ├── backend/                   # NestJS + Prisma
 │   ├── prisma/
 │   │   ├── schema.prisma
 │   │   └── migrations/
 │   └── src/
-│       ├── main.ts
+│       ├── main.ts            # ValidationPipe, /api/v1, CORS, helmet, cookies
 │       ├── app.module.ts
 │       ├── app.controller.ts
-│       ├── cargos/            # Catálogo cargos (ETAPA 5)
-│       ├── common/            # Utilidades (p. ej. prisma-util)
-│       ├── dependencias/      # Catálogo dependencias (ETAPA 5)
-│       ├── auth/              # AuthModule, JWT, guards, @Roles
-│       └── prisma/            # PrismaModule + PrismaService
+│       ├── auth/              # JWT, refresh cookie, reset password
+│       ├── auditoria/         # Bitácora transversal (ADMIN)
+│       ├── cargos/
+│       ├── common/            # Filtros, utilidades (p. ej. prisma-util)
+│       ├── dependencias/
+│       ├── documentos/
+│       ├── mail/
+│       ├── prisma/
+│       ├── reportes/
+│       ├── series/
+│       ├── subseries/
+│       ├── tipos-documentales/
+│       └── usuarios/
 ├── frontend/                  # Vite + React 18 + TS + MUI
 │   └── src/
 │       ├── api/               # Cliente axios (apiClient)
 │       ├── app/               # App + rutas React Router
-│       ├── auth/              # AuthProvider, useAuth, token en memoria
-│       ├── layouts/           # Shell (p. ej. MainLayout + Outlet)
-│       ├── routes/            # ProtectedRoute y rutas compuestas
-│       ├── pages/             # Pantallas (login, dashboard, 403, 404)
-│       └── theme/             # Tema MUI
-├── docs/                      # Documentación técnica (índice: README.md)
+│       ├── auth/
+│       ├── layouts/
+│       ├── nav/
+│       ├── routes/
+│       ├── pages/             # dashboard, documentos, catálogos, admin, login…
+│       └── theme/
+├── docs/                      # Documentación (índice: README.md; cierres ETAPA `29`,`30`)
 ├── storage/                   # Archivos digitales (.gitkeep; contenido ignorado)
 ├── Nueva carpeta/             # Material del expediente / anexos
 ├── README.md
+├── EJECUTAR.txt
+├── iniciar-desarrollo.cmd
 └── .gitignore
 ```
 
-**Pendiente:** módulos de dominio NestJS bajo `src/modules/` (usuarios, catálogos, etc.) cuando crezca el API.
+Los módulos de dominio NestJS viven **directamente** bajo `backend/src/<dominio>/` (convención del repo), no es obligatorio el prefijo `src/modules/`.
 
 ---
 

@@ -6,48 +6,76 @@
 
 ---
 
-## Estado actual del repositorio (2026-04-20)
+## Estado actual del repositorio (2026-05-06)
 
 | Elemento | Situación |
 |----------|-----------|
-| `backend/prisma/schema.prisma` | **Existe** — Prisma **5.22.0** (fijado; Prisma 7 cambia la forma del `datasource` y no es la línea base del proyecto). |
-| `backend/prisma/migrations/` | Migración inicial `20260420001500_init_rbac` (tablas RBAC). Aplicar con `npx prisma migrate dev` desde `backend/` con MySQL activo. |
+| `backend/prisma/schema.prisma` | **Existe** — `provider = "mysql"`. Prisma **5.22.0** fijado en `backend/package.json` (la línea base del proyecto no asume Prisma 7). |
+| `backend/prisma/migrations/` | **14** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
 | `DATABASE_URL` | Definir en `backend/.env` (plantilla en `.env.example`). Crear la base vacía en phpMyAdmin antes de migrar. |
-| Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). Antes del build si el IDE no generó el cliente. |
+| Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). En Windows ante **EPERM**: `npm run prisma:generate:clean`. |
+| Cierre ETAPA 2 | Evidencias formales en **`docs/31-etapa-2-cierre-y-evidencias.md`**. |
 
-### Tablas (migración inicial `init_rbac`)
+### Inventario ordenado de migraciones (cronológicas)
+
+| # | Carpeta migración | Contenido principal |
+|---|-------------------|----------------------|
+| 1 | `20260420001500_init_rbac` | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`. |
+| 2 | `20260420103000_add_refresh_tokens` | Sesión prolongada: tabla `refresh_tokens` (hash, expiración, revocación). |
+| 3 | `20260420120000_add_password_reset_tokens` | Recuperación de contraseña: `password_reset_tokens`. |
+| 4 | `20260421120000_add_dependencias` | Catálogo `dependencias`. |
+| 5 | `20260421140000_add_cargos` | Catálogo `cargos` (FK opcional a `dependencias`). |
+| 6 | `20260421160000_add_tipos_documentales` | Catálogo `tipos_documentales`. |
+| 7 | `20260421170000_add_series_subseries` | `series` + `subseries`. |
+| 8 | `20260421180000_add_documentos_mvp` | `documentos` + FK catálogos + creador. |
+| 9 | `20260421190000_add_documento_eventos` | Trazabilidad dominio documento (`documento_eventos`). |
+| 10 | `20260421193000_add_documento_archivos` | Adjuntos (`documento_archivos`, `documento_archivo_eventos`). |
+| 11 | `20260421194500_documento_archivos_versionado` | Columna/versionado incremental por archivo. |
+| 12 | `20260505021000_add_user_dependencia_cargo` | Usuario institucional: `users.dependencia_id`, `users.cargo_id` (FK opcionales). |
+| 13 | `20260505123600_add_audit_logs` | Bitácora transversal `audit_logs`. |
+| 14 | `20260505125800_refresh_tokens_last_used_at` | `refresh_tokens.last_used_at` (inactividad / ASVS sesión). |
+
+### Tablas resumen por dominio
+
+**RBAC (núcleo usuarios)**
 
 | Tabla | Propósito |
 |-------|-----------|
-| `users` | Usuarios de aplicación (`password_hash` para Argon2id en ETAPA 3). |
-| `roles` | Roles RBAC (`codigo` único). |
-| `permissions` | Permisos granulares (`codigo` único). |
-| `user_roles` | N:M usuario ↔ rol. |
-| `role_permissions` | N:M rol ↔ permiso. |
+| `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`. |
+| `roles` / `permissions` | Catálogo de roles y permisos granulares. |
+| `user_roles` / `role_permissions` | N:M usuario↔rol y rol↔permiso. |
 
-### Catálogos (ETAPA 5 en curso)
+**Sesión y credenciales**
+
+| Tabla | Migración inicial | Propósito |
+|-------|-------------------|-----------|
+| `refresh_tokens` | `20260420103000_*` (+ `20260505125800_*`) | Cookie refresh HttpOnly + rotación; control de uso/inactividad. |
+| `password_reset_tokens` | `20260420120000_*` | Tokens opacos de restablecimiento (solo hash en BD). |
+
+**Catálogos institucionales**
 
 | Tabla | Migración | Propósito |
 |-------|-----------|-----------|
-| `dependencias` | `20260421120000_add_dependencias` | Unidades organizativas (`codigo` único, `nombre`, `activo`). |
-| `cargos` | `20260421140000_add_cargos` | Cargos/puestos; `dependencia_id` opcional (FK a `dependencias`, `ON DELETE SET NULL`). |
-| `tipos_documentales` | `20260421160000_add_tipos_documentales` | Tipologías documentales (`codigo` único, `nombre`, `activo`). |
-| `series` | `20260421170000_add_series_subseries` | Series documentales (`codigo` único, `nombre`, `activo`). |
-| `subseries` | `20260421170000_add_series_subseries` | Subseries documentales (FK `serie_id` a `series`, `codigo` único). |
-| `documentos` | `20260421180000_add_documentos_mvp` | Registro documental MVP (FK a `tipos_documentales`, `subseries`, `users`). |
-| `documento_eventos` | `20260421190000_add_documento_eventos` | Historial/trazabilidad de documentos (eventos `CREADO` / `ACTUALIZADO`). |
-| `documento_archivos` | `20260421193000_add_documento_archivos` | Adjuntos de documentos (MIME, tamaño, sha256, ruta relativa en `storage/`). |
-| `documento_archivo_eventos` | `20260421193000_add_documento_archivos` | Trazabilidad de archivos (eventos `SUBIDO` / `DESCARGADO`). |
-| `documento_archivos.version` | `20260421194500_documento_archivos_versionado` | Versionado incremental por documento + nombre (`unique(documento_id, original_name, version)`). |
+| `dependencias` | `20260421120000_*` | Unidades organizativas. |
+| `cargos` | `20260421140000_*` | Puestos; FK opcional a `dependencias`. |
+| `tipos_documentales` | `20260421160000_*` | Tipologías. |
+| `series` / `subseries` | `20260421170000_*` | Clasificación documental. |
 
-### Seguridad / sesión (2026-05-05)
+**Gestión documental y archivos**
 
-| Tabla / cambio | Migración | Propósito |
-|----------------|-----------|-----------|
-| `audit_logs` | `20260505123600_add_audit_logs` | Bitácora transversal (actor, acción `action`, resultado `result`, recurso opcional, `ip`, `user_agent`, `meta_json`; FK opcional `actor_user_id` → `users`). |
-| `refresh_tokens.last_used_at` | `20260505125800_refresh_tokens_last_used_at` | Marca último uso del refresh para **inactividad** (política `SESSION_INACTIVITY_MINUTES`). |
+| Tabla | Migración | Propósito |
+|-------|-----------|-----------|
+| `documentos` | `20260421180000_*` | Registro documental. |
+| `documento_eventos` | `20260421190000_*` | Historial CREAR/EDITAR dominio documento. |
+| `documento_archivos` / `documento_archivo_eventos` | `20260421193000_*`, `20260421194500_*` | Adjuntos versionados + eventos (p. ej. SUBIDO/DESCARGADO/ELIMINADO). |
 
-Otros catálogos (vínculos con documentos, etc.) se añadirán en migraciones posteriores alineadas al expediente.
+**Auditoría transversal**
+
+| Tabla | Migración | Propósito |
+|-------|-----------|-----------|
+| `audit_logs` | `20260505123600_*` | Eventos de seguridad/administración (acción/resultado, actor, recurso, IP/UA, `meta_json`). |
+
+Nuevos cambios esquema → **nueva carpeta en `prisma/migrations/`** + actualización de **`schema.prisma`**, esta sección y `docs/22-changelog-tecnico.md`.
 
 ---
 
@@ -114,15 +142,14 @@ Si la base ya existía con tablas creadas fuera de Prisma, usar con cuidado `pri
 
 | Acción | Responsable |
 |--------|-------------|
-| Tras cada migración aplicada | Anotar en bitácora o changelog qué migración se ejecutó y la fecha |
+| Tras cada migración aplicada | Anotar en `docs/22-changelog-tecnico.md` y refrescar esta sección §“Inventario ordenado…” |
 | Desviaciones | Si hay diferencia entre diseño y BD, documentar causa (pull manual, hotfix SQL, etc.) |
 
-**Registro sugerido (ejemplo):**
+**Registro ejemplo (añadir según entorno):**
 
-| Fecha | Migración | Observación |
-|-------|-----------|-------------|
-| 2026-05-05 | `20260505123600_add_audit_logs` | Tabla `audit_logs` para auditoría transversal. |
-| 2026-05-05 | `20260505125800_refresh_tokens_last_used_at` | Columna `last_used_at` en `refresh_tokens`. |
+| Fecha | Migración aplicada | Observación |
+|-------|---------------------|---------------|
+| 2026-05-06 | Todas hasta `20260505125800_*` | Cierre ETAPA 2 documentado — `docs/31-etapa-2-cierre-y-evidencias.md`. |
 
 ---
 

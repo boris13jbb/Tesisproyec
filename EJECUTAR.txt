@@ -2,9 +2,15 @@ RUTA:
 C:\Users\BRS\Documents\Tesisproyec
 
 === EJECUTAR EL SISTEMA EN DESARROLLO (Windows) ===
------------------------------------------------------
+
+-----------------------------------------------------
 Opción recomendada: doble clic en:                 
-  iniciar-desarrollo.cmd            EN LA CONSOLAnpm run dev:all---------------------------------------------------
+  iniciar-desarrollo.cmd        
+  
+  
+EN LA CONSOLA
+npm run dev:all
+---------------------------------------------------
 Manual (dos terminales), si prefieres:
 
   cd "c:\Users\BRS\Documents\Tesisproyec\backend"
@@ -30,4 +36,13 @@ API directa: http://localhost:3000/api/v1
 --- Evidencias ETAPA 0 / roadmap
 
   docs/29-etapa-0-cierre-y-evidencias.md
-
+
+--- Evidencias ETAPA 1 (base técnica)
+
+  docs/30-etapa-1-cierre-y-evidencias.md
+
+--- Evidencias ETAPA 2 (Prisma / XAMPP)
+
+  docs/31-etapa-2-cierre-y-evidencias.md
+  docs/04-modelo-base-de-datos.md
+

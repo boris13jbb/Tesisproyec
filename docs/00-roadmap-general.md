@@ -12,7 +12,11 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 **ETAPA 0 (auditoría y saneamiento):** **cerrada al 100 %** según evidencias (`docs/29-etapa-0-cierre-y-evidencias.md`, 2026-05-06). El informe `etapa-0-auditoria-inicial-y-diagnostico.md` permanece como **documento histórico** (2026-04-19).
 
-**Completado:** ETAPA 1–3 (base técnica + Prisma + RBAC + auth), ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
+**ETAPA 1 (base técnica — shell API + SPA):** **cerrada al 100 %** según evidencias (`docs/30-etapa-1-cierre-y-evidencias.md`, 2026-05-06).
+
+**ETAPA 2 (BD + Prisma + XAMPP):** **cerrada al 100 %** según evidencias (`docs/31-etapa-2-cierre-y-evidencias.md`, 2026-05-06). Modelo y migraciones detallados en `docs/04-modelo-base-de-datos.md`.
+
+**Completado:** ETAPA 3 (usuarios + roles base + JWT/refresh sesión conforme código actual), ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
 
 **Completado:** ETAPA 4 (shell UI): layout, rutas protegidas, 403/404, **menú condicionado por rol** y **alertas globales** (API caída / sesión expirada).
 

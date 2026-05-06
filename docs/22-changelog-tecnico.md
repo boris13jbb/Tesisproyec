@@ -24,6 +24,16 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — ETAPA 2: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/31-etapa-2-cierre-y-evidencias.md` (checklist: `schema.prisma`, 14 migraciones, `DATABASE_URL` / XAMPP, Prisma 5.22.x).
+- **Actualización:** `docs/04-modelo-base-de-datos.md` (listado ordenado de migraciones, RBAC+sesión+usuarios institucional, tablas seguridad/consulta §5); `00-roadmap-general.md`; `docs/README.md`; `README.md` raíz; `docs/30-etapa-1-cierre-y-evidencias.md` (siguiente fase); `EJECUTAR.txt`.
+
+### 2026-05-06 — ETAPA 1: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/30-etapa-1-cierre-y-evidencias.md` (checklist: frontend Vite/React/MUI/axios/Router + RHF/Zod; Nest `ConfigModule`, `ValidationPipe`, `/api/v1`, CORS, proxy Vite).
+- **Actualización:** `00-roadmap-general.md` (bloque *Estado actual*); `docs/README.md`; `README.md` raíz; `03-estructura-de-carpetas.md` (árbol y nota de módulos Nest).
+
 ### 2026-05-06 — ETAPA 0: cierre formal al 100 % (documentación y evidencias)
 
 - **Objetivo:** cumplir entregables del roadmap fila ETAPA 0 (`/docs`, `.gitignore`, `storage/`, plantillas `.env.example`, README, deuda registrada).
