@@ -24,6 +24,16 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-07 — ETAPA 10: cierre formal MVP tesis (documentación y evidencias)
+
+- **Nuevo:** `docs/39-etapa-10-cierre-y-evidencias.md` (hardening: Helmet, ValidationPipe, Throttler global + `@Throttle` auth, `ThrottlerAuditFilter`, `GET /auditoria` ADMIN).
+- **Actualización:** `00-roadmap-general.md`; `38-etapa-9-cierre-y-evidencias.md`; `18-seguridad-y-hardening.md`; `15-modulo-auditoria.md`; `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`.
+
+### 2026-05-06 — ETAPA 9: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/38-etapa-9-cierre-y-evidencias.md` (`GET /reportes/documentos.{xlsx,pdf}`, ExcelJS/pdfkit, filtros ETAPA 8, límite 5000 filas, guards ADMIN).
+- **Actualización:** `00-roadmap-general.md`; `16-modulo-reportes.md`; `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`; `27-manual-usuario-sgd-gadpr-lm.md` (exportación ADMIN).
+
 ### 2026-05-06 — ETAPA 8: cierre formal al 100 % (documentación y evidencias)
 
 - **Nuevo:** `docs/37-etapa-8-cierre-y-evidencias.md` (`GET /documentos` con `q`, filtros catálogo/fechas, adjuntos `archivo*`, `sortBy`/`sortDir`, `page`/`pageSize`, UI `DocumentosPage`).

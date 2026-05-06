@@ -16,6 +16,8 @@
 | [35-etapa-6-cierre-y-evidencias.md](./35-etapa-6-cierre-y-evidencias.md) | **Cierre ETAPA 6 al 100%** — documentos, eventos dominio, UI listado/detalle/historial |
 | [36-etapa-7-cierre-y-evidencias.md](./36-etapa-7-cierre-y-evidencias.md) | **Cierre ETAPA 7 al 100%** — adjuntos, `storage/`, versión, descarga, borrado lógico, eventos archivo |
 | [37-etapa-8-cierre-y-evidencias.md](./37-etapa-8-cierre-y-evidencias.md) | **Cierre ETAPA 8 al 100%** — filtros, orden, paginación, búsqueda por adjuntos, UI `/documentos` |
+| [38-etapa-9-cierre-y-evidencias.md](./38-etapa-9-cierre-y-evidencias.md) | **Cierre ETAPA 9 al 100%** — Excel/PDF documentos, filtros ETAPA 8, rol ADMIN, UI exportación |
+| [39-etapa-10-cierre-y-evidencias.md](./39-etapa-10-cierre-y-evidencias.md) | **Cierre ETAPA 10 (MVP tesis)** — hardening línea base, throttle+auditoría 429, cierre roadmap 0–10 |
 | [01-arquitectura-general.md](./01-arquitectura-general.md) | Capas, entornos, contrato API |
 | [02-stack-y-convenciones.md](./02-stack-y-convenciones.md) | Stack cerrado, puertos, variables |
 | [03-estructura-de-carpetas.md](./03-estructura-de-carpetas.md) | Monorepo, rutas clave |

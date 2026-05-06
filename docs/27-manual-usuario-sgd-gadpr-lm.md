@@ -189,7 +189,28 @@ En la barra de filtros puedes usar:
 **Resultado esperado**
 - Lista paginada con resultados.
 
-### 7.3 Crear documento (solo ADMIN)
+### 7.3 Exportar a Excel o PDF (solo ADMIN)
+
+Los reportes usan los **mismos filtros** aplicados arriba (no exportan solo la página visible: el servidor arma el conjunto filtrado completo dentro de un tope configurado).
+
+**Acción**
+
+1. Ajusta filtros y pulsa **Aplicar** (recomendado para acotar el resultado).
+2. En el bloque de filtros, pulsa **Exportar Excel** o **Exportar PDF**.
+3. Acepta la descarga en el navegador.
+
+**Resultado esperado**
+
+- Se obtiene un archivo `.xlsx` o `.pdf` con el listado filtrado.
+- Rol distinto de **ADMIN**: la API responderá sin autorización si se intentara exportar desde herramientas externas.
+
+**Posibles fallos**
+
+- Sesión caducada: vuelve a iniciar sesión.
+- Mensaje tipo “No se pudo exportar”: revisa que el backend esté en marcha y que tu usuario sea **ADMIN**.
+- Lista muy grande: el servidor puede **limitar la cantidad de filas** exportadas por rendimiento.
+
+### 7.4 Crear documento (solo ADMIN)
 
 1. En **Documentos**, presiona **Nuevo documento** (o botón equivalente).
 2. Completa:

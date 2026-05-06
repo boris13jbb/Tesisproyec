@@ -25,7 +25,7 @@ Acreditar **consulta y refinamiento** del registro documental: texto libre, filt
 | **Búsqueda por adjuntos** | `archivoNombre`, `archivoMime`, `archivoSha256` (coincidencia sobre adjuntos **activos** en servicio/listado) | Cumple |
 | **Ordenamiento** | `sortBy` ∈ `codigo` \| `fechaDocumento` \| `estado`; `sortDir` ∈ `asc` \| `desc`; cabeceras de tabla clicables en UI | Cumple |
 | **Paginación** | `page`, `pageSize`; respuesta tipada `{ page, pageSize, total, items }` desde backend | Cumple |
-| **UI** | `/documentos`: filtros, orden, pagina **Anterior/Siguiente**, exportaciones (Excel/PDF) enlazadas desde la misma pantalla — la **emisión de reportes** se cierra en **ETAPA 9** (`38-etapa-9-cierre-y-evidencias.md`) | Parcial ETAPA 8 / ETAPA 9 |
+| **UI** | `/documentos`: filtros, orden, pagina **Anterior/Siguiente**. Botones de exportación sobre la misma pantalla se acreditan en **ETAPA 9** (`38-etapa-9-cierre-y-evidencias.md`). | Cumple |
 
 ---
 

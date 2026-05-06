@@ -10,14 +10,15 @@ Login/logout, CRUD sensibles, descarga de archivos, cambios de estado documental
 
 ## Estado actual
 
-**Parcialmente implementado (MVP+).**
+**Implementado en MVP de tesis (backend consolidado); extensión UI/institucional pendiente.**
 
 - **Trazabilidad por dominio (implementada):**
   - Documento: tabla `documento_eventos` con eventos `CREADO`/`ACTUALIZADO` y `created_by_id`.
   - Archivo: tabla `documento_archivo_eventos` con eventos `SUBIDO`/`DESCARGADO`/`ELIMINADO` y `created_by_id`.
-- **Bitácora transversal (`audit_logs`) — implementada en backend:**
-  - Tabla `audit_logs` + `AuditService`; eventos AUTH (login/refresh/logout/reset/throttle), administración/usuarios, documentos/archivos donde se integró.
-  - **Pendiente para cierre institucional:** pantalla ADMIN de consulta/exportación; política de **retención** y archivo; integridad firma/checksum si el alcance lo exige.
+- **Bitácora transversal (`audit_logs`):**
+  - Tabla `audit_logs` + `AuditService`; eventos AUTH (login/refresh/logout/reset/rate‑limit), administración/usuarios, documentos/archivos donde se integró.
+  - **Consulta ADMIN (API):** `GET /api/v1/auditoria` con filtros y paginación (`auditoria.controller.ts`). Evidencia de hardening MVP: **`docs/39-etapa-10-cierre-y-evidencias.md`**.
+  - **Pendiente institucional:** pantalla SPA de consulta/exportación desde UI; política de **retención** y archivo; integridad firma/checksum si el alcance lo exige.
 
 ## Decisiones técnicas
 

@@ -12,6 +12,8 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 
 **Implementación:** aplicada en el MVP. Este documento se mantiene como **referencia** y registro de controles implementados.
 
+**Cierre roadmap:** evidencias formales de hardening dentro del MVP en **`docs/39-etapa-10-cierre-y-evidencias.md`** (**ETAPA 10**).
+
 ## Decisiones técnicas
 
 | Área | Decisión |
@@ -39,6 +41,7 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 ## Controles implementados (resumen)
 
 - **Headers seguridad**: Helmet en `backend/src/main.ts`.
+- **Rate limiting**: `ThrottlerModule` global (`app.module.ts`); rutas **`/auth`** con `@Throttle` más estricto (`auth.controller.ts`); excesos registrados como `AUTH_RATE_LIMITED` (`throttler-audit.filter.ts`).
 - **Cookies refresh**: `HttpOnly`, `secure` en producción, `sameSite=lax`, `path=/`; `clearCookie` con mismos flags.
 - **Validación API**: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
 - **RBAC por rol**: `RolesGuard` + `@Roles('ADMIN')` en mutaciones y reportes.
@@ -71,7 +74,7 @@ Manual operativo: `26-cloudflared-tunnel.md`.
 
 ## Problemas detectados
 
-- Ninguno de implementación hasta existir módulos de auth y archivos.
+- Seguimiento activo en `20-problemas-detectados.md` cuando existan hallazgos verificados.
 
 ## Riesgos pendientes
 
