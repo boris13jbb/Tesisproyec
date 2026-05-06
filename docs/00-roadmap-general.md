@@ -18,7 +18,7 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 **ETAPA 3 (seguridad y auth — MVP):** **cerrada al 100 %** según evidencias (`docs/32-etapa-3-cierre-y-evidencias.md`, 2026-05-06). Permisos granulares en guard: backlog `docs/07-modulo-roles-permisos.md`.
 
-**Completado:** ETAPA 4 (shell UI): layout, rutas protegidas, 403/404, **menú condicionado por rol** y **alertas globales** (API caída / sesión expirada).
+**ETAPA 4 (navegación y shell UI):** **cerrada al 100 %** según evidencias (`docs/33-etapa-4-cierre-y-evidencias.md`, 2026-05-06).
 
 **Completado:** ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
 

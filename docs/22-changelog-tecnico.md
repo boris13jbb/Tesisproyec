@@ -24,6 +24,11 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — ETAPA 4: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/33-etapa-4-cierre-y-evidencias.md` (`MainLayout`, `ProtectedRoute`, `RoleRoute`, `/forbidden`, 404, `AppNotifications`/axios).
+- **Actualización:** `00-roadmap-general.md`; `32-etapa-3-cierre-y-evidencias.md` (enlace a `33`); `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`.
+
 ### 2026-05-06 — ETAPA 3: cierre formal al 100 % (documentación y evidencias)
 
 - **Nuevo:** `docs/32-etapa-3-cierre-y-evidencias.md` (JWT, refresh+rotación, Argon2, `JwtAuthGuard`/`RolesGuard`, throttling auth, `audit_logs` para eventos AUTH, `session/restore`).

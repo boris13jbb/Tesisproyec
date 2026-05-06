@@ -51,3 +51,7 @@ API directa: http://localhost:3000/api/v1
   docs/32-etapa-3-cierre-y-evidencias.md
   docs/05-modulo-auth.md
 
+--- Evidencias ETAPA 4 (shell UI)
+
+  docs/33-etapa-4-cierre-y-evidencias.md
+

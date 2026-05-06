@@ -134,6 +134,7 @@ Suele ser un **archivo bloqueado** (`query_engine-windows.dll.node`). Orden reco
 - **ETAPA 1 cerrada (base técnica):** `docs/30-etapa-1-cierre-y-evidencias.md`
 - **ETAPA 2 cerrada (Prisma/XAMPP):** `docs/31-etapa-2-cierre-y-evidencias.md`
 - **ETAPA 3 cerrada (auth / sesión):** `docs/32-etapa-3-cierre-y-evidencias.md`
+- **ETAPA 4 cerrada (shell UI / navegación):** `docs/33-etapa-4-cierre-y-evidencias.md`
 - Roadmap: `docs/00-roadmap-general.md`
 - Arquitectura: `docs/01-arquitectura-general.md`
 - Problemas y riesgos: `docs/20-problemas-detectados.md`, `docs/21-riesgos-pendientes.md`

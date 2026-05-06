@@ -60,7 +60,7 @@ Recuperación de contraseña: `POST .../password-reset/request`, `POST .../passw
 
 ## Próximo hito oficial (roadmap)
 
-**ETAPA 4** — navegación y shell UI: cierre documental opcional **`33-etapa-4-cierre-y-evidencias.md`** si se desea la misma trazabilidad por fase.
+**ETAPA 4** — navegación y shell UI: cierre formal en **`docs/33-etapa-4-cierre-y-evidencias.md`**.
 
 ---
 
