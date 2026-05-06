@@ -47,7 +47,7 @@ Acreditar una **envoltura de aplicación coherente** (layout, rutas, estados HTT
 
 ## Próximo hito oficial (roadmap)
 
-**ETAPA 5 — Catálogos** (ya implementados en rutas ADMIN): documentación modular en `docs/08`–`11`; cierre ETAPA opcional **`34-etapa-5-cierre-y-evidencias.md`** si se desea mismo formato por fase.
+**ETAPA 5 — Catálogos:** cierre formal en **`docs/34-etapa-5-cierre-y-evidencias.md`**; detalle modular en **`docs/08`**–**`11`**.
 
 ---
 

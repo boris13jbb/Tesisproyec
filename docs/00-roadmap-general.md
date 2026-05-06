@@ -20,7 +20,9 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 **ETAPA 4 (navegación y shell UI):** **cerrada al 100 %** según evidencias (`docs/33-etapa-4-cierre-y-evidencias.md`, 2026-05-06).
 
-**Completado:** ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
+**ETAPA 5 (catálogos institucionales):** **cerrada al 100 %** según evidencias (`docs/34-etapa-5-cierre-y-evidencias.md`, 2026-05-06). Estados formales/parametría amplia viven en backlog (`12`, `17`).
+
+**Completado:** ETAPA 6 (gestión documental: registro + detalle/edición + historial).
 
 **Completado:** ETAPA 7 (archivos con versionado, borrado lógico y trazabilidad), ETAPA 8 (búsqueda + ordenamiento + adjuntos), ETAPA 9 (reportes Excel/PDF).
 

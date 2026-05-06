@@ -55,3 +55,7 @@ API directa: http://localhost:3000/api/v1
 
   docs/33-etapa-4-cierre-y-evidencias.md
 
+--- Evidencias ETAPA 5 (catálogos)
+
+  docs/34-etapa-5-cierre-y-evidencias.md
+
