@@ -14,6 +14,7 @@ import { TiposDocumentalesModule } from './tipos-documentales/tipos-documentales
 import { ReportesModule } from './reportes/reportes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
+import { ForbiddenAuditFilter } from './common/filters/forbidden-audit.filter';
 import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
 
 @Module({
@@ -45,6 +46,7 @@ import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: ThrottlerAuditFilter },
+    { provide: APP_FILTER, useClass: ForbiddenAuditFilter },
   ],
 })
 export class AppModule {}

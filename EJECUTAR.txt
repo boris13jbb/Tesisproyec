@@ -84,3 +84,8 @@ API directa: http://localhost:3000/api/v1
   docs/39-etapa-10-cierre-y-evidencias.md
   docs/18-seguridad-y-hardening.md
   docs/19-mapeo-iso27001-iso15489-owasp-asvs.md
+
+--- Listado requisitos vs implementación (gap / ISO / ASVS)
+
+  docs/28-listado-lo-que-deberia-tener-el-sistema.md
+  docs/15-modulo-auditoria.md (UI /admin/auditoria y exports)

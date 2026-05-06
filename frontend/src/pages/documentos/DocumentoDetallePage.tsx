@@ -40,6 +40,12 @@ type SubserieOption = {
   serie: SerieOption;
 };
 
+type DependenciaOption = {
+  id: string;
+  codigo: string;
+  nombre: string;
+};
+
 type DocumentoRow = {
   id: string;
   codigo: string;
@@ -47,10 +53,12 @@ type DocumentoRow = {
   descripcion: string | null;
   fechaDocumento: string;
   estado: string;
+  nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumentalId: string;
   subserieId: string;
   tipoDocumental: TipoOption;
+  dependencia: DependenciaOption | null;
   subserie: {
     id: string;
     codigo: string;
@@ -97,6 +105,8 @@ const editSchema = z.object({
   activo: z.boolean(),
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Subserie requerida'),
+  dependenciaId: z.string().optional(),
+  nivelConfidencialidad: z.enum(['PUBLICO', 'INTERNO', 'RESERVADO', 'CONFIDENCIAL']),
 });
 type EditForm = z.infer<typeof editSchema>;
 
@@ -151,6 +161,8 @@ function fieldLabel(field: string): string {
     tipoDocumentalId: 'Tipo documental',
     subserieId: 'Subserie',
     codigo: 'Código',
+    dependenciaId: 'Dependencia',
+    nivelConfidencialidad: 'Confidencialidad',
   };
   return map[field] ?? field;
 }
@@ -165,6 +177,7 @@ export function DocumentoDetallePage() {
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
+  const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
 
   const [eventos, setEventos] = useState<DocumentoEventoRow[]>([]);
   const [archivos, setArchivos] = useState<DocumentoArchivoRow[]>([]);
@@ -197,6 +210,8 @@ export function DocumentoDetallePage() {
       activo: true,
       tipoDocumentalId: '',
       subserieId: '',
+      dependenciaId: '',
+      nivelConfidencialidad: 'INTERNO',
     },
   });
 
@@ -241,6 +256,21 @@ export function DocumentoDetallePage() {
   useEffect(() => {
     let cancelled = false;
     apiClient
+      .get<DependenciaOption[]>('/dependencias')
+      .then((res) => {
+        if (!cancelled) setDependencias(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setDependencias([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
       .get<SubserieOption[]>('/subseries')
       .then((res) => {
         if (!cancelled) setSubseries(res.data);
@@ -268,6 +298,8 @@ export function DocumentoDetallePage() {
       activo: doc.activo,
       tipoDocumentalId: doc.tipoDocumental.id,
       subserieId: doc.subserie.id,
+      dependenciaId: doc.dependencia?.id ?? '',
+      nivelConfidencialidad: doc.nivelConfidencialidad as EditForm['nivelConfidencialidad'],
     });
     setEditOpen(true);
   };
@@ -284,6 +316,10 @@ export function DocumentoDetallePage() {
         activo: data.activo,
         tipoDocumentalId: data.tipoDocumentalId,
         subserieId: data.subserieId,
+        dependenciaId: data.dependenciaId?.trim()
+          ? data.dependenciaId.trim()
+          : null,
+        nivelConfidencialidad: data.nivelConfidencialidad,
       });
       setEditOpen(false);
       await load();
@@ -487,6 +523,12 @@ export function DocumentoDetallePage() {
                 </Typography>
                 <Typography>{doc.estado}</Typography>
               </Box>
+              <Box>
+                <Typography variant="overline" color="text.secondary">
+                  Confidencialidad
+                </Typography>
+                <Typography>{doc.nivelConfidencialidad}</Typography>
+              </Box>
             </Box>
 
             <Box
@@ -520,6 +562,24 @@ export function DocumentoDetallePage() {
                   Registrado por
                 </Typography>
                 <Typography>{doc.createdBy.email}</Typography>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                mt: 2,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: 2,
+              }}
+            >
+              <Box>
+                <Typography variant="overline" color="text.secondary">
+                  Dependencia propietaria
+                </Typography>
+                <Typography>
+                  {doc.dependencia ? `${doc.dependencia.codigo} — ${doc.dependencia.nombre}` : '—'}
+                </Typography>
               </Box>
             </Box>
 
@@ -789,6 +849,50 @@ export function DocumentoDetallePage() {
                         {subserieLabel.get(s.id)}
                       </MenuItem>
                     ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+
+            <Controller
+              name="dependenciaId"
+              control={editForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="dep-edit-label">Dependencia propietaria</InputLabel>
+                  <Select
+                    labelId="dep-edit-label"
+                    label="Dependencia propietaria"
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                  >
+                    <MenuItem value="">(Sin dependencia)</MenuItem>
+                    {dependencias.map((d) => (
+                      <MenuItem key={d.id} value={d.id}>
+                        {d.codigo} — {d.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+
+            <Controller
+              name="nivelConfidencialidad"
+              control={editForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="nivel-edit-label">Confidencialidad</InputLabel>
+                  <Select
+                    labelId="nivel-edit-label"
+                    label="Confidencialidad"
+                    value={field.value}
+                    onChange={field.onChange}
+                  >
+                    <MenuItem value="INTERNO">Interno</MenuItem>
+                    <MenuItem value="PUBLICO">Público</MenuItem>
+                    <MenuItem value="RESERVADO">Reservado</MenuItem>
+                    <MenuItem value="CONFIDENCIAL">Confidencial (solo ADMIN)</MenuItem>
                   </Select>
                 </FormControl>
               )}

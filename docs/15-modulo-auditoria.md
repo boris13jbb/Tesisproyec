@@ -16,9 +16,10 @@ Login/logout, CRUD sensibles, descarga de archivos, cambios de estado documental
   - Documento: tabla `documento_eventos` con eventos `CREADO`/`ACTUALIZADO` y `created_by_id`.
   - Archivo: tabla `documento_archivo_eventos` con eventos `SUBIDO`/`DESCARGADO`/`ELIMINADO` y `created_by_id`.
 - **Bitácora transversal (`audit_logs`):**
-  - Tabla `audit_logs` + `AuditService`; eventos AUTH (login/refresh/logout/reset/rate‑limit), administración/usuarios, documentos/archivos donde se integró.
+  - Tabla `audit_logs` + `AuditService`; eventos AUTH (login/refresh/logout/reset/rate‑limit), **`AUTHZ_FORBIDDEN`** ante respuestas **403** autenticadas (`forbidden-audit.filter.ts`), administración/usuarios, documentos/archivos donde se integró.
   - **Consulta ADMIN (API):** `GET /api/v1/auditoria` con filtros y paginación (`auditoria.controller.ts`). Evidencia de hardening MVP: **`docs/39-etapa-10-cierre-y-evidencias.md`**.
-  - **Pendiente institucional:** pantalla SPA de consulta/exportación desde UI; política de **retención** y archivo; integridad firma/checksum si el alcance lo exige.
+  - **UI ADMIN:** página **`/admin/auditoria`** (listado paginado + export Excel/PDF vía `GET /api/v1/reportes/auditoria.{xlsx,pdf}`).  
+  - **Pendiente institucional:** política de **retención** y archivo; integridad firma/checksum si el alcance lo exige.
 
 ## Decisiones técnicas
 
@@ -81,7 +82,7 @@ Tener una bitácora transversal para eventos de **seguridad** y **administració
 - `AUTH_PASSWORD_RESET_REQUEST`, `AUTH_PASSWORD_RESET_CONFIRM_OK`, `AUTH_PASSWORD_RESET_CONFIRM_FAIL`
 
 **Autorización**
-- `AUTHZ_DENIED` (403) con `requiredRole/requiredPermission` en `meta_json` (sin exceso de datos)
+- **`AUTHZ_FORBIDDEN`** — HTTP **403** con JWT válido (`meta_json`: método y ruta, sin exponer internals)
 
 **Usuarios**
 - `USER_CREATED`, `USER_UPDATED`, `USER_ACTIVATED`, `USER_DEACTIVATED`

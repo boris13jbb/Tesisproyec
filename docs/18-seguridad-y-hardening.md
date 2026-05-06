@@ -42,6 +42,8 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 
 - **Headers seguridad**: Helmet en `backend/src/main.ts`.
 - **Rate limiting**: `ThrottlerModule` global (`app.module.ts`); rutas **`/auth`** con `@Throttle` más estricto (`auth.controller.ts`); excesos registrados como `AUTH_RATE_LIMITED` (`throttler-audit.filter.ts`).
+- **Lockout por cuenta**: contador e intervalo en `users` (`AUTH_LOCKOUT_MAX_ATTEMPTS`, `AUTH_LOCKOUT_MINUTES`); complementa el throttling por IP.
+- **403 auditado**: intentos contra endpoints con rol insuficiente generan **`AUTHZ_FORBIDDEN`** (`forbidden-audit.filter.ts`).
 - **Cookies refresh**: `HttpOnly`, `secure` en producción, `sameSite=lax`, `path=/`; `clearCookie` con mismos flags.
 - **Validación API**: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
 - **RBAC por rol**: `RolesGuard` + `@Roles('ADMIN')` en mutaciones y reportes.

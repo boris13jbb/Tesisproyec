@@ -1,6 +1,6 @@
 # Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
 
-**Versión del manual:** 2026-05-05  
+**Versión del manual:** 2026-05-08  
 **Audiencia:** personal institucional (usuario final), administradores (ADMIN) y evaluadores (pruebas).  
 
 ---
@@ -49,7 +49,8 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 - En la barra superior verás tu correo y la indicación de **sesión activa**.
 
 **Posibles fallos**
-- **“Credenciales inválidas…”**: correo/contraseña incorrectos o usuario inactivo.
+- **“Credenciales inválidas…”**: correo/contraseña incorrectos, usuario inactivo o **cuenta temporalmente bloqueada** tras repetidos errores de contraseña (el mismo mensaje se usa a propósito; el administrador puede revisar **`AUTH_LOGIN_FAIL`** / **`ACCOUNT_LOCKED`** en Auditoría). Tras restablecer contraseña el bloqueo se limpia.
+- **Límite de intentos por red**: demasiadas peticiones en poco tiempo (mensaje tipo “Demasiados intentos”); espera unos minutos.
 - **“No se pudo conectar con la API…”**: backend no levantado o URL mal configurada.
 
 **Siguiente paso**
@@ -113,7 +114,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 1. En el menú lateral, entra a **Administración → Usuarios**.
 2. Para crear un usuario:
    - Presiona **Crear usuario**
-   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles**
+   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`; en esta versión, salvo **ADMIN**, el acceso efectivo es el de usuario con JWT; los códigos adicionales sirven para preparar flujos futuros).
    - Deja marcada la opción recomendada **“Enviar al correo un enlace…”** para que llegue un mensaje con el enlace a **definir contraseña** (página de restablecer). Si no marcas la casilla, el usuario solo puede entrar con la contraseña temporal.
    - Presiona **Crear**
    - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
@@ -168,6 +169,8 @@ Los catálogos son requisitos para registrar documentos correctamente.
 
 ## 7. Registro documental (Documentos)
 
+> **Confidencialidad y dependencia:** cada documento tiene **nivel** (Público, Interno, Reservado, Confidencial) y **dependencia propietaria**. Quien no es **ADMIN** solo ve lo que corresponda a su dependencia (y niveles permitidos). **Confidencial** queda reservado a **ADMIN**.
+
 ### 7.1 Abrir el módulo Documentos
 
 1. Menú → **Documentos**.
@@ -212,7 +215,7 @@ Los reportes usan los **mismos filtros** aplicados arriba (no exportan solo la p
 
 ### 7.4 Crear documento (solo ADMIN)
 
-1. En **Documentos**, presiona **Nuevo documento** (o botón equivalente).
+1. En **Documentos**, presiona **Registrar documento**.
 2. Completa:
    - Código (único)
    - Asunto
@@ -220,7 +223,9 @@ Los reportes usan los **mismos filtros** aplicados arriba (no exportan solo la p
    - Fecha
    - Tipo documental
    - Subserie (clasificación)
-3. Presiona **Crear**.
+   - **Dependencia propietaria** (opcional; si no eliges, puede usarse la dependencia del usuario ADMIN si existe)
+   - **Confidencialidad** (por defecto Interno; nivel **Confidencial** solo visible para ADMIN)
+3. Presiona **Guardar**.
 
 **Resultado esperado**
 - El documento aparece en el listado y se puede abrir el detalle.
@@ -233,6 +238,8 @@ Los reportes usan los **mismos filtros** aplicados arriba (no exportan solo la p
 
 1. En el listado de Documentos, haz clic sobre un registro.
 2. El sistema navega a `/documentos/:id`.
+
+En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de confidencialidad**. Si eres **ADMIN**, presiona **Editar**, ajusta los campos y **Guardar** en el diálogo cuando la pantalla lo muestre.
 
 ### 8.2 Sección “Archivos” (adjuntos)
 
@@ -279,7 +286,24 @@ En el detalle del documento existe una tarjeta **Historial**:
 
 ---
 
-## 10. Cierre de sesión
+## 10. Auditoría del sistema (solo ADMIN)
+
+1. Menú lateral → **Administración** → **Auditoría** (ruta `/admin/auditoria`).
+2. Opcional: filtra por **acción**, **email del actor** o rango **desde / hasta**.
+3. Usa **Exportar Excel** o **Exportar PDF** para descargar hasta **5000** registros recientes que cumplan el filtro.
+
+**Resultado esperado**
+
+- Lista paginada de eventos (`audit_logs`).
+- Cada exportación deja constancia en auditoría (`REPORT_EXPORTED`).
+
+**Posibles fallos**
+
+- **403 / vacío:** el usuario no es ADMIN o el token expiró (vuelve a iniciar sesión).
+
+---
+
+## 11. Cierre de sesión
 
 1. En la barra superior, abre el menú del usuario.
 2. Presiona **Cerrar sesión**.
@@ -289,13 +313,14 @@ En el detalle del documento existe una tarjeta **Historial**:
 
 ---
 
-## 11. Checklist de uso “de principio a fin” (resumen rápido)
+## 12. Checklist de uso “de principio a fin” (resumen rápido)
 
 1. Login
 2. (ADMIN) Crear catálogos: dependencias/cargos/tipos/series/subseries
-3. (ADMIN) Crear documento
+3. (ADMIN) Crear documento (dependencia y confidencialidad si aplica)
 4. Abrir detalle del documento
 5. (ADMIN) Subir archivo y generar versión
 6. Descargar y revisar historial
-7. Logout
+7. (ADMIN) Revisar o exportar **Auditoría** si necesitas evidencia sistémica
+8. Logout
 

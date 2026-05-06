@@ -24,10 +24,22 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-08 — Listado gap 28: auditoría 403 + lockout por cuenta en login
+
+- **Datos:** migración `20260508120000_user_login_lockout` (`failed_login_attempts`, `locked_until` en `users`).
+- **Backend:** `ForbiddenAuditFilter` (`AUTHZ_FORBIDDEN`); `AuthService.login` con `AUTH_LOCKOUT_*` y auditoría `ACCOUNT_LOCKED` / intentos fallidos en `AUTH_LOGIN_FAIL` (mensaje genérico al cliente).
+- **Docs:** `28-listado-lo-que-deberia-tener-el-sistema.md`, `04-modelo-base-de-datos.md`, `05-modulo-auth.md`, `15-modulo-auditoria.md`, `18-seguridad-y-hardening.md`, `27-manual-usuario-sgd-gadpr-lm.md`, `.env.example`.
+
 ### 2026-05-07 — ETAPA 10: cierre formal MVP tesis (documentación y evidencias)
 
 - **Nuevo:** `docs/39-etapa-10-cierre-y-evidencias.md` (hardening: Helmet, ValidationPipe, Throttler global + `@Throttle` auth, `ThrottlerAuditFilter`, `GET /auditoria` ADMIN).
 - **Actualización:** `00-roadmap-general.md`; `38-etapa-9-cierre-y-evidencias.md`; `18-seguridad-y-hardening.md`; `15-modulo-auditoria.md`; `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`.
+
+### 2026-05-07 — Listado gap 28: confidencialidad por documento + auditoría en UI + roles extendidos en administración
+
+- **Datos/API:** migración Prisma documento `dependencia_id` / `nivel_confidencialidad`; filtro anti‑IDOR en `documentos` y reportes; JWT con `dependenciaId`.
+- **UI:** `/admin/auditoria` (filtros + export Excel/PDF vía reportes); formulario/detalle documento con dependencia y confidencialidad; **`Usuarios`:** selector de roles `REVISOR` / `AUDITOR` / `CONSULTA` además de `ADMIN` / `USUARIO`.
+- **Docs:** `28-listado...`, `04-modelo-base-de-datos.md`, `15-modulo-auditoria.md`, `16-modulo-reportes.md`, `scripts/README-backups-mysql-xampp.md`, `27-manual-usuario-sgd-gadpr-lm.md`.
 
 ### 2026-05-06 — ETAPA 9: cierre formal al 100 % (documentación y evidencias)
 

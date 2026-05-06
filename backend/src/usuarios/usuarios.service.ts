@@ -479,7 +479,14 @@ export class UsuariosService {
       type: argon2.argon2id,
     });
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id }, data: { passwordHash } }),
+      this.prisma.user.update({
+        where: { id },
+        data: {
+          passwordHash,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
+      }),
       this.prisma.refreshToken.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },

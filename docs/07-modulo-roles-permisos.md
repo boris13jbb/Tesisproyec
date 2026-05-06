@@ -53,7 +53,7 @@ Definición de roles, matriz permiso ↔ rol, enforcement en backend y UI.
 
 - **Evidencia**
   - Pruebas negativas: usuario sin permiso recibe `403`.
-  - Registro en auditoría transversal (cuando exista `audit_logs`): `AUTHZ_DENIED`.
+  - Registro en auditoría transversal: **`AUTHZ_FORBIDDEN`** ante HTTP **403** (usuario autenticado sin rol suficiente).
 
 ### 2) Matriz acción → permiso (mínimo recomendado)
 

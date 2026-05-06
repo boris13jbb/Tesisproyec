@@ -32,6 +32,13 @@ Reportes de documentos, usuarios, auditoría según prioridad del MVP.
 
 Query alineado a `docs/14-modulo-busqueda.md` (sin `page`/`pageSize`: el reporte trae hasta el tope del servicio).
 
+### Exportar auditoría (bitácora `audit_logs`)
+
+- `GET /api/v1/reportes/auditoria.xlsx`
+- `GET /api/v1/reportes/auditoria.pdf`
+
+Query alineado al listado **`GET /api/v1/auditoria`** (`action`, `result`, `actorEmail`, `resourceType`, `resourceId`, `from`, `to`). Cada export registra **`REPORT_EXPORTED`** en auditoría.
+
 ## Dependencias
 
 - Módulos de dominio correspondientes; auditoría para trazabilidad de exportación.

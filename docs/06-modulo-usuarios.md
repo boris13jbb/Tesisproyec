@@ -73,7 +73,7 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 - **Nombres / Apellidos**
 - **Dependencia** (opcional)
 - **Cargo** (opcional)
-- **Roles** (`ADMIN`, `USUARIO`)
+- **Roles** (`ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA` — los tres últimos aparecen en el selector de administración con el mismo comportamiento efectivo que `USUARIO` hasta implementar flujos específicos)
 - **Activo** (habilitado / inhabilitado)
 
 ## Validaciones

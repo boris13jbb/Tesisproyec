@@ -1,12 +1,16 @@
 import {
   IsBoolean,
   IsDateString,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
+
+import { NIVELES_CONFIDENCIALIDAD } from './create-documento.dto';
 
 export class UpdateDocumentoDto {
   @IsOptional()
@@ -40,4 +44,13 @@ export class UpdateDocumentoDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @IsOptional()
+  @ValidateIf((_: unknown, v: unknown) => v != null && v !== '')
+  @IsUUID()
+  dependenciaId?: string | null;
+
+  @IsOptional()
+  @IsIn(NIVELES_CONFIDENCIALIDAD as unknown as string[])
+  nivelConfidencialidad?: (typeof NIVELES_CONFIDENCIALIDAD)[number];
 }

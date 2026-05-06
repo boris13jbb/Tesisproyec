@@ -46,7 +46,13 @@ type UsuarioCreateResponse = Usuario & {
   invitacionCorreo: InvitacionCorreoInfo;
 };
 
-const ROLE_OPTIONS = ['ADMIN', 'USUARIO'] as const;
+const ROLE_OPTIONS = [
+  'ADMIN',
+  'USUARIO',
+  'REVISOR',
+  'AUDITOR',
+  'CONSULTA',
+] as const;
 
 export function UsuariosPage() {
   const [items, setItems] = useState<Usuario[]>([]);

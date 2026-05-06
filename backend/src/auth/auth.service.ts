@@ -52,9 +52,30 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto) {
+  private loginLockoutMaxAttempts(): number {
+    const n = Number(this.config.get('AUTH_LOCKOUT_MAX_ATTEMPTS', 5));
+    return Number.isFinite(n) ? Math.min(30, Math.max(3, Math.floor(n))) : 5;
+  }
+
+  private loginLockoutMinutes(): number {
+    const n = Number(this.config.get('AUTH_LOCKOUT_MINUTES', 15));
+    return Number.isFinite(n)
+      ? Math.min(24 * 60, Math.max(5, Math.floor(n)))
+      : 15;
+  }
+
+  async login(
+    dto: LoginDto,
+    client?: { ip?: string | null; userAgent?: string | null },
+  ) {
     const email = dto.email.toLowerCase().trim();
-    const user = await this.prisma.user.findUnique({
+    const now = new Date();
+    const auditCtxBase = {
+      ip: client?.ip ?? null,
+      userAgent: client?.userAgent ?? null,
+    };
+
+    let user = await this.prisma.user.findUnique({
       where: { email },
       include: {
         roles: { include: { role: true } },
@@ -65,22 +86,76 @@ export class AuthService {
         action: 'AUTH_LOGIN_FAIL',
         result: 'FAIL',
         resource: { type: 'User', id: null },
-        context: { actorUserId: null, actorEmail: email },
+        context: { actorUserId: null, actorEmail: email, ...auditCtxBase },
         meta: { reason: 'USER_NOT_FOUND_OR_INACTIVE' },
       });
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    if (user.lockedUntil) {
+      if (user.lockedUntil > now) {
+        await this.audit.log({
+          action: 'AUTH_LOGIN_FAIL',
+          result: 'FAIL',
+          resource: { type: 'User', id: user.id },
+          context: {
+            actorUserId: user.id,
+            actorEmail: user.email,
+            ...auditCtxBase,
+          },
+          meta: { reason: 'ACCOUNT_LOCKED' },
+        });
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lockedUntil: null, failedLoginAttempts: 0 },
+        include: { roles: { include: { role: true } } },
+      });
+    }
+
     const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) {
+      const max = this.loginLockoutMaxAttempts();
+      const lockMinutes = this.loginLockoutMinutes();
+      const nextAttempt = user.failedLoginAttempts + 1;
+      const shouldLock = nextAttempt >= max;
+      const lockedUntil = shouldLock
+        ? new Date(now.getTime() + lockMinutes * 60_000)
+        : null;
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: shouldLock ? 0 : nextAttempt,
+          lockedUntil,
+        },
+      });
+
       await this.audit.log({
         action: 'AUTH_LOGIN_FAIL',
         result: 'FAIL',
         resource: { type: 'User', id: user.id },
-        context: { actorUserId: user.id, actorEmail: user.email },
-        meta: { reason: 'BAD_PASSWORD' },
+        context: {
+          actorUserId: user.id,
+          actorEmail: user.email,
+          ...auditCtxBase,
+        },
+        meta: {
+          reason: 'BAD_PASSWORD',
+          attempt: nextAttempt,
+          ...(shouldLock && lockedUntil
+            ? { lockedUntil: lockedUntil.toISOString() }
+            : {}),
+        },
       });
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
 
     const accessToken = await this.jwtService.signAsync(
       { sub: user.id, email: user.email },
@@ -106,7 +181,11 @@ export class AuthService {
       action: 'AUTH_LOGIN_OK',
       result: 'OK',
       resource: { type: 'User', id: user.id },
-      context: { actorUserId: user.id, actorEmail: user.email },
+      context: {
+        actorUserId: user.id,
+        actorEmail: user.email,
+        ...auditCtxBase,
+      },
     });
 
     return {
@@ -293,6 +372,7 @@ export class AuthService {
     email: string;
     nombres: string | null;
     apellidos: string | null;
+    dependenciaId: string | null;
     activo: boolean;
     roles: { role: { codigo: string; nombre: string } }[];
   }) {
@@ -301,6 +381,7 @@ export class AuthService {
       email: user.email,
       nombres: user.nombres,
       apellidos: user.apellidos,
+      dependenciaId: user.dependenciaId,
       roles: user.roles.map((ur) => ({
         codigo: ur.role.codigo,
         nombre: ur.role.nombre,
@@ -467,7 +548,11 @@ export class AuthService {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: row.userId },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
       }),
       this.prisma.passwordResetToken.update({
         where: { id: row.id },

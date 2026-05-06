@@ -19,6 +19,10 @@ model User {
   dependenciaId String? @map("dependencia_id")
   cargoId       String? @map("cargo_id")
   activo       Boolean  @default(true)
+  /// Incrementa con contraseña incorrecta; se resetea en login OK o tras desbloqueo por tiempo.
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  /// Si está en futuro, el login debe rechazar (además del throttling por IP).
+  lockedUntil DateTime? @map("locked_until")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -160,8 +164,9 @@ model Dependencia {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  cargos Cargo[]
-  users  User[]
+  cargos    Cargo[]
+  users     User[]
+  documentos Documento[]
 
   @@map("dependencias")
 }
@@ -233,21 +238,24 @@ model Subserie {
 
 /// Documento registrado (ETAPA 6 — MVP).
 model Documento {
-  id               String   @id @default(uuid())
-  codigo           String   @unique @db.VarChar(64)
-  asunto           String   @db.VarChar(250)
-  descripcion      String?  @db.VarChar(1000)
-  fechaDocumento   DateTime @map("fecha_documento")
-  estado           String   @default("REGISTRADO") @db.VarChar(32)
-  activo           Boolean  @default(true)
-  tipoDocumentalId String   @map("tipo_documental_id")
-  subserieId       String   @map("subserie_id")
-  createdById      String   @map("created_by_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                       String   @id @default(uuid())
+  codigo                   String   @unique @db.VarChar(64)
+  asunto                   String   @db.VarChar(250)
+  descripcion              String?  @db.VarChar(1000)
+  fechaDocumento           DateTime @map("fecha_documento")
+  estado                   String   @default("REGISTRADO") @db.VarChar(32)
+  nivelConfidencialidad    String   @default("INTERNO") @map("nivel_confidencialidad") @db.VarChar(32)
+  activo                   Boolean  @default(true)
+  tipoDocumentalId         String   @map("tipo_documental_id")
+  subserieId               String   @map("subserie_id")
+  dependenciaId            String?  @map("dependencia_id")
+  createdById              String   @map("created_by_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
   tipoDocumental TipoDocumental @relation(fields: [tipoDocumentalId], references: [id], onDelete: Restrict)
   subserie       Subserie       @relation(fields: [subserieId], references: [id], onDelete: Restrict)
+  dependencia    Dependencia?    @relation(fields: [dependenciaId], references: [id], onDelete: SetNull)
   createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   eventos        DocumentoEvento[]
   archivos       DocumentoArchivo[]
@@ -255,6 +263,8 @@ model Documento {
   @@index([tipoDocumentalId])
   @@index([subserieId])
   @@index([createdById])
+  @@index([dependenciaId])
+  @@index([nivelConfidencialidad])
   @@map("documentos")
 }
 

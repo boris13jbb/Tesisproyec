@@ -44,6 +44,12 @@ type SubserieOption = {
   serie: SerieOption;
 };
 
+type DependenciaOption = {
+  id: string;
+  codigo: string;
+  nombre: string;
+};
+
 type DocumentoRow = {
   id: string;
   codigo: string;
@@ -51,8 +57,10 @@ type DocumentoRow = {
   descripcion: string | null;
   fechaDocumento: string;
   estado: string;
+  nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumental: TipoOption;
+  dependencia: DependenciaOption | null;
   subserie: {
     id: string;
     codigo: string;
@@ -76,6 +84,8 @@ const createSchema = z.object({
   fechaDocumento: z.string().min(10, 'Fecha requerida'),
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Subserie requerida'),
+  dependenciaId: z.string().optional(),
+  nivelConfidencialidad: z.enum(['PUBLICO', 'INTERNO', 'RESERVADO', 'CONFIDENCIAL']),
 });
 
 type CreateForm = z.infer<typeof createSchema>;
@@ -87,6 +97,7 @@ export function DocumentosPage() {
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
+  const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
 
   const [rows, setRows] = useState<DocumentoRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -136,6 +147,21 @@ export function DocumentosPage() {
       })
       .catch(() => {
         if (!cancelled) setSubseries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get<DependenciaOption[]>('/dependencias')
+      .then((res) => {
+        if (!cancelled) setDependencias(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setDependencias([]);
       });
     return () => {
       cancelled = true;
@@ -329,6 +355,8 @@ export function DocumentosPage() {
       fechaDocumento: new Date().toISOString().slice(0, 10),
       tipoDocumentalId: '',
       subserieId: '',
+      dependenciaId: '',
+      nivelConfidencialidad: 'INTERNO',
     },
   });
 
@@ -342,6 +370,8 @@ export function DocumentosPage() {
         fechaDocumento: new Date(data.fechaDocumento).toISOString(),
         tipoDocumentalId: data.tipoDocumentalId,
         subserieId: data.subserieId,
+        dependenciaId: data.dependenciaId?.trim() || undefined,
+        nivelConfidencialidad: data.nivelConfidencialidad,
       });
       setCreateOpen(false);
       createForm.reset();
@@ -558,12 +588,18 @@ export function DocumentosPage() {
               >
                 Estado{sortLabel('estado')}
               </TableCell>
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                Conf.
+              </TableCell>
+              <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                Dep.
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={6}>Cargando…</TableCell>
+                <TableCell colSpan={8}>Cargando…</TableCell>
               </TableRow>
             )}
             {!loading &&
@@ -586,11 +622,17 @@ export function DocumentosPage() {
                     {new Date(row.fechaDocumento).toISOString().slice(0, 10)}
                   </TableCell>
                   <TableCell>{row.estado}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    {row.nivelConfidencialidad}
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                    {row.dependencia?.codigo ?? '—'}
+                  </TableCell>
                 </TableRow>
               ))}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} sx={{ py: 0 }}>
+                <TableCell colSpan={8} sx={{ py: 0 }}>
                   <EmptyState
                     dense
                     title="No hay documentos que coincidan con los criterios."
@@ -677,6 +719,48 @@ export function DocumentosPage() {
                         {subserieLabel.get(s.id)}
                       </MenuItem>
                     ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+            <Controller
+              name="dependenciaId"
+              control={createForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="dep-label">Dependencia propietaria</InputLabel>
+                  <Select
+                    {...field}
+                    labelId="dep-label"
+                    label="Dependencia propietaria"
+                    value={field.value || ''}
+                  >
+                    <MenuItem value="">(Usar dependencia del ADMIN o sin asignar)</MenuItem>
+                    {dependencias.map((d) => (
+                      <MenuItem key={d.id} value={d.id}>
+                        {d.codigo} — {d.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+            <Controller
+              name="nivelConfidencialidad"
+              control={createForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="nivel-label">Confidencialidad</InputLabel>
+                  <Select
+                    {...field}
+                    labelId="nivel-label"
+                    label="Confidencialidad"
+                    value={field.value}
+                  >
+                    <MenuItem value="INTERNO">Interno</MenuItem>
+                    <MenuItem value="PUBLICO">Público</MenuItem>
+                    <MenuItem value="RESERVADO">Reservado</MenuItem>
+                    <MenuItem value="CONFIDENCIAL">Confidencial (solo ADMIN)</MenuItem>
                   </Select>
                 </FormControl>
               )}

@@ -1,13 +1,29 @@
 # Listado de lo que debería tener el sistema (Gap vs implementación actual)
 
 **Proyecto:** SGD-GADPR-LM  
-**Fecha:** 2026-05-05  
+**Fecha:** 2026-05-08  
 **Propósito:** comparar los requisitos (1–45) propuestos vs el sistema implementado y listar lo que falta para un cierre institucional alineado con **ISO/IEC 27001**, **ISO 15489** y **OWASP ASVS**.
 
 > Leyenda de estado:
 > - **Implementado**: existe en backend y/o frontend y es usable.
 > - **Parcial**: existe parcialmente (MVP) o falta robustecer (p. ej. auditoría transversal, rate limit, retención).
 > - **Pendiente**: no existe o no se evidencia en el sistema actual.
+
+---
+
+## 0) Avance (código vs gobierno institucional)
+
+Constatación explícita: **no** se puede “cerrar” el listado 1–45 solo con software de tesis; varios ítems son **política**, **infraestructura** o **proceso**. El repositorio incorpora (entre otras iteraciones):
+
+| Brecha (doc) | Qué se hizo en MVP |
+|--------------|-------------------|
+| **R-6 / R-38** | Columnas `dependencia_id` y `nivel_confidencialidad` en `documentos`; filtro de visibilidad en listado/detalle/descarga/export (no‑ADMIN). |
+| **R-30 / R-31 / R-40 (base)** | UI **ADMIN** `/admin/auditoria` + export `GET /api/v1/reportes/auditoria.{xlsx,pdf}`; bitácora `audit_logs` con eventos de auth; **`AUTHZ_FORBIDDEN`** al responder **403** con usuario JWT. |
+| **R-9 (base ASVS)** | Throttling global y por ruta `auth` + **`AUTH_LOCKOUT_*`**: bloqueo **por cuenta** tras N contraseñas incorrectas (`users.failed_login_attempts` / `locked_until`); se limpia en login OK o restablecimiento de contraseña. |
+| **R-4 (parcial)** | Roles **REVISOR**, **AUDITOR**, **CONSULTA** sembrados en seed; **mismo alcance funcional** que **USUARIO** hasta definir flujos; asignación en UI de administración. |
+| **R-36 / R-37** | Procedimiento documentado: `scripts/README-backups-mysql-xampp.md` (backup/restauración **manual**). |
+
+Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (R-28), máquina de estados formal (R-27), retención/legal hold operativos (R-32–35), notificaciones (R-44), HTTPS productivo (R-19), MFA/WAF (backlog), permisos granulares `Permission` (R-5), políticas jurídicas firmadas (R-43).
 
 ---
 
@@ -27,16 +43,17 @@
    - **Evidencia**: `users.email` único.
 
 4. **Roles y perfiles (admin, usuario, revisor, auditor, consulta)** — **Parcial**  
-   - **Hoy**: `ADMIN` y `USUARIO`.  
-   - **Falta**: definir y sembrar roles institucionales adicionales (REVISOR/AUDITOR/CONSULTA) + responsabilidades.
+   - **Hoy**: `ADMIN`, `USUARIO`, y en seed **REVISOR**, **AUDITOR**, **CONSULTA** (sin flujos específicos aún).  
+   - **Falta**: diferenciar responsabilidades (aprobación, revisión, auditoría de campo) con reglas de negocio y UI.
 
 5. **Permisos por rol (ver/subir/editar/eliminar/descargar)** — **Parcial**  
-   - **Hoy**: enforcement principalmente por rol `ADMIN` en mutaciones; lectura por JWT.  
-   - **Falta**: permisos granulares en guard (usar `Permission`/`role_permissions`) y matriz “acción→permiso”.
+   - **Hoy**: mutaciones sensibles con `ADMIN`; lectura con JWT; **filtrado por dependencia + confidencialidad** en consulta/descarga/export documentos (no‑ADMIN).  
+   - **Falta**: matriz `Permission`/`role_permissions` y guards por permiso (no solo rol).
    - **Docs**: `07-modulo-roles-permisos.md` (marca pendiente permisos granulares).
 
-6. **Control de acceso por documento (área/tipo/confidencialidad)** — **Pendiente**  
-   - **Falta**: atributos de control (p. ej. `nivel_confidencialidad`, `dependenciaId` propietaria) + reglas de acceso por recurso (anti‑IDOR real).
+6. **Control de acceso por documento (área/tipo/confidencialidad)** — **Parcial (MVP código)**  
+   - **Hoy**: `documentos.dependencia_id`, `nivel_confidencialidad` y reglas en servicio (listado/detalle/eventos/archivos/export).  
+   - **Falta**: reglas de negocio institucionales más finas (ej. mezcla de roles no‑ADMIN, clasificación por serie, elevación controlada).
 
 7. **Contraseñas cifradas (hash)** — **Implementado**  
    - **Evidencia**: Argon2id (`password_hash`).
@@ -45,8 +62,9 @@
    - **Evidencia**: `password_reset_tokens` + endpoints request/confirm + invalidación de sesiones.
    - **Falta**: envío de token por correo institucional (en MVP puede existir `debugToken` en dev).
 
-9. **Bloqueo por intentos fallidos** — **Pendiente**  
-   - **Falta**: rate limiting/lockout/backoff en login y recuperación (ASVS V2).
+9. **Bloqueo por intentos fallidos** — **Parcial (MVP+)**  
+   - **Hoy**: `@Throttle` en login/refresh/restore/reset + throttler global + `AUTH_RATE_LIMITED`; lockout por **cuenta** (`AUTH_LOCKOUT_MAX_ATTEMPTS` / `AUTH_LOCKOUT_MINUTES`, ver `.env.example`) con auditoría `BAD_PASSWORD` / `ACCOUNT_LOCKED`.  
+   - **Falta**: backoff/adjuste fino institucional, aviso explícito al usuario (se mantiene mensaje genérico), integración con mesa de ayuda / desbloqueo ADMIN en UI si se requiere.
 
 10. **Control de sesiones (inactividad/expiración/cierre)** — **Parcial**  
    - **Hoy**: expiración de access + refresh; logout revoca refresh.  
@@ -94,8 +112,8 @@
    - **Evidencia**: `documentos.codigo` único.
 
 22. **Metadatos documentales (título/tipo/área/autor/estado/versión/clasificación)** — **Parcial**  
-   - **Hoy**: tipo, subserie/serie (clasificación), fechas, estado, creador.  
-   - **Falta**: “área” propietaria, nivel confidencialidad, metadatos adicionales por tipo, “versión” del documento como entidad (diferente a versión de archivo).
+   - **Hoy**: tipo, subserie/serie (clasificación), fechas, estado, creador, dependencia propietaria (`dependencia_id`), nivel de confidencialidad.  
+   - **Falta**: metadatos adicionales por tipo formalizados y “versión” del documento como entidad (diferente a versión de archivo).
 
 23. **Clasificación documental (serie/subserie)** — **Implementado**  
    - **Evidencia**: catálogos series/subseries y FK en documento.
@@ -119,14 +137,16 @@
    - **Falta**: roles revisor/aprobador, bandeja de pendientes, transiciones y evidencias.
 
 29. **Trazabilidad documental (quién creó/modificó/revisó/aprobó/descargó/eliminó)** — **Parcial**  
-   - **Hoy**: eventos de documento (CREADO/ACTUALIZADO) y eventos de archivo (SUBIDO/DESCARGADO/ELIMINADO).  
-   - **Falta**: trazabilidad del flujo (revisión/aprobación) y auditoría transversal.
+   - **Hoy**: eventos de documento (CREADO/ACTUALIZADO) y eventos de archivo (SUBIDO/DESCARGADO/ELIMINADO); `audit_logs` con consulta/export ADMIN para acciones de sistema (ej. login, límites, reportes).  
+   - **Falta**: trazabilidad del flujo formal (revisión/aprobación) y cobertura exhaustiva de auditoría por operación.
 
-30. **Bitácora de auditoría (acciones del sistema con IP)** — **Pendiente (auditoría transversal)**  
-   - **Hoy**: eventos por dominio existen; falta `audit_logs` central para auth/admin/denegaciones/exportaciones, con IP/UA/correlación.
+30. **Bitácora de auditoría (acciones del sistema con IP)** — **Implementado (MVP+)**  
+   - **Hoy**: tabla `audit_logs` + API `GET /api/v1/auditoria` (ADMIN) + UI `/admin/auditoria` + export Excel/PDF desde reportes; **`AUTHZ_FORBIDDEN`** ante **403** autenticado.  
+   - **Falta**: más eventos denegados (p. ej. 404 táctico si se audita sin filtración), retención institucional y firma/checksum de bitácora.
 
-31. **Historial de accesos (quién ingresó y cuándo)** — **Pendiente (auditoría transversal)**  
-   - **Falta**: registrar `AUTH_LOGIN_OK/FAIL` en tabla central; reportes de accesos.
+31. **Historial de accesos (quién ingresó y cuándo)** — **Parcial**  
+   - **Hoy**: eventos `AUTH_LOGIN_OK` / `AUTH_LOGIN_FAIL` (y relacionados) en `audit_logs`; consulta y export desde módulo auditoría.  
+   - **Falta**: dashboard operativo y KPIs de seguridad para mesa de ayuda.
 
 32. **Conservación documental (tiempo por tipo)** — **Pendiente**
 
@@ -141,23 +161,28 @@
 
 ### 3. Continuidad, reportes y cumplimiento
 
-36. **Copias de seguridad automáticas (BD y archivos)** — **Pendiente**
+36. **Copias de seguridad automáticas (BD y archivos)** — **Parcial (procedimiento)**  
+   - **Guía manual:** `scripts/README-backups-mysql-xampp.md`.  
+   - **Falta**: automatización institucional (cron, destino certificado, pruebas de restauración registradas).
 
-37. **Restauración de información** — **Pendiente**
+37. **Restauración de información** — **Parcial (procedimiento)**  
+   - Ver `scripts/README-backups-mysql-xampp.md` (import `mysql` + `storage/`).
 
-38. **Protección de documentos sensibles (público/interno/reservado/confidencial)** — **Pendiente**  
-   - **Falta**: clasificación de confidencialidad + enforcement por rol/dependencia y auditoría.
+38. **Protección de documentos sensibles (público/interno/reservado/confidencial)** — **Parcial (MVP código)**  
+   - **Hoy**: niveles en metadato + enforcement en API (ver R-6).  
+   - **Falta**: gobierno institucional del catálogo de niveles y excepciones auditadas.
 
 39. **Reportes administrativos** — **Implementado (parcial)**  
    - **Hoy**: reportes de documentos a Excel/PDF con filtros.  
    - **Falta**: reportes de aprobación, archivado/eliminado, pendientes.
 
-40. **Reportes de seguridad (accesos, intentos fallidos, acciones)** — **Pendiente**  
-   - Depende de `audit_logs` + rate limiting.
+40. **Reportes de seguridad (accesos, intentos fallidos, acciones)** — **Parcial (MVP)**  
+   - **Hoy**: export filtrable de `audit_logs` (Excel/PDF) + consulta en pantalla ADMIN.  
+   - **Falta**: plantillas institucionales, envío programado, segregación de datos en reportes.
 
 41. **Panel de administración (usuarios/roles/permisos/documentos/auditoría)** — **Parcial**  
-   - **Hoy**: usuarios + catálogos + reportes por rol ADMIN.  
-   - **Falta**: roles/permisos granulares, auditoría central, configuración general.
+   - **Hoy**: usuarios + catálogos + documentos + auditoría + exportes (ADMIN).  
+   - **Falta**: pantalla de permisos granulares y parámetros generales (`17`).
 
 42. **Manual de usuario** — **Implementado**  
    - **Evidencia**: `27-manual-usuario-sgd-gadpr-lm.md` + regla de actualización.
@@ -178,39 +203,39 @@
 
 1) **Autenticación** — **Implementado (MVP)**  
    - Login, logout, refresh, recuperación, `/me`.  
-   - Falta: rate limit/lockout, sesión por inactividad, auditoría central.
+   - Falta: lockout por cuenta / MFA; sesión por inactividad avanzada.
 
 2) **Usuarios** — **Implementado (MVP)**  
-   - Crear/editar/activar/desactivar/reset pass, roles básicos.  
-   - Falta: roles institucionales adicionales y permisos granulares.
+   - Crear/editar/activar/desactivar/reset pass; asignación de roles **ADMIN**, **USUARIO**, **REVISOR**, **AUDITOR**, **CONSULTA** (últimos tres con mismo alcance funcional que usuario hasta nuevos flujos).  
+   - Falta: permisos granulares (`Permission`) y flujos por rol.
 
 3) **Documentos** — **Implementado (MVP)**  
    - Registro, metadatos base, clasificación, búsqueda, detalle.
 
 4) **Trazabilidad** — **Parcial**  
-   - Eventos por documento/archivo implementados.  
-   - Falta: bitácora transversal (`audit_logs`) + historial de accesos.
+   - Eventos por documento/archivo implementados; `audit_logs` + UI/export seguridad.  
+   - Falta: retención legal e integridad avanzada de bitácora.
 
-5) **Conservación** — **Pendiente**  
-   - Retención, archivo formal, disposición/eliminación por política, restauración.
+5) **Conservación** — **Pendiente (gobierno)**  
+   - Retención, archivo formal, disposición/eliminación por política; evidencia restauración fuera del código.
 
 6) **Seguridad** — **Parcial**  
-   - Validación, headers, CORS, ORM, subida de archivos controlada.  
-   - Falta: lockout, CSP/CSRF según crecimiento, TLS institucional, hardening final y monitoreo.
+   - Validación, headers, CORS, ORM, subida acotada, **throttling**, **filtro por documento**, **lockout por cuenta**, **403 auditados**.  
+   - Falta: MFA, CSP/CSRF según alcance ampliado, TLS productivo y monitoreo centralizado.
 
 7) **Reportes** — **Parcial**  
-   - Documentos Excel/PDF implementado.  
-   - Falta: reportes de auditoría/seguridad y cumplimiento documental (retención/aprobación).
+   - Documentos + **auditoría** Excel/PDF (ADMIN).  
+   - Falta: reportes de cumplimiento documental (retención/aprobación) y envío programado.
 
 ---
 
 ## 3) Lista priorizada de “lo que falta” (recomendación)
 
 ### Prioridad Alta (cierra brechas de seguridad y evidencia)
-- **R-30/R-31/R-40**: `audit_logs` (bitácora transversal) + historial de accesos + reportes de seguridad.
-- **R-9**: rate limit / lockout en login y recuperación.
-- **R-6/R-38**: control de acceso por documento (dependencia/confidencialidad) para evitar exposición indebida.
-- **R-36/R-37**: backups + restauración con evidencia.
+- **R-30/R-31/R-40**: profundizar cobertura (denegaciones 404 tácticas si aplica, exportaciones ya auditadas); dashboard operativo.
+- **R-9**: MFA y políticas de backoff; lockout por cuenta **iniciado** (env `AUTH_LOCKOUT_*`).
+- **R-6/R-38**: endurecer reglas de negocio (excepciones, elevación auditada).
+- **R-36/R-37**: automatizar backups y **pruebas de restauración** con bitácora.
 
 ### Prioridad Media (mejora ISO 15489 “completo”)
 - **R-27/R-28**: estados con máquina de transiciones + flujo de aprobación.

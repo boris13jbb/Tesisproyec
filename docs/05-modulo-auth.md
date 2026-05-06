@@ -17,6 +17,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
   - **Rotación de refresh (ASVS V3)**: cada `POST /auth/refresh` invalida el refresh usado y emite uno nuevo (misma `expires_at` en BD que el token anterior); la cookie HttpOnly se renueva desde el servidor.
   - **Inactividad (ASVS V3)**: columna `last_used_at` en `refresh_tokens`; si no hay refresh dentro del umbral `SESSION_INACTIVITY_MINUTES`, la sesión deja de poder renovarse.
   - Rate limiting en login y recuperación (ver infra / `@nestjs/throttler`).
+  - **Lockout por cuenta (R-9 MVP):** tras N intentos fallidos de contraseña la cuenta queda bloqueada unos minutos (`users.failed_login_attempts` / `users.locked_until`); valores `AUTH_LOCKOUT_MAX_ATTEMPTS` y `AUTH_LOCKOUT_MINUTES` en `.env` (ver `.env.example`). Se limpia en login exitoso y al confirmar/recibir reset de contraseña.
   - Argon2id en usuarios.
   - Recuperación de credenciales: tokens opacos (hash SHA-256 en BD), un solo uso, expiración; **opcionalmente envío SMTP** (`MailService`/nodemailer) del enlace a `/restablecer?token=`.
   - Endpoints:

@@ -12,6 +12,11 @@ import type { AuditContext } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { isPrismaCode } from '../common/prisma-util';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtRequestUser } from '../auth/request-user';
+import {
+  assertUsuarioPuedeVerDocumento,
+  documentoVisibilityWhere,
+} from './documento-scope.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 
@@ -25,6 +30,7 @@ const includeCatalogos = {
       serie: { select: { id: true, codigo: true, nombre: true } },
     },
   },
+  dependencia: { select: { id: true, codigo: true, nombre: true } },
   createdBy: { select: { id: true, email: true } },
 } as const;
 
@@ -34,9 +40,11 @@ type DocumentoSnapshot = {
   descripcion: string | null;
   fechaDocumento: Date;
   estado: string;
+  nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumentalId: string;
   subserieId: string;
+  dependenciaId: string | null;
   createdById: string;
 };
 
@@ -47,7 +55,19 @@ export class DocumentosService {
     private readonly audit: AuditService,
   ) {}
 
+  private async loadDocumentoById(id: string) {
+    const row = await this.prisma.documento.findUnique({
+      where: { id },
+      include: includeCatalogos,
+    });
+    if (!row) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+    return row;
+  }
+
   async findAll(
+    viewer: JwtRequestUser,
     incluirInactivos: boolean,
     filters?: {
       q?: string;
@@ -92,7 +112,7 @@ export class DocumentosService {
             ]
           : [{ fechaDocumento: sortDir }, { createdAt: 'desc' }];
 
-    const where = {
+    const baseWhere: Prisma.DocumentoWhereInput = {
       ...(incluirInactivos ? {} : { activo: true }),
       ...(estado ? { estado } : {}),
       ...(filters?.tipoDocumentalId
@@ -133,7 +153,12 @@ export class DocumentosService {
             ],
           }
         : {}),
-    } as const;
+    } satisfies Prisma.DocumentoWhereInput;
+
+    const scope = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = scope
+      ? { AND: [baseWhere, scope] }
+      : baseWhere;
 
     const [total, items] = await this.prisma.$transaction([
       this.prisma.documento.count({ where }),
@@ -149,14 +174,9 @@ export class DocumentosService {
     return { page, pageSize, total, items };
   }
 
-  async findOne(id: string) {
-    const row = await this.prisma.documento.findUnique({
-      where: { id },
-      include: includeCatalogos,
-    });
-    if (!row) {
-      throw new NotFoundException('Documento no encontrado');
-    }
+  async findOne(id: string, viewer: JwtRequestUser) {
+    const row = await this.loadDocumentoById(id);
+    assertUsuarioPuedeVerDocumento(row, viewer);
     return row;
   }
 
@@ -174,9 +194,31 @@ export class DocumentosService {
     }
   }
 
+  private async assertDependenciaExists(id: string) {
+    const d = await this.prisma.dependencia.findUnique({ where: { id } });
+    if (!d) {
+      throw new BadRequestException('Dependencia no encontrada');
+    }
+    if (!d.activo) {
+      throw new BadRequestException('Dependencia inactiva');
+    }
+  }
+
   async create(dto: CreateDocumentoDto, createdById: string) {
     await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
     await this.assertSubserieExists(dto.subserieId);
+
+    const creator = await this.prisma.user.findUnique({
+      where: { id: createdById },
+      select: { dependenciaId: true },
+    });
+    if (dto.dependenciaId) {
+      await this.assertDependenciaExists(dto.dependenciaId);
+    }
+    const dependenciaId: string | null =
+      dto.dependenciaId ?? creator?.dependenciaId ?? null;
+
+    const nivelConfidencialidad = dto.nivelConfidencialidad ?? 'INTERNO';
 
     const codigo = dto.codigo.trim().toUpperCase();
     const fechaDocumento = new Date(dto.fechaDocumento);
@@ -191,6 +233,8 @@ export class DocumentosService {
             fechaDocumento,
             tipoDocumentalId: dto.tipoDocumentalId,
             subserieId: dto.subserieId,
+            dependenciaId,
+            nivelConfidencialidad,
             createdById,
           },
           include: includeCatalogos,
@@ -202,9 +246,11 @@ export class DocumentosService {
           descripcion: documento.descripcion,
           fechaDocumento: documento.fechaDocumento,
           estado: documento.estado,
+          nivelConfidencialidad: documento.nivelConfidencialidad,
           activo: documento.activo,
           tipoDocumentalId: documento.tipoDocumentalId,
           subserieId: documento.subserieId,
+          dependenciaId: documento.dependenciaId,
           createdById: documento.createdById,
         };
 
@@ -229,8 +275,9 @@ export class DocumentosService {
     }
   }
 
-  async findEventos(documentoId: string) {
-    await this.findOne(documentoId);
+  async findEventos(documentoId: string, viewer: JwtRequestUser) {
+    const doc = await this.loadDocumentoById(documentoId);
+    assertUsuarioPuedeVerDocumento(doc, viewer);
     return this.prisma.documentoEvento.findMany({
       where: { documentoId },
       orderBy: [{ createdAt: 'desc' }],
@@ -240,8 +287,9 @@ export class DocumentosService {
     });
   }
 
-  async findArchivos(documentoId: string) {
-    await this.findOne(documentoId);
+  async findArchivos(documentoId: string, viewer: JwtRequestUser) {
+    const doc = await this.loadDocumentoById(documentoId);
+    assertUsuarioPuedeVerDocumento(doc, viewer);
     return this.prisma.documentoArchivo.findMany({
       where: { documentoId, activo: true },
       orderBy: [{ createdAt: 'desc' }],
@@ -286,7 +334,7 @@ export class DocumentosService {
     createdById: string,
     ctx?: AuditContext,
   ) {
-    await this.findOne(documentoId);
+    await this.loadDocumentoById(documentoId);
     if (!file) {
       throw new BadRequestException(
         'Archivo requerido (campo multipart: file)',
@@ -413,11 +461,13 @@ export class DocumentosService {
   async prepareDownloadArchivo(
     documentoId: string,
     archivoId: string,
-    userId: string,
+    viewer: JwtRequestUser,
     ip: string | null,
     ctx?: AuditContext,
   ) {
-    await this.findOne(documentoId);
+    const doc = await this.loadDocumentoById(documentoId);
+    assertUsuarioPuedeVerDocumento(doc, viewer);
+    const userId = viewer.id;
     const row = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId, activo: true },
     });
@@ -468,7 +518,7 @@ export class DocumentosService {
     deletedById: string,
     ctx?: AuditContext,
   ) {
-    await this.findOne(documentoId);
+    await this.loadDocumentoById(documentoId);
     const row = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId, activo: true },
       select: { id: true, originalName: true, version: true },
@@ -512,8 +562,13 @@ export class DocumentosService {
     return { ok: true };
   }
 
-  async findArchivoEventos(documentoId: string, archivoId: string) {
-    await this.findOne(documentoId);
+  async findArchivoEventos(
+    documentoId: string,
+    archivoId: string,
+    viewer: JwtRequestUser,
+  ) {
+    const doc = await this.loadDocumentoById(documentoId);
+    assertUsuarioPuedeVerDocumento(doc, viewer);
     const exists = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId },
       select: { id: true },
@@ -549,12 +604,19 @@ export class DocumentosService {
   }
 
   async update(id: string, dto: UpdateDocumentoDto, updatedById: string) {
-    const beforeFull = await this.findOne(id);
+    const beforeFull = await this.loadDocumentoById(id);
     if (dto.tipoDocumentalId !== undefined) {
       await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
     }
     if (dto.subserieId !== undefined) {
       await this.assertSubserieExists(dto.subserieId);
+    }
+    if (dto.dependenciaId !== undefined) {
+      if (dto.dependenciaId === null) {
+        /* allow clear */
+      } else {
+        await this.assertDependenciaExists(dto.dependenciaId);
+      }
     }
     if (
       dto.asunto === undefined &&
@@ -563,9 +625,11 @@ export class DocumentosService {
       dto.tipoDocumentalId === undefined &&
       dto.subserieId === undefined &&
       dto.estado === undefined &&
-      dto.activo === undefined
+      dto.activo === undefined &&
+      dto.dependenciaId === undefined &&
+      dto.nivelConfidencialidad === undefined
     ) {
-      return this.findOne(id);
+      return this.loadDocumentoById(id);
     }
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
@@ -588,6 +652,12 @@ export class DocumentosService {
             ...(dto.subserieId !== undefined && { subserieId: dto.subserieId }),
             ...(dto.estado !== undefined && { estado: dto.estado.trim() }),
             ...(dto.activo !== undefined && { activo: dto.activo }),
+            ...(dto.dependenciaId !== undefined && {
+              dependenciaId: dto.dependenciaId,
+            }),
+            ...(dto.nivelConfidencialidad !== undefined && {
+              nivelConfidencialidad: dto.nivelConfidencialidad,
+            }),
           },
           include: includeCatalogos,
         });
@@ -598,9 +668,11 @@ export class DocumentosService {
           descripcion: beforeFull.descripcion,
           fechaDocumento: beforeFull.fechaDocumento,
           estado: beforeFull.estado,
+          nivelConfidencialidad: beforeFull.nivelConfidencialidad,
           activo: beforeFull.activo,
           tipoDocumentalId: beforeFull.tipoDocumentalId,
           subserieId: beforeFull.subserieId,
+          dependenciaId: beforeFull.dependenciaId,
           createdById: beforeFull.createdById,
         };
         const after: DocumentoSnapshot = {
@@ -609,9 +681,11 @@ export class DocumentosService {
           descripcion: documento.descripcion,
           fechaDocumento: documento.fechaDocumento,
           estado: documento.estado,
+          nivelConfidencialidad: documento.nivelConfidencialidad,
           activo: documento.activo,
           tipoDocumentalId: documento.tipoDocumentalId,
           subserieId: documento.subserieId,
+          dependenciaId: documento.dependenciaId,
           createdById: documento.createdById,
         };
         const diff = this.diffDocumento(before, after);

@@ -38,9 +38,19 @@ export class AuthController {
   @Throttle({ default: { limit: 8, ttl: 10 * 60_000 } }) // 8 / 10 min por IP
   async login(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(dto);
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipFromForwarded =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    const ua = req.headers['user-agent'];
+    const result = await this.authService.login(dto, {
+      ip: ipFromForwarded ?? req.ip,
+      userAgent: typeof ua === 'string' ? ua : undefined,
+    });
     const name = this.cookieName();
     res.cookie(name, result.refreshToken, {
       httpOnly: true,

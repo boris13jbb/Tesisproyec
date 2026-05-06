@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -7,6 +8,13 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+export const NIVELES_CONFIDENCIALIDAD = [
+  'PUBLICO',
+  'INTERNO',
+  'RESERVADO',
+  'CONFIDENCIAL',
+] as const;
 
 export class CreateDocumentoDto {
   @IsString()
@@ -35,4 +43,13 @@ export class CreateDocumentoDto {
 
   @IsUUID()
   subserieId!: string;
+
+  /** Área propietaria (si se omite se usa la dependencia del usuario ADMIN creador si existe). */
+  @IsOptional()
+  @IsUUID()
+  dependenciaId?: string;
+
+  @IsOptional()
+  @IsIn(NIVELES_CONFIDENCIALIDAD as unknown as string[])
+  nivelConfidencialidad?: (typeof NIVELES_CONFIDENCIALIDAD)[number];
 }

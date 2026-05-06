@@ -35,6 +35,37 @@ async function main() {
     update: {},
   });
 
+  await prisma.role.upsert({
+    where: { codigo: 'REVISOR' },
+    create: {
+      codigo: 'REVISOR',
+      nombre: 'Revisor',
+      descripcion: 'Revisor documental (MVP mismo alcance lectura que USUARIO hasta flujo formal)',
+      activo: true,
+    },
+    update: {},
+  });
+  await prisma.role.upsert({
+    where: { codigo: 'AUDITOR' },
+    create: {
+      codigo: 'AUDITOR',
+      nombre: 'Auditor',
+      descripcion: 'Auditor interno — consultas (UI auditoría ADMIN compartido por ahora)',
+      activo: true,
+    },
+    update: {},
+  });
+  await prisma.role.upsert({
+    where: { codigo: 'CONSULTA' },
+    create: {
+      codigo: 'CONSULTA',
+      nombre: 'Consulta',
+      descripcion: 'Solo lectura / consulta (MVP igual a USUARIO)',
+      activo: true,
+    },
+    update: {},
+  });
+
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
   const user = await prisma.user.upsert({
@@ -87,6 +118,11 @@ async function main() {
 
   const depGadpr = await prisma.dependencia.findUnique({
     where: { codigo: 'GADPR-LM' },
+  });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { dependenciaId: depGadpr?.id ?? null },
   });
 
   await prisma.cargo.upsert({

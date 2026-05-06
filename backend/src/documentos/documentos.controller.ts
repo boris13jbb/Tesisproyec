@@ -22,6 +22,7 @@ import { memoryStorage } from 'multer';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtRequestUser } from '../auth/request-user';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import { DocumentosService } from './documentos.service';
@@ -33,6 +34,7 @@ export class DocumentosController {
 
   @Get()
   findAll(
+    @Req() req: Request & { user: JwtRequestUser },
     @Query('incluirInactivos') incluirInactivos?: string,
     @Query('q') q?: string,
     @Query('archivoNombre') archivoNombre?: string,
@@ -50,7 +52,7 @@ export class DocumentosController {
     @Query('pageSize') pageSize?: string,
   ) {
     const todos = incluirInactivos === 'true' || incluirInactivos === '1';
-    return this.service.findAll(todos, {
+    return this.service.findAll(req.user, todos, {
       q,
       archivoNombre,
       archivoMime,
@@ -69,8 +71,11 @@ export class DocumentosController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    return this.service.findOne(id, req.user);
   }
 
   @Post()
@@ -90,13 +95,19 @@ export class DocumentosController {
   }
 
   @Get(':id/eventos')
-  findEventos(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findEventos(id);
+  findEventos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    return this.service.findEventos(id, req.user);
   }
 
   @Get(':id/archivos')
-  findArchivos(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findArchivos(id);
+  findArchivos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    return this.service.findArchivos(id, req.user);
   }
 
   @Post(':id/archivos')
@@ -145,7 +156,7 @@ export class DocumentosController {
       await this.service.prepareDownloadArchivo(
         id,
         archivoId,
-        userId,
+        req.user as JwtRequestUser,
         req.ip ?? null,
         {
           actorUserId: userId,
@@ -162,8 +173,9 @@ export class DocumentosController {
   findArchivoEventos(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('archivoId', ParseUUIDPipe) archivoId: string,
+    @Req() req: Request & { user: JwtRequestUser },
   ) {
-    return this.service.findArchivoEventos(id, archivoId);
+    return this.service.findArchivoEventos(id, archivoId, req.user);
   }
 
   @Delete(':id/archivos/:archivoId')

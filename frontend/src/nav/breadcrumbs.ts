@@ -51,7 +51,11 @@ export function getBreadcrumbsForPath(
   if (pathname.startsWith('/admin/')) {
     items.push({ label: 'Administración' });
     const segment = pathname.split('/').filter(Boolean)[1];
-    const label = segment === 'usuarios' ? 'Usuarios' : segment ?? 'Admin';
+    const adminLabels: Record<string, string> = {
+      usuarios: 'Usuarios',
+      auditoria: 'Auditoría',
+    };
+    const label = segment ? (adminLabels[segment] ?? segment) : 'Admin';
     items.push({ label, to: pathname });
     return items;
   }

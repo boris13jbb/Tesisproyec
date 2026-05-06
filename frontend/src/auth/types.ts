@@ -8,5 +8,6 @@ export type AuthUser = {
   email: string;
   nombres: string | null;
   apellidos: string | null;
+  dependenciaId: string | null;
   roles: RoleInfo[];
 };

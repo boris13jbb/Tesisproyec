@@ -6,12 +6,12 @@
 
 ---
 
-## Estado actual del repositorio (2026-05-06)
+## Estado actual del repositorio (2026-05-07)
 
 | Elemento | Situación |
 |----------|-----------|
 | `backend/prisma/schema.prisma` | **Existe** — `provider = "mysql"`. Prisma **5.22.0** fijado en `backend/package.json` (la línea base del proyecto no asume Prisma 7). |
-| `backend/prisma/migrations/` | **14** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
+| `backend/prisma/migrations/` | **16** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
 | `DATABASE_URL` | Definir en `backend/.env` (plantilla en `.env.example`). Crear la base vacía en phpMyAdmin antes de migrar. |
 | Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). En Windows ante **EPERM**: `npm run prisma:generate:clean`. |
 | Cierre ETAPA 2 | Evidencias formales en **`docs/31-etapa-2-cierre-y-evidencias.md`**. |
@@ -34,6 +34,8 @@
 | 12 | `20260505021000_add_user_dependencia_cargo` | Usuario institucional: `users.dependencia_id`, `users.cargo_id` (FK opcionales). |
 | 13 | `20260505123600_add_audit_logs` | Bitácora transversal `audit_logs`. |
 | 14 | `20260505125800_refresh_tokens_last_used_at` | `refresh_tokens.last_used_at` (inactividad / ASVS sesión). |
+| 15 | `20260507153000_documento_dependencia_confidencialidad` | Documento: `dependencia_id` (propietaria) + `nivel_confidencialidad` (+ backfill desde creador). |
+| 16 | `20260508120000_user_login_lockout` | Usuario: `failed_login_attempts`, `locked_until` (bloqueo temporal tras N fallos). |
 
 ### Tablas resumen por dominio
 
@@ -41,7 +43,7 @@
 
 | Tabla | Propósito |
 |-------|-----------|
-| `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`. |
+| `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`; contador de intentos fallidos y `locked_until` (R-9 MVP). |
 | `roles` / `permissions` | Catálogo de roles y permisos granulares. |
 | `user_roles` / `role_permissions` | N:M usuario↔rol y rol↔permiso. |
 
@@ -65,7 +67,7 @@
 
 | Tabla | Migración | Propósito |
 |-------|-----------|-----------|
-| `documentos` | `20260421180000_*` | Registro documental. |
+| `documentos` | `20260421180000_*` + **`20260507153000_*`** | Registro documental; FK opcional a `dependencias` y nivel **PUBLICO / INTERNO / RESERVADO / CONFIDENCIAL** (control acceso en backend). |
 | `documento_eventos` | `20260421190000_*` | Historial CREAR/EDITAR dominio documento. |
 | `documento_archivos` / `documento_archivo_eventos` | `20260421193000_*`, `20260421194500_*` | Adjuntos versionados + eventos (p. ej. SUBIDO/DESCARGADO/ELIMINADO). |
 

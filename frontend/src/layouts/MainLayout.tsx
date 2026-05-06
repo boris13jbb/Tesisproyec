@@ -7,6 +7,7 @@ import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import ListOutlinedIcon from '@mui/icons-material/ListOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import {
   AppBar,
@@ -75,6 +76,11 @@ const adminNav: { to: string; label: string; icon: ReactNode }[] = [
     to: '/admin/usuarios',
     label: 'Usuarios',
     icon: <PeopleOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/admin/auditoria',
+    label: 'Auditoría',
+    icon: <FactCheckOutlinedIcon fontSize="small" />,
   },
 ];
 
@@ -160,7 +166,10 @@ export function MainLayout() {
             {adminNav.map((item) => (
               <ListItemButton
                 key={item.to}
-                selected={location.pathname === item.to}
+                selected={
+                  location.pathname === item.to ||
+                  location.pathname.startsWith(`${item.to}/`)
+                }
                 onClick={() => handleNav(item.to)}
               >
                 <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>

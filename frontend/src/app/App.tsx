@@ -11,6 +11,7 @@ import { TiposDocumentalesPage } from '../pages/catalogos/TiposDocumentalesPage'
 import { DocumentoDetallePage } from '../pages/documentos/DocumentoDetallePage';
 import { DocumentosPage } from '../pages/documentos/DocumentosPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { AuditoriaPage } from '../pages/admin/AuditoriaPage';
 import { UsuariosPage } from '../pages/admin/UsuariosPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
@@ -55,6 +56,7 @@ export function App() {
             <Route path="/documentos" element={<DocumentosPage />} />
             <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
             <Route element={<RoleRoute roles={['ADMIN']} />}>
+              <Route path="/admin/auditoria" element={<AuditoriaPage />} />
               <Route path="/admin/usuarios" element={<UsuariosPage />} />
               <Route
                 path="/catalogos/dependencias"
