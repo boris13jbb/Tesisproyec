@@ -18,9 +18,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   const refreshSession = useCallback(async () => {
-    const { data } = await apiClient.post<{ accessToken: string; user: AuthUser }>(
-      '/auth/refresh',
-    );
+    // Bootstrap sin HTTP 401: el backend responde 200 + `{ restored: false }` si no hay sesión válida,
+    // para que el navegador no marque un XHR “fallido” en consola (ver `POST /auth/session/restore`).
+    const { data } = await apiClient.post<
+      | { restored: false }
+      | { restored: true; accessToken: string; user: AuthUser }
+    >('/auth/session/restore', {});
+    if (!data.restored) {
+      setAccessToken(null);
+      setUser(null);
+      return;
+    }
     setAccessToken(data.accessToken);
     setUser(data.user);
   }, []);

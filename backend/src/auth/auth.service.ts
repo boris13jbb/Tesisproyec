@@ -116,14 +116,38 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshRaw: string | undefined) {
+  /**
+   * Intento de rotación de refresh. `auditOnMissingCookie`: true para POST /auth/refresh;
+   * false para POST /auth/session/restore (evita ruido de auditoría en cada carga anónima).
+   */
+  private async restoreRefreshToken(
+    refreshRaw: string | undefined,
+    auditOnMissingCookie: boolean,
+  ): Promise<
+    | {
+        ok: true;
+        accessToken: string;
+        refreshToken: string;
+        user: ReturnType<AuthService['sanitizeUser']>;
+      }
+    | {
+        ok: false;
+        reason:
+          | 'MISSING_COOKIE'
+          | 'INVALID_REFRESH'
+          | 'INACTIVITY_TIMEOUT'
+          | 'ROTATION_CONFLICT';
+      }
+  > {
     if (!refreshRaw) {
-      await this.audit.log({
-        action: 'AUTH_REFRESH_FAIL',
-        result: 'FAIL',
-        meta: { reason: 'MISSING_COOKIE' },
-      });
-      throw new UnauthorizedException();
+      if (auditOnMissingCookie) {
+        await this.audit.log({
+          action: 'AUTH_REFRESH_FAIL',
+          result: 'FAIL',
+          meta: { reason: 'MISSING_COOKIE' },
+        });
+      }
+      return { ok: false, reason: 'MISSING_COOKIE' };
     }
     const tokenHash = this.hashRefresh(refreshRaw);
     const row = await this.prisma.refreshToken.findUnique({
@@ -152,7 +176,7 @@ export class AuthService {
         },
         meta: { reason: 'INVALID_REFRESH' },
       });
-      throw new UnauthorizedException();
+      return { ok: false, reason: 'INVALID_REFRESH' };
     }
 
     // Control de inactividad (ASVS V3): si el refresh no se usa en X minutos, se revoca.
@@ -173,7 +197,7 @@ export class AuthService {
         context: { actorUserId: row.userId, actorEmail: row.user.email },
         meta: { reason: 'INACTIVITY_TIMEOUT' },
       });
-      throw new UnauthorizedException();
+      return { ok: false, reason: 'INACTIVITY_TIMEOUT' };
     }
 
     // Rotación de refresh (uso único): invalida el token presentado y emite uno nuevo
@@ -207,7 +231,7 @@ export class AuthService {
         context: { actorUserId: row.userId, actorEmail: row.user.email },
         meta: { reason: 'ROTATION_CONFLICT' },
       });
-      throw new UnauthorizedException();
+      return { ok: false, reason: 'ROTATION_CONFLICT' };
     }
 
     const accessToken = await this.jwtService.signAsync(
@@ -224,9 +248,27 @@ export class AuthService {
     });
 
     return {
+      ok: true,
       accessToken,
       refreshToken: rawRefreshNew,
       user: this.sanitizeUser(row.user),
+    };
+  }
+
+  /** `POST /auth/session/restore`: siempre HTTP 200; evita 401 en consola del navegador al arranque sin cookie. */
+  async restoreSessionBootstrap(refreshRaw: string | undefined) {
+    return this.restoreRefreshToken(refreshRaw, false);
+  }
+
+  async refresh(refreshRaw: string | undefined) {
+    const result = await this.restoreRefreshToken(refreshRaw, true);
+    if (!result.ok) {
+      throw new UnauthorizedException();
+    }
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: result.user,
     };
   }
 

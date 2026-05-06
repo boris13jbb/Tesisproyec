@@ -78,6 +78,45 @@ export class AuthController {
     };
   }
 
+  /**
+   * Bootstrap de sesión desde cookie (misma lógica que `/auth/refresh`).
+   * Respuesta siempre 200: sin cookie o token inválido → `{ restored: false }` (sin HTTP 401).
+   * Útil para evitar ruido en la consola del navegador en la carga inicial sin sesión.
+   */
+  @Post('session/restore')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 60, ttl: 10 * 60_000 } })
+  async restoreSession(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const name = this.cookieName();
+    const secure = this.config.get('NODE_ENV') === 'production';
+    const cookieOpts = {
+      path: '/' as const,
+      httpOnly: true,
+      secure,
+      sameSite: 'lax' as const,
+    };
+    const raw = req.cookies?.[name] as string | undefined;
+    const result = await this.authService.restoreSessionBootstrap(raw);
+    if (!result.ok) {
+      if (raw) {
+        res.clearCookie(name, cookieOpts);
+      }
+      return { restored: false as const };
+    }
+    res.cookie(name, result.refreshToken, {
+      ...cookieOpts,
+      maxAge: this.refreshMaxAgeMs(),
+    });
+    return {
+      restored: true as const,
+      accessToken: result.accessToken,
+      user: result.user,
+    };
+  }
+
   @Post('logout')
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
