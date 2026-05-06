@@ -48,8 +48,10 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 - `GET /api/v1/usuarios` (ADMIN) — lista usuarios (sin hash) con roles y referencias.
 - `GET /api/v1/usuarios/:id` (ADMIN) — detalle.
 - `POST /api/v1/usuarios` (ADMIN) — crea usuario:
-  - body: `{ email, password, nombres?, apellidos?, activo?, dependenciaId?, cargoId?, roles? }`
+  - body: `{ email, password, nombres?, apellidos?, activo?, dependenciaId?, cargoId?, roles?, invitarPorCorreo? }`
   - regla: si `roles` se omite → asigna `USUARIO`
+  - **`invitarPorCorreo`** (opcional, por defecto efectivo `true` si se omite): genera token en `password_reset_tokens` y envía **correo SMTP** con enlace a la pantalla de **`/restablecer`** para que el usuario defina su contraseña (misma seguridad que recuperación: un solo uso, expiración). Si SMTP no está configurado o falla el envío, el usuario sigue existiendo con la contraseña temporal del body; respuesta incluye **`invitacionCorreo`**: `{ solicitada, enviada, motivoOmitido? }`.
+  - Vigencia del enlace: variable `USER_INVITE_MINUTES` (por defecto 4320 ≈ 72 h).
 - `PATCH /api/v1/usuarios/:id` (ADMIN) — actualiza usuario:
   - permite cambiar `email`, `nombres`, `apellidos`, `activo`, `dependenciaId`, `cargoId`, `roles`
   - si se envía `roles` → reemplaza asignación actual
@@ -85,12 +87,10 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 
 - Típicamente solo administradores gestionan terceros; usuario edita perfil limitado.
 
-## Eventos auditables (pendiente de bitácora central)
+## Eventos auditables (`audit_logs`)
 
-Cuando exista `audit_logs` (ver `15-modulo-auditoria.md`), registrar:
-- `USER_CREATED`, `USER_UPDATED`, `USER_ACTIVATED`, `USER_DEACTIVATED`
-- `USER_ROLES_CHANGED`
-- `USER_PASSWORD_RESET` (sin almacenar contraseñas)
+- `USER_CREATED`, `USER_UPDATED`, `USER_PASSWORD_RESET`
+- Invitación por correo tras alta: `USER_INVITE_MAIL_SENT`, `USER_INVITE_MAIL_FAIL`, `USER_INVITE_MAIL_SKIP` (p. ej. sin SMTP).
 
 ## Dependencias
 

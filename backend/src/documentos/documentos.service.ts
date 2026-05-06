@@ -8,6 +8,8 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import type { Prisma } from '@prisma/client';
+import type { AuditContext } from '../auditoria/audit.types';
+import { AuditService } from '../auditoria/audit.service';
 import { isPrismaCode } from '../common/prisma-util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
@@ -40,7 +42,10 @@ type DocumentoSnapshot = {
 
 @Injectable()
 export class DocumentosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async findAll(
     incluirInactivos: boolean,
@@ -279,6 +284,7 @@ export class DocumentosService {
     documentoId: string,
     file: Express.Multer.File | undefined,
     createdById: string,
+    ctx?: AuditContext,
   ) {
     await this.findOne(documentoId);
     if (!file) {
@@ -367,9 +373,39 @@ export class DocumentosService {
         return row;
       });
 
+      await this.audit.log({
+        action: 'DOC_FILE_UPLOADED',
+        result: 'OK',
+        resource: { type: 'DocumentoArchivo', id: created.id },
+        context: {
+          actorUserId: ctx?.actorUserId ?? createdById,
+          actorEmail: ctx?.actorEmail ?? null,
+          ip: ctx?.ip ?? null,
+          userAgent: ctx?.userAgent ?? null,
+          correlationId: ctx?.correlationId ?? null,
+        },
+        meta: {
+          documentoId,
+          version: created.version,
+          mimeType: created.mimeType,
+        },
+      });
+
       return created;
     } catch (e) {
       await fs.unlink(absPath).catch(() => undefined);
+      await this.audit.log({
+        action: 'DOC_FILE_UPLOADED',
+        result: 'FAIL',
+        resource: { type: 'Documento', id: documentoId },
+        context: {
+          actorUserId: ctx?.actorUserId ?? createdById,
+          actorEmail: ctx?.actorEmail ?? null,
+          ip: ctx?.ip ?? null,
+          userAgent: ctx?.userAgent ?? null,
+          correlationId: ctx?.correlationId ?? null,
+        },
+      });
       throw e;
     }
   }
@@ -379,6 +415,7 @@ export class DocumentosService {
     archivoId: string,
     userId: string,
     ip: string | null,
+    ctx?: AuditContext,
   ) {
     await this.findOne(documentoId);
     const row = await this.prisma.documentoArchivo.findFirst({
@@ -404,6 +441,20 @@ export class DocumentosService {
       },
     });
 
+    await this.audit.log({
+      action: 'DOC_FILE_DOWNLOADED',
+      result: 'OK',
+      resource: { type: 'DocumentoArchivo', id: row.id },
+      context: {
+        actorUserId: ctx?.actorUserId ?? userId,
+        actorEmail: ctx?.actorEmail ?? null,
+        ip: ctx?.ip ?? ip,
+        userAgent: ctx?.userAgent ?? null,
+        correlationId: ctx?.correlationId ?? null,
+      },
+      meta: { documentoId, mimeType: row.mimeType },
+    });
+
     return {
       absPath,
       downloadName: row.originalName,
@@ -415,6 +466,7 @@ export class DocumentosService {
     documentoId: string,
     archivoId: string,
     deletedById: string,
+    ctx?: AuditContext,
   ) {
     await this.findOne(documentoId);
     const row = await this.prisma.documentoArchivo.findFirst({
@@ -441,6 +493,20 @@ export class DocumentosService {
           createdById: deletedById,
         },
       });
+    });
+
+    await this.audit.log({
+      action: 'DOC_FILE_DELETED',
+      result: 'OK',
+      resource: { type: 'DocumentoArchivo', id: row.id },
+      context: {
+        actorUserId: ctx?.actorUserId ?? deletedById,
+        actorEmail: ctx?.actorEmail ?? null,
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
+        correlationId: ctx?.correlationId ?? null,
+      },
+      meta: { documentoId, version: row.version },
     });
 
     return { ok: true };

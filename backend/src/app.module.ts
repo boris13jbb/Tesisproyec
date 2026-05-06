@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { CargosModule } from './cargos/cargos.module';
@@ -11,6 +13,8 @@ import { SubseriesModule } from './subseries/subseries.module';
 import { TiposDocumentalesModule } from './tipos-documentales/tipos-documentales.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
+import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
 
 @Module({
   imports: [
@@ -18,7 +22,15 @@ import { UsuariosModule } from './usuarios/usuarios.module';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
     }),
+    ThrottlerModule.forRoot([
+      {
+        // Default (alto) para no afectar endpoints normales.
+        ttl: 60_000,
+        limit: 200,
+      },
+    ]),
     PrismaModule,
+    AuditoriaModule,
     AuthModule,
     UsuariosModule,
     DependenciasModule,
@@ -30,6 +42,9 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     ReportesModule,
   ],
   controllers: [AppController],
-  providers: [],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_FILTER, useClass: ThrottlerAuditFilter },
+  ],
 })
 export class AppModule {}

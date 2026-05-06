@@ -41,4 +41,12 @@ export class CreateUsuarioDto {
   @IsArray()
   @IsString({ each: true })
   roles?: string[];
+
+  /**
+   * Si es `true` (por defecto al omitir): tras crear la cuenta se envía un correo con enlace
+   * para que el usuario defina su contraseña (misma mecánica que recuperación, token de un solo uso).
+   */
+  @IsOptional()
+  @IsBoolean()
+  invitarPorCorreo?: boolean;
 }

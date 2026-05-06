@@ -14,8 +14,11 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 
 - **Backend**:
   - JWT de acceso (Bearer) + refresh opaco en cookie HttpOnly (hash SHA-256 en tabla `refresh_tokens`).
+  - **Rotación de refresh (ASVS V3)**: cada `POST /auth/refresh` invalida el refresh usado y emite uno nuevo (misma `expires_at` en BD que el token anterior); la cookie HttpOnly se renueva desde el servidor.
+  - **Inactividad (ASVS V3)**: columna `last_used_at` en `refresh_tokens`; si no hay refresh dentro del umbral `SESSION_INACTIVITY_MINUTES`, la sesión deja de poder renovarse.
+  - Rate limiting en login y recuperación (ver infra / `@nestjs/throttler`).
   - Argon2id en usuarios.
-  - Recuperación de credenciales: tokens opacos (hash SHA-256 en BD), un solo uso, expiración.
+  - Recuperación de credenciales: tokens opacos (hash SHA-256 en BD), un solo uso, expiración; **opcionalmente envío SMTP** (`MailService`/nodemailer) del enlace a `/restablecer?token=`.
   - Endpoints:
     - `POST /api/v1/auth/login`
     - `POST /api/v1/auth/refresh`
@@ -192,3 +195,41 @@ MFA, bloqueo por intentos fallidos.
 5) **Recuperación (confirm)**
 - Acción: `/restablecer` con token válido + contraseña nueva (>=8).
 - Esperado: `200 { ok: true }`, y sesiones previas invalidadas (relogin requerido).
+
+---
+
+## Pendientes para empezar a desarrollar (backlog accionable)
+
+### 1) ~~Rate limiting / lockout (ASVS V2)~~ (MVP aplicado)
+
+**Estado:** implementado por IP/throttler (`@nestjs/throttler`) sobre login y rutas de reset; logout y consultas fuera del alcance; ver `AUTH_RATE_LIMITED` en `audit_logs`.
+
+**Opcional siguiente nivel**
+- Límite adicional por **email normalizado** en login (combinar IP + email como clave).
+
+### 2) ~~Control de sesiones (ASVS V3)~~ (MVP+ aplicado)
+
+**Estado:** rotación en cada refresh + política `SESSION_INACTIVITY_MINUTES` + `last_used_at` en BD.
+
+**Institucional (pendiente si se escala)**:
+- tabla `sessions` extendida por dispositivo, revocación administrativa masiva y catálogo de sesiones activas en UI.
+
+### 3) ~~Correo institucional para recuperación (producción)~~ (implementado sobre SMTP)
+
+**Estado:**
+- Backend envía correo mediante **nodemailer** cuando `SMTP_HOST` (o `SMTP_SERVER`) y `SMTP_FROM_EMAIL` están configurados (`MailService`).
+- El cuerpo incluye enlace `PASSWORD_RESET_FRONTEND_URL` + `PASSWORD_RESET_PATH` + `token` (SPA `/restablecer?token=`).
+- **Anti-enumeración:** la API sigue respondiendo `202 { ok: true }` aunque el correo no exista; no se envía correo en ese caso.
+- **Producción sin SMTP:** se audita `AUTH_PASSWORD_RESET_MAIL_SKIP` (cuenta existente) y **no** se devuelve `debugToken`.
+- **Fallo SMTP:** se audita `AUTH_PASSWORD_RESET_MAIL_FAIL`; en **no producción** se puede devolver `debugToken` como respaldo.
+- Variables: ver `backend/.env.example`.
+
+**Opcional siguiente nivel:** plantillas HTML institucional, cola de correo y proveedor institucional (relay).
+
+### 4) Auditoría transversal (dependencia directa)
+
+Al implementar `audit_logs` (ver `15-modulo-auditoria.md`), integrar:
+- login ok/fail,
+- logout,
+- refresh ok/fail,
+- password reset request/confirm.

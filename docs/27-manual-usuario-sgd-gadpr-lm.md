@@ -70,8 +70,13 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 
 ### 3.2 Restablecer contraseña
 
-1. Abre la pantalla `/restablecer`.
-2. Ingresa el **token** y la **nueva contraseña** (mínimo 8 caracteres).
+Cuando el administrador tiene configurado el **servidor SMTP** en el backend, suele llegar un **correo** con un enlace tipo  
+`/restablecer?token=...`. Al hacer clic, el navegador abre esa pantalla y el campo **token** puede venir ya relleno.
+
+Sin correo institucional (entorno de desarrollo típico), el sistema puede mostrar después de solicitar recuperación un **token de desarrollo** en pantalla únicamente para pruebas; en producción con SMTP eso **no debe aparecer**.
+
+1. Si no usaste el enlace del correo, abre la pantalla **`/restablecer`** desde el mismo sitio donde usas la aplicación.
+2. Ingresa el **token** (si la URL ya lo incluye, verifica que el campo coincida) y la **nueva contraseña** (mínimo 8 caracteres).
 3. Presiona **Restablecer**.
 
 **Resultado esperado**
@@ -108,8 +113,10 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 1. En el menú lateral, entra a **Administración → Usuarios**.
 2. Para crear un usuario:
    - Presiona **Crear usuario**
-   - Completa **Correo**, **Contraseña temporal**, (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles**
+   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles**
+   - Deja marcada la opción recomendada **“Enviar al correo un enlace…”** para que llegue un mensaje con el enlace a **definir contraseña** (página de restablecer). Si no marcas la casilla, el usuario solo puede entrar con la contraseña temporal.
    - Presiona **Crear**
+   - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
 3. Para editar:
    - En el usuario, presiona **Editar**
    - Ajusta roles/dependencia/cargo y presiona **Guardar**

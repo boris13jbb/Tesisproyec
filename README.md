@@ -21,7 +21,9 @@ Documentación viva: carpeta **`docs/`** (índice en `docs/README.md`).
 
 ## Puesta en marcha local
 
-Desde la **raíz** del repositorio (`Tesisproyec/`) puedes usar:
+**Windows:** en la raíz del repo puede usar **`iniciar-desarrollo.cmd`** (doble clic o desde `cmd`) para abrir **Backend** (`:3000`) y **Frontend** (`:5173`) en ventanas separadas. MySQL en XAMPP debe estar activo antes. Detalle adicional: `EJECUTAR.txt`.
+
+Desde la **raíz** del repositorio (`Tesisproyec/`) puedes usar también:
 
 - `npm run start:dev` — mismo efecto que `npm run start:dev` dentro de `backend/`
 - `npm run dev` — arranca Vite en `frontend/`

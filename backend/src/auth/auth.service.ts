@@ -4,6 +4,8 @@ import type { JwtSignOptions } from '@nestjs/jwt';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
+import { AuditService } from '../auditoria/audit.service';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -13,7 +15,27 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
+
+  private buildPasswordResetUrl(rawToken: string): string {
+    const explicit =
+      this.config.get<string>('PASSWORD_RESET_FRONTEND_URL')?.trim() ||
+      this.config.get<string>('FRONTEND_PUBLIC_URL')?.trim();
+    const corsFirst = this.config
+      .get<string>('CORS_ORIGIN')
+      ?.split(',')[0]
+      ?.trim();
+    const base = (explicit || corsFirst || 'http://localhost:5173').replace(
+      /\/$/,
+      '',
+    );
+    const pathRaw =
+      this.config.get<string>('PASSWORD_RESET_PATH')?.trim() ?? '/restablecer';
+    const path = pathRaw.startsWith('/') ? pathRaw : `/${pathRaw}`;
+    return `${base}${path}?token=${encodeURIComponent(rawToken)}`;
+  }
 
   private hashRefresh(raw: string): string {
     return createHash('sha256').update(raw, 'utf8').digest('hex');
@@ -39,10 +61,24 @@ export class AuthService {
       },
     });
     if (!user?.activo) {
+      await this.audit.log({
+        action: 'AUTH_LOGIN_FAIL',
+        result: 'FAIL',
+        resource: { type: 'User', id: null },
+        context: { actorUserId: null, actorEmail: email },
+        meta: { reason: 'USER_NOT_FOUND_OR_INACTIVE' },
+      });
       throw new UnauthorizedException('Credenciales inválidas');
     }
     const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) {
+      await this.audit.log({
+        action: 'AUTH_LOGIN_FAIL',
+        result: 'FAIL',
+        resource: { type: 'User', id: user.id },
+        context: { actorUserId: user.id, actorEmail: user.email },
+        meta: { reason: 'BAD_PASSWORD' },
+      });
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -62,7 +98,15 @@ export class AuthService {
         userId: user.id,
         tokenHash,
         expiresAt,
+        lastUsedAt: new Date(),
       },
+    });
+
+    await this.audit.log({
+      action: 'AUTH_LOGIN_OK',
+      result: 'OK',
+      resource: { type: 'User', id: user.id },
+      context: { actorUserId: user.id, actorEmail: user.email },
     });
 
     return {
@@ -74,6 +118,11 @@ export class AuthService {
 
   async refresh(refreshRaw: string | undefined) {
     if (!refreshRaw) {
+      await this.audit.log({
+        action: 'AUTH_REFRESH_FAIL',
+        result: 'FAIL',
+        meta: { reason: 'MISSING_COOKIE' },
+      });
       throw new UnauthorizedException();
     }
     const tokenHash = this.hashRefresh(refreshRaw);
@@ -93,6 +142,71 @@ export class AuthService {
       row.expiresAt < new Date() ||
       !row.user.activo
     ) {
+      await this.audit.log({
+        action: 'AUTH_REFRESH_FAIL',
+        result: 'FAIL',
+        resource: { type: 'User', id: row?.userId ?? null },
+        context: {
+          actorUserId: row?.userId ?? null,
+          actorEmail: row?.user.email ?? null,
+        },
+        meta: { reason: 'INVALID_REFRESH' },
+      });
+      throw new UnauthorizedException();
+    }
+
+    // Control de inactividad (ASVS V3): si el refresh no se usa en X minutos, se revoca.
+    const inactivityMinutes = Number(
+      this.config.get('SESSION_INACTIVITY_MINUTES', 60 * 24 * 7),
+    ); // default 7 días
+    const last = row.lastUsedAt ?? row.createdAt;
+    const inactiveMs = Date.now() - new Date(last).getTime();
+    if (inactiveMs > inactivityMinutes * 60_000) {
+      await this.prisma.refreshToken.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await this.audit.log({
+        action: 'AUTH_REFRESH_FAIL',
+        result: 'FAIL',
+        resource: { type: 'User', id: row.userId },
+        context: { actorUserId: row.userId, actorEmail: row.user.email },
+        meta: { reason: 'INACTIVITY_TIMEOUT' },
+      });
+      throw new UnauthorizedException();
+    }
+
+    // Rotación de refresh (uso único): invalida el token presentado y emite uno nuevo
+    // con la misma fecha de caducidad absoluta (`expires_at`).
+    const rawRefreshNew = randomBytes(32).toString('hex');
+    const tokenHashNew = this.hashRefresh(rawRefreshNew);
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const revoked = await tx.refreshToken.updateMany({
+          where: { id: row.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        if (revoked.count !== 1) {
+          throw new Error('ROTATION_CONFLICT');
+        }
+        await tx.refreshToken.create({
+          data: {
+            userId: row.userId,
+            tokenHash: tokenHashNew,
+            expiresAt: row.expiresAt,
+            lastUsedAt: new Date(),
+          },
+        });
+      });
+    } catch {
+      await this.audit.log({
+        action: 'AUTH_REFRESH_FAIL',
+        result: 'FAIL',
+        resource: { type: 'User', id: row.userId },
+        context: { actorUserId: row.userId, actorEmail: row.user.email },
+        meta: { reason: 'ROTATION_CONFLICT' },
+      });
       throw new UnauthorizedException();
     }
 
@@ -101,8 +215,17 @@ export class AuthService {
       this.accessSignOptions(),
     );
 
+    await this.audit.log({
+      action: 'AUTH_REFRESH_OK',
+      result: 'OK',
+      resource: { type: 'User', id: row.userId },
+      context: { actorUserId: row.userId, actorEmail: row.user.email },
+      meta: { rotated: true },
+    });
+
     return {
       accessToken,
+      refreshToken: rawRefreshNew,
       user: this.sanitizeUser(row.user),
     };
   }
@@ -112,9 +235,14 @@ export class AuthService {
       return;
     }
     const tokenHash = this.hashRefresh(refreshRaw);
-    await this.prisma.refreshToken.updateMany({
+    const updated = await this.prisma.refreshToken.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
+    });
+    await this.audit.log({
+      action: 'AUTH_LOGOUT',
+      result: 'OK',
+      meta: { revokedCount: updated.count },
     });
   }
 
@@ -153,6 +281,17 @@ export class AuthService {
       select: { id: true, activo: true },
     });
     if (!user?.activo) {
+      await this.audit.log({
+        action: 'AUTH_PASSWORD_RESET_REQUEST',
+        result: 'OK',
+        context: {
+          actorUserId: null,
+          actorEmail: email,
+          ip: input.requestedIp ?? null,
+          userAgent: input.userAgent ?? null,
+        },
+        meta: { account: 'NOT_FOUND_OR_INACTIVE' },
+      });
       return ok;
     }
 
@@ -182,10 +321,66 @@ export class AuthService {
       },
     });
 
-    // En el MVP no enviamos correo real desde el backend.
-    // En desarrollo devolvemos el token para pruebas manuales controladas.
-    if (this.config.get('NODE_ENV') !== 'production') {
-      ok.debugToken = rawToken;
+    await this.audit.log({
+      action: 'AUTH_PASSWORD_RESET_REQUEST',
+      result: 'OK',
+      resource: { type: 'User', id: user.id },
+      context: {
+        actorUserId: user.id,
+        actorEmail: email,
+        ip: input.requestedIp ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
+
+    if (this.mail.isConfigured()) {
+      const resetUrl = this.buildPasswordResetUrl(rawToken);
+      try {
+        await this.mail.sendPasswordReset({
+          to: email,
+          resetUrl,
+          expiresMinutes: minutes,
+        });
+      } catch {
+        await this.audit.log({
+          action: 'AUTH_PASSWORD_RESET_MAIL_FAIL',
+          result: 'FAIL',
+          resource: { type: 'User', id: user.id },
+          context: {
+            actorUserId: user.id,
+            actorEmail: email,
+            ip: input.requestedIp ?? null,
+            userAgent: input.userAgent ?? null,
+          },
+          meta: { reason: 'SMTP_ERROR' },
+        });
+        if (this.config.get('NODE_ENV') !== 'production') {
+          ok.debugToken = rawToken;
+        }
+      }
+    } else {
+      if (this.config.get('NODE_ENV') === 'production') {
+        await this.audit.log({
+          action: 'AUTH_PASSWORD_RESET_MAIL_SKIP',
+          result: 'FAIL',
+          resource: { type: 'User', id: user.id },
+          context: {
+            actorUserId: user.id,
+            actorEmail: email,
+            ip: input.requestedIp ?? null,
+            userAgent: input.userAgent ?? null,
+          },
+          meta: { reason: 'SMTP_NOT_CONFIGURED' },
+        });
+      } else {
+        const debugOff =
+          String(
+            this.config.get<string>('PASSWORD_RESET_DEBUG_TOKEN') ?? 'true',
+          ).toLowerCase() === 'false';
+        if (!debugOff) {
+          ok.debugToken = rawToken;
+        }
+      }
     }
 
     return ok;
@@ -212,6 +407,16 @@ export class AuthService {
       row.expiresAt < new Date() ||
       !row.user.activo
     ) {
+      await this.audit.log({
+        action: 'AUTH_PASSWORD_RESET_CONFIRM_FAIL',
+        result: 'FAIL',
+        resource: { type: 'User', id: row?.userId ?? null },
+        context: {
+          actorUserId: row?.userId ?? null,
+          actorEmail: row?.user.email ?? null,
+        },
+        meta: { reason: 'INVALID_TOKEN' },
+      });
       throw new UnauthorizedException();
     }
 
@@ -232,6 +437,13 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+
+    await this.audit.log({
+      action: 'AUTH_PASSWORD_RESET_CONFIRM_OK',
+      result: 'OK',
+      resource: { type: 'User', id: row.userId },
+      context: { actorUserId: row.userId, actorEmail: row.user.email },
+    });
 
     return { ok: true };
   }

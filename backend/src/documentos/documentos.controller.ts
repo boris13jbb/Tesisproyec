@@ -110,7 +110,7 @@ export class DocumentosController {
   )
   uploadArchivo(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: { user?: { id?: string } },
+    @Req() req: Request & { user?: { id?: string; email?: string } },
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
     const createdById = req.user?.id;
@@ -119,7 +119,12 @@ export class DocumentosController {
         'Usuario no disponible en request',
       );
     }
-    return this.service.uploadArchivo(id, file, createdById);
+    return this.service.uploadArchivo(id, file, createdById, {
+      actorUserId: createdById,
+      actorEmail: req.user?.email ?? null,
+      ip: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
   }
 
   @Get(':id/archivos/:archivoId/download')
@@ -127,7 +132,7 @@ export class DocumentosController {
   async downloadArchivo(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('archivoId', ParseUUIDPipe) archivoId: string,
-    @Req() req: Request & { user?: { id?: string } },
+    @Req() req: Request & { user?: { id?: string; email?: string } },
     @Res() res: Response,
   ) {
     const userId = req.user?.id;
@@ -142,6 +147,12 @@ export class DocumentosController {
         archivoId,
         userId,
         req.ip ?? null,
+        {
+          actorUserId: userId,
+          actorEmail: req.user?.email ?? null,
+          ip: req.ip ?? null,
+          userAgent: req.headers['user-agent'] ?? null,
+        },
       );
     res.setHeader('Content-Type', mimeType);
     return res.download(absPath, downloadName);
@@ -161,7 +172,7 @@ export class DocumentosController {
   deleteArchivo(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('archivoId', ParseUUIDPipe) archivoId: string,
-    @Req() req: { user?: { id?: string } },
+    @Req() req: Request & { user?: { id?: string; email?: string } },
   ) {
     const deletedById = req.user?.id;
     if (!deletedById) {
@@ -169,7 +180,12 @@ export class DocumentosController {
         'Usuario no disponible en request',
       );
     }
-    return this.service.deleteArchivo(id, archivoId, deletedById);
+    return this.service.deleteArchivo(id, archivoId, deletedById, {
+      actorUserId: deletedById,
+      actorEmail: req.user?.email ?? null,
+      ip: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
   }
 
   @Patch(':id')

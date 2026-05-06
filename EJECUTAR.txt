@@ -1,23 +1,29 @@
-RUTA:
-C:\Users\BRS\Documents\Tesisproyec
-
-PARA EJECUTAR EL SISTEMA DE GERTOR DE ARCHIVOS
-
-cd "c:\Users\BRS\Documents\Tesisproyec\backend" && npm run start:dev
-
-cd "c:\Users\BRS\Documents\Tesisproyec\frontend" && npm run dev
-
-ALTERNATIVA RECOMENDADA (Windows, sin depender de pwsh.exe):
-
-- Doble click en:
-  - dev-all.cmd (levanta backend y frontend)
-  - dev-backend.cmd (solo backend)
-  - dev-frontend.cmd (solo frontend)
-
-usuario:
-
-admin@local.test
-
-contraceña:
-
-AdminSeguro2026!
+RUTA:
+C:\Users\BRS\Documents\Tesisproyec
+
+=== EJECUTAR EL SISTEMA EN DESARROLLO (Windows) ===
+-----------------------------------------------------
+Opción recomendada: doble clic en:                 
+  iniciar-desarrollo.cmd            EN LA CONSOLAnpm run dev:all---------------------------------------------------
+Manual (dos terminales), si prefieres:
+
+  cd "c:\Users\BRS\Documents\Tesisproyec\backend"
+  npm run start:dev
+
+  cd "c:\Users\BRS\Documents\Tesisproyec\frontend"
+  npm run dev
+
+Web: http://localhost:5173
+API directa: http://localhost:3000/api/v1
+(En desarrollo el front usa proxy /api hacia localhost:3000)
+
+--- Usuario seed (ejemplo)
+
+  admin@local.test
+  Contraseña: Admin123!
+
+--- Migraciones Prisma (desde carpeta backend)
+
+  npx prisma migrate deploy
+  npx prisma generate
+

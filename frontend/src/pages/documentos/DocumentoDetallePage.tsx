@@ -104,6 +104,57 @@ function formatDateOnly(isoOrDate: string) {
   return new Date(isoOrDate).toISOString().slice(0, 10);
 }
 
+function formatValue(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'string') {
+    // ISO date-ish → solo fecha
+    if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return v.slice(0, 10);
+    return v;
+  }
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
+type DiffEntry = { field: string; from: unknown; to: unknown };
+
+function parseCambiosJson(raw: string): DiffEntry[] {
+  const parsed = JSON.parse(raw) as unknown;
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    !('diff' in parsed) ||
+    typeof (parsed as { diff?: unknown }).diff !== 'object' ||
+    (parsed as { diff?: unknown }).diff === null
+  ) {
+    return [];
+  }
+  const diff = (parsed as { diff: Record<string, { from: unknown; to: unknown }> })
+    .diff;
+  return Object.entries(diff).map(([field, val]) => ({
+    field,
+    from: val?.from,
+    to: val?.to,
+  }));
+}
+
+function fieldLabel(field: string): string {
+  const map: Record<string, string> = {
+    asunto: 'Asunto',
+    descripcion: 'Descripción',
+    fechaDocumento: 'Fecha del documento',
+    estado: 'Estado',
+    activo: 'Activo',
+    tipoDocumentalId: 'Tipo documental',
+    subserieId: 'Subserie',
+    codigo: 'Código',
+  };
+  return map[field] ?? field;
+}
+
 export function DocumentoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -593,23 +644,54 @@ export function DocumentoDetallePage() {
                       </Box>
                     </Box>
                     {ev.cambiosJson && (
-                      <Box
-                        component="pre"
-                        sx={{
-                          mt: 1,
-                          mb: 0,
-                          overflow: 'auto',
-                          bgcolor: 'grey.50',
-                          p: 1,
-                          borderRadius: 1,
-                          fontSize: 12,
-                        }}
-                      >
+                      <Box sx={{ mt: 1 }}>
                         {(() => {
                           try {
-                            return JSON.stringify(JSON.parse(ev.cambiosJson), null, 2);
+                            const entries = parseCambiosJson(ev.cambiosJson);
+                            if (!entries.length) return null;
+                            return (
+                              <Box
+                                sx={{
+                                  border: 1,
+                                  borderColor: 'divider',
+                                  borderRadius: 1,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                {entries.map((e, idx) => (
+                                  <Box
+                                    key={`${e.field}-${idx}`}
+                                    sx={{
+                                      display: 'grid',
+                                      gridTemplateColumns: {
+                                        xs: '1fr',
+                                        sm: '200px 1fr 1fr',
+                                      },
+                                      gap: 1,
+                                      px: 1.5,
+                                      py: 1,
+                                      bgcolor: idx % 2 === 0 ? 'grey.50' : 'background.paper',
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                      {fieldLabel(e.field)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Antes: {formatValue(e.from)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Después: {formatValue(e.to)}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Box>
+                            );
                           } catch {
-                            return ev.cambiosJson;
+                            return (
+                              <Typography variant="caption" color="text.secondary">
+                                Cambios no disponibles para mostrar.
+                              </Typography>
+                            );
                           }
                         })()}
                       </Box>

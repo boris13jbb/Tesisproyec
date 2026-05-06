@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -34,6 +35,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @Throttle({ default: { limit: 8, ttl: 10 * 60_000 } }) // 8 / 10 min por IP
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -55,9 +57,25 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(200)
-  async refresh(@Req() req: Request) {
-    const raw = req.cookies?.[this.cookieName()] as string | undefined;
-    return this.authService.refresh(raw);
+  @Throttle({ default: { limit: 60, ttl: 10 * 60_000 } }) // opcional: más laxo
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const name = this.cookieName();
+    const raw = req.cookies?.[name] as string | undefined;
+    const result = await this.authService.refresh(raw);
+    res.cookie(name, result.refreshToken, {
+      httpOnly: true,
+      secure: this.config.get('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: this.refreshMaxAgeMs(),
+    });
+    return {
+      accessToken: result.accessToken,
+      user: result.user,
+    };
   }
 
   @Post('logout')
@@ -82,6 +100,7 @@ export class AuthController {
 
   @Post('password-reset/request')
   @HttpCode(202)
+  @Throttle({ default: { limit: 5, ttl: 10 * 60_000 } })
   async requestPasswordReset(
     @Body() dto: PasswordResetRequestDto,
     @Req() req: Request,
@@ -100,6 +119,7 @@ export class AuthController {
 
   @Post('password-reset/confirm')
   @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 10 * 60_000 } })
   async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
     return this.authService.confirmPasswordReset({
       token: dto.token,

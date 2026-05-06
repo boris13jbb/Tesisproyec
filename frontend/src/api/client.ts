@@ -30,6 +30,10 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // El default `'Content-Type': 'application/json'` rompe multipart: el servidor no parsea archivos y responde 400.
+  if (config.data instanceof FormData && config.headers.delete) {
+    config.headers.delete('Content-Type');
+  }
   return config;
 });
 

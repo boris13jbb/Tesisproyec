@@ -40,6 +40,13 @@
 | `documento_archivo_eventos` | `20260421193000_add_documento_archivos` | Trazabilidad de archivos (eventos `SUBIDO` / `DESCARGADO`). |
 | `documento_archivos.version` | `20260421194500_documento_archivos_versionado` | Versionado incremental por documento + nombre (`unique(documento_id, original_name, version)`). |
 
+### Seguridad / sesión (2026-05-05)
+
+| Tabla / cambio | Migración | Propósito |
+|----------------|-----------|-----------|
+| `audit_logs` | `20260505123600_add_audit_logs` | Bitácora transversal (actor, acción `action`, resultado `result`, recurso opcional, `ip`, `user_agent`, `meta_json`; FK opcional `actor_user_id` → `users`). |
+| `refresh_tokens.last_used_at` | `20260505125800_refresh_tokens_last_used_at` | Marca último uso del refresh para **inactividad** (política `SESSION_INACTIVITY_MINUTES`). |
+
 Otros catálogos (vínculos con documentos, etc.) se añadirán en migraciones posteriores alineadas al expediente.
 
 ---
@@ -114,7 +121,8 @@ Si la base ya existía con tablas creadas fuera de Prisma, usar con cuidado `pri
 
 | Fecha | Migración | Observación |
 |-------|-----------|-------------|
-| *(rellenar)* | `20260101120000_init` | Esquema inicial |
+| 2026-05-05 | `20260505123600_add_audit_logs` | Tabla `audit_logs` para auditoría transversal. |
+| 2026-05-05 | `20260505125800_refresh_tokens_last_used_at` | Columna `last_used_at` en `refresh_tokens`. |
 
 ---
 

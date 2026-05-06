@@ -56,3 +56,43 @@ Seguimiento en `20-problemas-detectados.md` y `21-riesgos-pendientes.md`.
 ## Mejoras futuras
 
 Institucionalización, despliegue en intranet, backups operativos — fuera del MVP de tesis salvo extensión acordada.
+
+---
+
+## Backlog de pendientes (para iniciar desarrollo de brechas)
+
+> Este backlog traduce el documento de brechas `28-listado-lo-que-deberia-tener-el-sistema.md` a un orden ejecutable.
+
+### Prioridad Alta (seguridad + evidencia)
+
+1) **Auditoría transversal (`audit_logs`)**
+- Ver `15-modulo-auditoria.md`
+- Incluye: historial de accesos, denegaciones 403, exportaciones, cambios de usuario/roles, reset password.
+
+2) **Rate limiting / lockout en autenticación**
+- Ver `05-modulo-auth.md` (pendientes)
+
+3) **Permisos granulares (PermissionsGuard)**
+- Ver `07-modulo-roles-permisos.md`
+
+4) **Control de acceso por documento (dependencia/confidencialidad)**
+- Ver `12-modulo-documentos.md` y `13-modulo-archivos.md`
+
+5) **Backups + restauración (BD + storage + logs)**
+- Ver `21-riesgos-pendientes.md` (R-016) y módulo `17` (parámetros)
+
+### Prioridad Media (ISO 15489 “completo”)
+
+6) **Estados formales + transiciones**
+- Ver `12-modulo-documentos.md`
+
+7) **Flujo de aprobación**
+- Ver `12-modulo-documentos.md`
+
+8) **Retención y conservación**
+- Crear módulo específico (pendiente) o ampliar configuración (`17`) + reportes (`16`)
+
+### Prioridad Baja (institucionalización avanzada)
+
+9) Notificaciones (pendientes / vencimientos)
+10) AV/cuotas (archivos) y controles avanzados (firma digital, WORM, SIEM/WAF/MFA)

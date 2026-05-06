@@ -151,6 +151,46 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 - Verificación de hash en descarga (modo estricto).
 - Políticas de retención/disposición (integración con ISO 15489 completa).
 
+---
+
+## Pendientes para empezar a desarrollar (backlog accionable)
+
+### 1) Integración con control de acceso por documento (dependencia/confidencialidad)
+
+**Objetivo:** que subir/descargar/eliminar archivos respete la política del documento (no solo rol).
+
+- Requiere: módulo `12` (agregar `dependencia_id` y `confidencialidad` al documento, y policies `canRead/canDownload`).
+- Cambios:
+  - En `GET /documentos/:id/archivos`: filtrar según permiso por documento.
+  - En `download`: validar acceso por documento + registrar denegaciones (audit_logs).
+
+### 2) Antivirus / cuarentena (institucional)
+
+**Objetivo:** reducir riesgo de malware.
+
+- Flujo sugerido:
+  - subir → estado `EN_CUARENTENA`
+  - escaneo AV (externo) → `APROBADO` o `RECHAZADO`
+  - solo `APROBADO` descargable.
+
+### 3) Cuotas y límites por usuario/dependencia
+
+**Objetivo:** prevenir DoS por almacenamiento y mejorar gobernanza.
+
+- Parametrizable desde configuración (`17`):
+  - cuota diaria por usuario,
+  - cuota total por dependencia,
+  - máximo de adjuntos por documento.
+
+### 4) Integridad reforzada (opcional)
+
+- Verificación de SHA-256 en descarga (modo estricto) y alertar discrepancias.
+- Reporte de integridad (hashes) para evidencia.
+
+### 5) Respaldo y restauración (dependencia)
+
+- Definir estrategia de backup para `storage/` + BD + logs (ver gaps 36/37 y `21-riesgos-pendientes.md`).
+
 ## Plan de pruebas (paso a paso)
 
 1) **Subida válida (ADMIN)**

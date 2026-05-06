@@ -2,11 +2,13 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   FormControl,
   InputLabel,
   MenuItem,
@@ -32,6 +34,18 @@ type Usuario = {
   roles: { codigo: string; nombre: string }[];
 };
 
+type InvitacionCorreoInfo = {
+  solicitada: boolean;
+  enviada: boolean;
+  motivoOmitido?: string;
+};
+
+type UsuarioCreateResponse = Usuario & {
+  createdAt?: string;
+  updatedAt?: string;
+  invitacionCorreo: InvitacionCorreoInfo;
+};
+
 const ROLE_OPTIONS = ['ADMIN', 'USUARIO'] as const;
 
 export function UsuariosPage() {
@@ -47,6 +61,8 @@ export function UsuariosPage() {
   const [resetOpen, setResetOpen] = useState(false);
   const [selected, setSelected] = useState<Usuario | null>(null);
 
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombres, setNombres] = useState('');
@@ -54,6 +70,7 @@ export function UsuariosPage() {
   const [dependenciaId, setDependenciaId] = useState<string>('');
   const [cargoId, setCargoId] = useState<string>('');
   const [roles, setRoles] = useState<(typeof ROLE_OPTIONS)[number][]>(['USUARIO']);
+  const [invitarPorCorreo, setInvitarPorCorreo] = useState(true);
 
   const [newPassword, setNewPassword] = useState('');
 
@@ -107,8 +124,9 @@ export function UsuariosPage() {
 
   const onCreate = async () => {
     setError(null);
+    setInviteNotice(null);
     try {
-      await apiClient.post('/usuarios', {
+      const res = await apiClient.post<UsuarioCreateResponse>('/usuarios', {
         email,
         password,
         nombres: nombres.trim() || undefined,
@@ -116,7 +134,22 @@ export function UsuariosPage() {
         dependenciaId: dependenciaId || undefined,
         cargoId: cargoId || undefined,
         roles,
+        invitarPorCorreo,
       });
+
+      const inv = res.data.invitacionCorreo;
+      if (inv?.solicitada && inv.enviada) {
+        setInviteNotice(
+          'Usuario creado. Se envió un correo con el enlace para que defina su contraseña e inicie sesión.',
+        );
+      } else if (inv?.solicitada && !inv.enviada) {
+        const m =
+          inv.motivoOmitido === 'SMTP_NOT_CONFIGURED'
+            ? 'Usuario creado, pero no hay SMTP configurado en el servidor: no se envió correo de invitación.'
+            : 'Usuario creado, pero falló el envío del correo de invitación. Revise auditoría/SMTP.';
+        setInviteNotice(m);
+      }
+
       setOpen(false);
       setEmail('');
       setPassword('');
@@ -125,6 +158,7 @@ export function UsuariosPage() {
       setDependenciaId('');
       setCargoId('');
       setRoles(['USUARIO']);
+      setInvitarPorCorreo(true);
       await load();
     } catch {
       setError('No se pudo crear el usuario (correo duplicado o datos inválidos).');
@@ -228,10 +262,22 @@ export function UsuariosPage() {
             Administración de cuentas (solo ADMIN).
           </Typography>
         </Box>
-        <Button variant="contained" onClick={() => setOpen(true)}>
+        <Button
+          variant="contained"
+          onClick={() => {
+            setInviteNotice(null);
+            setOpen(true);
+          }}
+        >
           Crear usuario
         </Button>
       </Box>
+
+      {inviteNotice && (
+        <Alert severity="info" sx={{ mb: 2 }} onClose={() => setInviteNotice(null)}>
+          {inviteNotice}
+        </Alert>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -306,8 +352,22 @@ export function UsuariosPage() {
             margin="normal"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            helperText="Mínimo 8 caracteres."
+            helperText={
+              invitarPorCorreo
+                ? 'Temporal hasta que el usuario defina contraseña con el enlace del correo. Mínimo 8 caracteres.'
+                : 'Mínimo 8 caracteres; el usuario deberá usar esta contraseña para iniciar sesión.'
+            }
             autoComplete="new-password"
+          />
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Checkbox
+                checked={invitarPorCorreo}
+                onChange={(_, checked) => setInvitarPorCorreo(checked)}
+              />
+            }
+            label="Enviar al correo un enlace para que defina su contraseña (recomendado)"
           />
           <TextField
             label="Nombres"

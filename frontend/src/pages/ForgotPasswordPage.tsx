@@ -15,6 +15,7 @@ type FormData = z.infer<typeof schema>;
 
 export function ForgotPasswordPage() {
   const [done, setDone] = useState(false);
+  const [debugToken, setDebugToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -28,9 +29,16 @@ export function ForgotPasswordPage() {
 
   const onSubmit = async (data: FormData) => {
     setError(null);
+    setDebugToken(null);
     try {
-      await apiClient.post('/auth/password-reset/request', { email: data.email });
+      const res = await apiClient.post<{ ok: true; debugToken?: string }>(
+        '/auth/password-reset/request',
+        { email: data.email },
+      );
       setDone(true);
+      setDebugToken(
+        typeof res.data.debugToken === 'string' ? res.data.debugToken : null,
+      );
     } catch {
       setError('No se pudo completar la solicitud. Intente nuevamente más tarde.');
     }
@@ -44,10 +52,24 @@ export function ForgotPasswordPage() {
       </Typography>
 
       {done ? (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Si el correo está registrado en el sistema, recibirá instrucciones para restablecer su
-          contraseña.
-        </Alert>
+        <Box sx={{ mb: 2 }}>
+          <Alert severity="success" sx={{ mb: debugToken ? 2 : 0 }}>
+            Si el correo está registrado en el sistema, recibirá instrucciones para restablecer su
+            contraseña.
+          </Alert>
+          {debugToken ? (
+            <Alert severity="warning">
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Token de desarrollo (solo aparece cuando el servidor no usa correo institucional o
+                cuando falló el envío). Cópielo en <strong>/restablecer</strong> o úselo desde el enlace si
+                genera uno equivalente localmente.
+              </Typography>
+              <Typography component="pre" sx={{ overflow: 'auto', fontFamily: 'monospace', mb: 0 }}>
+                {debugToken}
+              </Typography>
+            </Alert>
+          ) : null}
+        </Box>
       ) : (
         <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
           {error && (
