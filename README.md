@@ -136,6 +136,7 @@ Suele ser un **archivo bloqueado** (`query_engine-windows.dll.node`). Orden reco
 - **ETAPA 3 cerrada (auth / sesión):** `docs/32-etapa-3-cierre-y-evidencias.md`
 - **ETAPA 4 cerrada (shell UI / navegación):** `docs/33-etapa-4-cierre-y-evidencias.md`
 - **ETAPA 5 cerrada (catálogos):** `docs/34-etapa-5-cierre-y-evidencias.md`
+- **ETAPA 6 cerrada (gestión documental):** `docs/35-etapa-6-cierre-y-evidencias.md`
 - Roadmap: `docs/00-roadmap-general.md`
 - Arquitectura: `docs/01-arquitectura-general.md`
 - Problemas y riesgos: `docs/20-problemas-detectados.md`, `docs/21-riesgos-pendientes.md`

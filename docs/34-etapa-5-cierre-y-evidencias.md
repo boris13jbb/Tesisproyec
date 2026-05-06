@@ -46,7 +46,7 @@ Acreditar los **catálogos base** que alimentan el registro documental (dependen
 
 ## Próximo hito oficial (roadmap)
 
-**ETAPA 6 — Gestión documental**: cierre documental opcional **`35-etapa-6-cierre-y-evidencias.md`** (`docs/12-modulo-documentos.md`, `documentos/` + vistas `/documentos`).
+**ETAPA 6 — Gestión documental:** cierre formal en **`docs/35-etapa-6-cierre-y-evidencias.md`** + **`docs/12-modulo-documentos.md`**.
 
 ---
 

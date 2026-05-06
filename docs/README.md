@@ -13,6 +13,7 @@
 | [32-etapa-3-cierre-y-evidencias.md](./32-etapa-3-cierre-y-evidencias.md) | **Cierre ETAPA 3 al 100%** — JWT, refresh HttpOnly, Argon2, guards RBAC, auditoría auth |
 | [33-etapa-4-cierre-y-evidencias.md](./33-etapa-4-cierre-y-evidencias.md) | **Cierre ETAPA 4 al 100%** — layout, rutas protegidas, 403/404, menú por rol, alertas globales |
 | [34-etapa-5-cierre-y-evidencias.md](./34-etapa-5-cierre-y-evidencias.md) | **Cierre ETAPA 5 al 100%** — catálogos dependencias/cargos/tipos/series/subseries (API + ADMIN UI) |
+| [35-etapa-6-cierre-y-evidencias.md](./35-etapa-6-cierre-y-evidencias.md) | **Cierre ETAPA 6 al 100%** — documentos, eventos dominio, UI listado/detalle/historial |
 | [01-arquitectura-general.md](./01-arquitectura-general.md) | Capas, entornos, contrato API |
 | [02-stack-y-convenciones.md](./02-stack-y-convenciones.md) | Stack cerrado, puertos, variables |
 | [03-estructura-de-carpetas.md](./03-estructura-de-carpetas.md) | Monorepo, rutas clave |

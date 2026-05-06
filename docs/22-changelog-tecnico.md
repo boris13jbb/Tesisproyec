@@ -24,6 +24,11 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — ETAPA 6: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/35-etapa-6-cierre-y-evidencias.md` (`documentos/` API, `documento_eventos`, `/documentos`, `/documentos/:id`; línea respecto ETAPA 7/archivos).
+- **Actualización:** `00-roadmap-general.md`; `34-etapa-5-cierre-y-evidencias.md`; `12-modulo-documentos.md` (enlace al `35`); `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`.
+
 ### 2026-05-06 — ETAPA 5: cierre formal al 100 % (documentación y evidencias)
 
 - **Nuevo:** `docs/34-etapa-5-cierre-y-evidencias.md` (cinco catálogos: API `dependencias|cargos|tipos-documentales|series|subseries`, páginas `/catalogos/*`, mutaciones ADMIN).
