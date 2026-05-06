@@ -24,6 +24,14 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — ETAPA 0: cierre formal al 100 % (documentación y evidencias)
+
+- **Objetivo:** cumplir entregables del roadmap fila ETAPA 0 (`/docs`, `.gitignore`, `storage/`, plantillas `.env.example`, README, deuda registrada).
+- **Nuevo:** `docs/29-etapa-0-cierre-y-evidencias.md` (checklist comprobado + distinción informe inicial archivado).
+- **Actualización:** bandera de archivo en `etapa-0-auditoria-inicial-y-diagnostico.md`; `00-roadmap-general.md` (bloque *Estado actual*); `docs/20-problemas-detectados.md` (P-003/P-004 cerrados en ámbito repositorio; revisión 2026-05-06); índice `docs/README.md`; `21-riesgos-pendientes.md` (fecha actual).
+- **README raíz:** enlace a evidencias ETAPA 0.
+- **`EJECUTAR.txt`:** referencia rápida a `docs/29-etapa-0-cierre-y-evidencias.md`.
+
 ### 2026-04-20 — ETAPA 9: reportes (Excel/PDF)
 
 - **Backend:** `GET /api/v1/reportes/documentos.xlsx` (ExcelJS) y `GET /api/v1/reportes/documentos.pdf` (pdfkit).

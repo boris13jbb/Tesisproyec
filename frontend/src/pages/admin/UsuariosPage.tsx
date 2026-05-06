@@ -81,15 +81,20 @@ export function UsuariosPage() {
   const load = async () => {
     setError(null);
     setLoading(true);
-    const [usersRes, depsRes, cargosRes] = await Promise.all([
-      apiClient.get<Usuario[]>('/usuarios'),
-      apiClient.get<Dependencia[]>('/dependencias'),
-      apiClient.get<Cargo[]>('/cargos'),
-    ]);
-    const data = usersRes.data;
-    setItems(data);
-    setDependencias(depsRes.data.filter((d) => d.activo));
-    setCargos(cargosRes.data.filter((c) => c.activo));
+    try {
+      const [usersRes, depsRes, cargosRes] = await Promise.all([
+        apiClient.get<Usuario[]>('/usuarios'),
+        apiClient.get<Dependencia[]>('/dependencias'),
+        apiClient.get<Cargo[]>('/cargos'),
+      ]);
+      setItems(usersRes.data);
+      setDependencias(depsRes.data.filter((d) => d.activo));
+      setCargos(cargosRes.data.filter((c) => c.activo));
+    } catch {
+      setError('No se pudo cargar el listado de usuarios.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

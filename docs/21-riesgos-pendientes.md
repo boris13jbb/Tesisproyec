@@ -10,7 +10,7 @@ Desarrollo local, demo con ngrok, datos de prueba y extensión futura.
 
 ## Estado actual
 
-Actualizado **2026-05-05** (incluye recuperación de credenciales y módulo de usuarios).
+Actualizado **2026-05-06**. *ETAPA 0* documental cerrada (`docs/29-etapa-0-cierre-y-evidencias.md`). Riesgos operativos siguen en la tabla inferior.
 
 ---
 

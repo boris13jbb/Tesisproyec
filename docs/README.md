@@ -7,6 +7,7 @@
 | Archivo | Contenido |
 |---------|-----------|
 | [00-roadmap-general.md](./00-roadmap-general.md) | Fases 0–10 y orden de construcción |
+| [29-etapa-0-cierre-y-evidencias.md](./29-etapa-0-cierre-y-evidencias.md) | **Cierre ETAPA 0 al 100%** — checklist vs roadmap y archivo del informe inicial |
 | [01-arquitectura-general.md](./01-arquitectura-general.md) | Capas, entornos, contrato API |
 | [02-stack-y-convenciones.md](./02-stack-y-convenciones.md) | Stack cerrado, puertos, variables |
 | [03-estructura-de-carpetas.md](./03-estructura-de-carpetas.md) | Monorepo, rutas clave |
@@ -51,6 +52,6 @@
 | Archivo | Contenido |
 |---------|-----------|
 | [27-manual-usuario-sgd-gadpr-lm.md](./27-manual-usuario-sgd-gadpr-lm.md) | Manual de usuario (paso a paso) |
-| [etapa-0-auditoria-inicial-y-diagnostico.md](./etapa-0-auditoria-inicial-y-diagnostico.md) | Informe de auditoría ETAPA 0 |
+| [etapa-0-auditoria-inicial-y-diagnostico.md](./etapa-0-auditoria-inicial-y-diagnostico.md) | Informe de auditoría ETAPA 0 (**histórico 2026-04-19**); ver `29` para cierre vigente |
 
 **Nota:** el documento único de changelog técnico es **`22-changelog-tecnico.md`**.

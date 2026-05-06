@@ -7,6 +7,15 @@
 
 ---
 
+> ### Aviso de archivo (consulta estado vigente)
+>
+> Este documento es un **snapshot histórico** del repositorio en **2026-04-19**. Las tablas siguientes (**§2–10**) **no** reflejan el estado actual del código (hay `frontend/`, Prisma, auth, dominio SGD implementados en etapas posteriores).
+>
+> **Evidencias de saneamiento ETAPA 0 cerrada al 100%:** `docs/29-etapa-0-cierre-y-evidencias.md`.  
+> **Roadmap actual:** `docs/00-roadmap-general.md`.
+
+---
+
 ## 1. Objetivo del paso (ETAPA 0)
 
 Auditar el repositorio, contrastarlo con el expediente técnico y el stack obligatorio, registrar brechas, problemas y riesgos, y dejar definida la documentación faltante y el primer bloque de implementación ejecutable posterior.
