@@ -46,3 +46,8 @@ API directa: http://localhost:3000/api/v1
   docs/31-etapa-2-cierre-y-evidencias.md
   docs/04-modelo-base-de-datos.md
 
+--- Evidencias ETAPA 3 (auth / sesión)
+
+  docs/32-etapa-3-cierre-y-evidencias.md
+  docs/05-modulo-auth.md
+

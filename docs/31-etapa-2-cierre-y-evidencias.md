@@ -46,7 +46,7 @@ Tablas nuevas ligadas a **auth avanzado**, **usuarios institucionales** o **audi
 
 ## Próximo hito oficial (roadmap)
 
-**ETAPA 3 — Seguridad y auth** (JWT, guards, usuarios): ver módulos en `backend/src/auth/` y `docs/05-modulo-auth.md`. Documentación formal de **cierre ETAPA 3** puede repetir formato `32-etapa-3-cierre-y-evidencias.md` si se desea trazabilidad por etapa.
+**ETAPA 3 — Seguridad y auth:** cierre formal en **`docs/32-etapa-3-cierre-y-evidencias.md`**; detalle en **`docs/05-modulo-auth.md`**.
 
 ---
 

@@ -24,6 +24,11 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — ETAPA 3: cierre formal al 100 % (documentación y evidencias)
+
+- **Nuevo:** `docs/32-etapa-3-cierre-y-evidencias.md` (JWT, refresh+rotación, Argon2, `JwtAuthGuard`/`RolesGuard`, throttling auth, `audit_logs` para eventos AUTH, `session/restore`).
+- **Actualización:** `docs/00-roadmap-general.md`; `docs/05-modulo-auth.md` (endpoints `session/restore`, auditoría central, ASVS logging); `docs/31-etapa-2-cierre-y-evidencias.md` (siguiente fase); `docs/README.md`; `README.md` raíz; `EJECUTAR.txt`.
+
 ### 2026-05-06 — ETAPA 2: cierre formal al 100 % (documentación y evidencias)
 
 - **Nuevo:** `docs/31-etapa-2-cierre-y-evidencias.md` (checklist: `schema.prisma`, 14 migraciones, `DATABASE_URL` / XAMPP, Prisma 5.22.x).

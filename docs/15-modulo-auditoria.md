@@ -10,14 +10,14 @@ Login/logout, CRUD sensibles, descarga de archivos, cambios de estado documental
 
 ## Estado actual
 
-**Parcialmente implementado (MVP).**
+**Parcialmente implementado (MVP+).**
 
 - **Trazabilidad por dominio (implementada):**
   - Documento: tabla `documento_eventos` con eventos `CREADO`/`ACTUALIZADO` y `created_by_id`.
   - Archivo: tabla `documento_archivo_eventos` con eventos `SUBIDO`/`DESCARGADO`/`ELIMINADO` y `created_by_id`.
-- **Auditoría de seguridad institucional (pendiente):**
-  - Bitácora central unificada (`audit_logs`) para eventos transversales (auth, administración, cambios de permisos/roles, exportaciones, errores de autorización, intentos fallidos, etc.).
-  - Política de retención/archivo de logs y mecanismos de integridad.
+- **Bitácora transversal (`audit_logs`) — implementada en backend:**
+  - Tabla `audit_logs` + `AuditService`; eventos AUTH (login/refresh/logout/reset/throttle), administración/usuarios, documentos/archivos donde se integró.
+  - **Pendiente para cierre institucional:** pantalla ADMIN de consulta/exportación; política de **retención** y archivo; integridad firma/checksum si el alcance lo exige.
 
 ## Decisiones técnicas
 
@@ -27,8 +27,7 @@ Login/logout, CRUD sensibles, descarga de archivos, cambios de estado documental
 
 ## Tablas relacionadas
 
-- **Implementadas:** `documento_eventos`, `documento_archivo_eventos`.
-- **Pendiente (diseño objetivo):** `audit_logs` (o `AuditLog`) para auditoría transversal.
+- **Implementadas:** `documento_eventos`, `documento_archivo_eventos`, **`audit_logs`** (`AuditLog` en Prisma).
 
 ## Dependencias
 
@@ -36,7 +35,7 @@ Login/logout, CRUD sensibles, descarga de archivos, cambios de estado documental
 
 ---
 
-## Diseño objetivo (pendiente) — `audit_logs` (bitácora central)
+## Diseño — `audit_logs` (bitácora central)
 
 ### Objetivo
 

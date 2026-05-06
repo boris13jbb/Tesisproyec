@@ -16,9 +16,11 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 **ETAPA 2 (BD + Prisma + XAMPP):** **cerrada al 100 %** según evidencias (`docs/31-etapa-2-cierre-y-evidencias.md`, 2026-05-06). Modelo y migraciones detallados en `docs/04-modelo-base-de-datos.md`.
 
-**Completado:** ETAPA 3 (usuarios + roles base + JWT/refresh sesión conforme código actual), ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
+**ETAPA 3 (seguridad y auth — MVP):** **cerrada al 100 %** según evidencias (`docs/32-etapa-3-cierre-y-evidencias.md`, 2026-05-06). Permisos granulares en guard: backlog `docs/07-modulo-roles-permisos.md`.
 
 **Completado:** ETAPA 4 (shell UI): layout, rutas protegidas, 403/404, **menú condicionado por rol** y **alertas globales** (API caída / sesión expirada).
+
+**Completado:** ETAPA 5 (catálogos: dependencias, cargos, tipos documentales, series/subseries), ETAPA 6 (gestión documental: registro + detalle/edición + historial).
 
 **Completado:** ETAPA 7 (archivos con versionado, borrado lógico y trazabilidad), ETAPA 8 (búsqueda + ordenamiento + adjuntos), ETAPA 9 (reportes Excel/PDF).
 

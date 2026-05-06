@@ -10,6 +10,7 @@
 | [29-etapa-0-cierre-y-evidencias.md](./29-etapa-0-cierre-y-evidencias.md) | **Cierre ETAPA 0 al 100%** — checklist vs roadmap y archivo del informe inicial |
 | [30-etapa-1-cierre-y-evidencias.md](./30-etapa-1-cierre-y-evidencias.md) | **Cierre ETAPA 1 al 100%** — Vite/React/Nest base (API `/api/v1`, validación, CORS, proxy) |
 | [31-etapa-2-cierre-y-evidencias.md](./31-etapa-2-cierre-y-evidencias.md) | **Cierre ETAPA 2 al 100%** — Prisma + MySQL (XAMPP), migraciones, `DATABASE_URL` |
+| [32-etapa-3-cierre-y-evidencias.md](./32-etapa-3-cierre-y-evidencias.md) | **Cierre ETAPA 3 al 100%** — JWT, refresh HttpOnly, Argon2, guards RBAC, auditoría auth |
 | [01-arquitectura-general.md](./01-arquitectura-general.md) | Capas, entornos, contrato API |
 | [02-stack-y-convenciones.md](./02-stack-y-convenciones.md) | Stack cerrado, puertos, variables |
 | [03-estructura-de-carpetas.md](./03-estructura-de-carpetas.md) | Monorepo, rutas clave |

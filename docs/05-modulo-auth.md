@@ -22,6 +22,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
   - Endpoints:
     - `POST /api/v1/auth/login`
     - `POST /api/v1/auth/refresh`
+    - `POST /api/v1/auth/session/restore` — igual que refresh para cookie válida; **siempre HTTP 200** (`{ restored: true/false }`) para arranque UI sin sesión (evita 401 cosméticos en consola).
     - `POST /api/v1/auth/logout`
     - `GET /api/v1/auth/me`
     - `POST /api/v1/auth/password-reset/request`
@@ -43,7 +44,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 - **V3 Sesión**: expiración de access, refresh en cookie HttpOnly, logout revoca.
 - **V4 Control de acceso**: `/me` y operaciones protegidas por JWT; mutaciones administrativas por rol (ver `07`).
 - **V5 Validación**: DTOs + `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
-- **V10 Logging**: eventos relevantes definidos (pendiente bitácora central en `15-modulo-auditoria.md`).
+- **V10 Logging**: eventos de autenticación registrados en **`audit_logs`** vía `AuditService` (login/refresh/logout/reset; ver `backend/src/auth/auth.service.ts`). Política de retención y consulta admin: `15-modulo-auditoria.md`.
 
 ### ISO/IEC 27001:2022 (aplicación práctica)
 - **Control de acceso / IAM**: autenticación centralizada; roles en token (vía `/me`).
@@ -73,6 +74,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 
 2) **Uso normal**
 - UI → requests con `Authorization: Bearer <access>`
+- Al montar la app → `POST /auth/session/restore` (cookie) para restaurar sesión sin forzar HTTP 401 si no hay cookie
 - Si `401` → UI → `POST /auth/refresh` (cookie) → nuevo access → reintenta request
 
 3) **Logout**
@@ -85,7 +87,8 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 ## Endpoints
 
 - `POST /api/v1/auth/login` — body `{ email, password }`; responde `{ accessToken, user }` y fija cookie de refresh.
-- `POST /api/v1/auth/refresh` — usa cookie; responde `{ accessToken, user }`.
+- `POST /api/v1/auth/refresh` — usa cookie; responde `{ accessToken, user }` o `401` si no hay sesión válida.
+- `POST /api/v1/auth/session/restore` — usa cookie; **siempre 200** con `{ restored: true, accessToken, user }` o `{ restored: false }`; limpia cookie si el refresh es inválido.
 - `POST /api/v1/auth/logout` — revoca refresh en BD y borra cookie (204).
 - `GET /api/v1/auth/me` — cabecera `Authorization: Bearer <access>`; usuario con roles.
 
@@ -145,14 +148,17 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 - **RB-Auth-04**: `password-reset/request` no revela si el correo existe (anti-enumeración).
 - **RB-Auth-05**: el token de reset es **un solo uso** (`used_at`) y expira (`expires_at`).
 
-## Eventos auditables (pendiente de bitácora central)
+## Eventos auditables (bitácora `audit_logs`)
 
-Cuando exista `audit_logs` (ver `15-modulo-auditoria.md`), registrar:
+Implementados en backend (sin guardar secretos ni tokens en claro):
 - `AUTH_LOGIN_OK` / `AUTH_LOGIN_FAIL`
-- `AUTH_REFRESH_OK` / `AUTH_REFRESH_FAIL` (sin registrar tokens)
+- `AUTH_REFRESH_OK` / `AUTH_REFRESH_FAIL` (el intento sin cookie en `/session/restore` no genera `AUTH_REFRESH_FAIL` para no llenar la bitácora en tráfico anónimo)
 - `AUTH_LOGOUT`
-- `AUTH_PASSWORD_RESET_REQUEST`
+- `AUTH_PASSWORD_RESET_REQUEST` (y variantes mail fallido/skip en dev)
 - `AUTH_PASSWORD_RESET_CONFIRM_OK` / `AUTH_PASSWORD_RESET_CONFIRM_FAIL`
+- `AUTH_RATE_LIMITED` (throttling; ver `throttler-audit.filter.ts`)
+
+Consulta administrativa y retención: `15-modulo-auditoria.md`.
 
 ## Manejo de errores (lineamientos)
 
@@ -170,7 +176,7 @@ Cuando exista `audit_logs` (ver `15-modulo-auditoria.md`), registrar:
 
 ## Mejoras futuras
 
-MFA, bloqueo por intentos fallidos.
+MFA, **lockout por cuenta** tras N fallos consecutivos (complemento a throttle por IP), CAPTCHA en recuperación si la institución lo exige.
 
 ## Plan de pruebas (paso a paso)
 
