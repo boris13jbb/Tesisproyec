@@ -15,19 +15,25 @@ import type { JwtRequestUser } from '../auth/request-user';
 import { RbacService } from './rbac.service';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 
-/** Gestión de la matriz rol ↔ permiso en BD (`role_permissions`). Sin `@Permissions`: bootstrap solo con rol ADMIN. */
+/**
+ * Gestión de la matriz rol ↔ permiso en BD (`role_permissions`).
+ *
+ * Regla de seguridad: **toda mutación** de RBAC (asignar/quitar permisos) es exclusiva de `ADMIN`.
+ * Endpoints de lectura pueden abrirse a otros roles según necesidad, pero **no habilitan cambios**.
+ */
 @Controller('rbac')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
 export class RbacController {
   constructor(private readonly rbac: RbacService) {}
 
   @Get('permissions')
+  @Roles('ADMIN', 'USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA')
   listPermissions() {
     return this.rbac.listPermissions();
   }
 
   @Get('roles')
+  @Roles('ADMIN', 'USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA')
   listRoles() {
     return this.rbac.listRoles();
   }
@@ -39,11 +45,13 @@ export class RbacController {
   }
 
   @Get('roles/:codigo/permissions')
+  @Roles('ADMIN', 'USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA')
   rolePermissions(@Param('codigo') codigo: string) {
     return this.rbac.permissionsForRoleCodigo(codigo.trim().toUpperCase());
   }
 
   @Put('roles/:codigo/permissions')
+  @Roles('ADMIN')
   async replaceRolePermissions(
     @Param('codigo') codigo: string,
     @Body() dto: UpdateRolePermissionsDto,

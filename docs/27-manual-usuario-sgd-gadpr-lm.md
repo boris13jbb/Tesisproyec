@@ -122,11 +122,11 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 ### 4.1 Qué verás
 
-- **Indicadores**: totales **reales** desde la API (`GET /dashboard/summary`): documentos, pendientes de revisión, usuarios activos (visible para `ADMIN`), **documentos nuevos este mes** y tabla de expedientes ordenada por **última actualización**.
-- **Alertas (tarjeta roja)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (solo `ADMIN`, hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
-- **Cumplimiento**: barras calculadas con métricas de los últimos 30 días (no son valores ficticios).
-- **Último respaldo verificado**: solo aparece fecha real si un `ADMIN` registró una verificación en **Respaldos** (auditoría `BACKUP_VERIFIED`); si no hay registro, el panel indica cómo obtenerlo.
-- **Estado del servicio**: confirmación de API y base de datos.
+- **Indicadores**: totales **en tiempo real** desde la API (`GET /dashboard/summary` y estado `GET /health`): **Documentos**, **Pendientes** por revisar para todos los roles; tarjetas **Usuarios** y **Alertas** solo si eres **`ADMIN`**; debajo aparece **actualización automática** cada unos segundos y una etiqueta **«Actualizado: …»**.
+- Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
+- **Alertas (tarjeta roja, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
+- **Cumplimiento de seguridad (solo `ADMIN`)**: barras calculadas con métricas de los últimos 30 días (no son valores ficticios), más el bloque de **último respaldo verificado** y última línea auditada en el mismo panel.
+- **Estado del servicio (solo `ADMIN`)**: confirmación de API y base de datos; el enlace rápido **Ir a documentos** aparece dentro de ese bloque. Los usuarios sin rol administrador pueden ir a documentos desde el menú o desde **Ver documentos** en la tabla de expedientes recientes.
 - **Comprobación de rol administrador** (si aplica): indicador de acceso ADMIN.
 
 ### 4.2 Menú lateral (navegación)
@@ -363,6 +363,12 @@ La pantalla se organiza en dos columnas (en escritorio):
 - **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF** o **imagen** (JPG, PNG o WebP), descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). Para **DOCX**, **XLSX** u otros tipos debe usarse **Descargar** (el navegador no integra vista previa de Office aquí). Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (subir, listar, descargar, historial por versión), según permisos.
 - **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; dependencia; **Conservación** si no está parametrizada en datos (valor «—») y texto explicativo. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (solo **ADMIN**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
+
+Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además el bloque **Acceso al documento (ACL)**:
+
+- **INHERIT**: usa las reglas habituales del sistema (dependencia + confidencialidad + propiedad) para determinar visibilidad.
+- **RESTRICTED**: el documento queda visible solo para **ADMIN** y para los **usuarios/roles** que selecciones en la lista. Útil para evitar exposición accidental (prevención de **IDOR**) cuando un expediente debe compartirse con un grupo reducido.
+- **Guardar acceso**: aplica el cambio de inmediato; si eliges **RESTRICTED** y no seleccionas nadie, el documento deja de aparecer para usuarios no administradores.
 
 En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de confidencialidad**. Si eres **ADMIN**, presiona **Editar** en **Metadatos**, ajusta los campos y **Guardar** en el diálogo cuando la pantalla lo muestre.
 

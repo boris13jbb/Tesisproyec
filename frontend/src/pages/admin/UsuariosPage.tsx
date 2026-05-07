@@ -42,6 +42,7 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { apiClient } from '../../api/client';
+import { useAuth } from '../../auth/useAuth';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import {
@@ -191,6 +192,8 @@ function MatrixCell({ allowed }: { allowed: boolean }) {
 }
 
 export function UsuariosPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
   const [items, setItems] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -240,8 +243,12 @@ export function UsuariosPage() {
         apiClient.get<Usuario[]>('/usuarios'),
         apiClient.get<Dependencia[]>('/dependencias'),
         apiClient.get<Cargo[]>('/cargos'),
-        apiClient.get<RbacPermRow[]>('/rbac/permissions').catch(() => ({ data: [] as RbacPermRow[] })),
-        apiClient.get<RbacRoleRow[]>('/rbac/roles').catch(() => ({ data: [] as RbacRoleRow[] })),
+        isAdmin
+          ? apiClient.get<RbacPermRow[]>('/rbac/permissions').catch(() => ({ data: [] as RbacPermRow[] }))
+          : Promise.resolve({ data: [] as RbacPermRow[] }),
+        isAdmin
+          ? apiClient.get<RbacRoleRow[]>('/rbac/roles').catch(() => ({ data: [] as RbacRoleRow[] }))
+          : Promise.resolve({ data: [] as RbacRoleRow[] }),
       ]);
       setItems(usersRes.data);
       setDependencias(depsRes.data.filter((d) => d.activo));
@@ -263,7 +270,7 @@ export function UsuariosPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza tabla con API
@@ -681,23 +688,25 @@ export function UsuariosPage() {
             )}
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2.5 }}>
-              <Button
-                variant="contained"
-                fullWidth
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 800,
-                  bgcolor: INSTITUTIONAL_TEAL,
-                  py: 1.15,
-                  '&:hover': { bgcolor: '#257a87' },
-                }}
-                onClick={() => {
-                  setInviteNotice(null);
-                  setOpen(true);
-                }}
-              >
-                Crear usuario
-              </Button>
+              {isAdmin ? (
+                <Button
+                  variant="contained"
+                  fullWidth
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 800,
+                    bgcolor: INSTITUTIONAL_TEAL,
+                    py: 1.15,
+                    '&:hover': { bgcolor: '#257a87' },
+                  }}
+                  onClick={() => {
+                    setInviteNotice(null);
+                    setOpen(true);
+                  }}
+                >
+                  Crear usuario
+                </Button>
+              ) : null}
               <Button
                 fullWidth
                 variant="outlined"
@@ -706,134 +715,138 @@ export function UsuariosPage() {
               >
                 Ver matriz RBAC
               </Button>
-              <Button
-                fullWidth
-                variant="outlined"
-                href="#matriz-role-permissions-bd"
-                sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
-              >
-                Permisos por rol (BD)
-              </Button>
+              {isAdmin ? (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  href="#matriz-role-permissions-bd"
+                  sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
+                >
+                  Permisos por rol (BD)
+                </Button>
+              ) : null}
             </Stack>
           </Paper>
 
-          <Paper
-            id="matriz-role-permissions-bd"
-            elevation={0}
-            sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
-          >
-            <SectionLetterHeader
-              letter="P"
-              accent="teal"
-              title="Matriz rol ↔ permiso (base de datos)"
-              subtitle="Asignación persistida · `role_permissions` · fuente de verdad para `PermissionsGuard`"
-            />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2, lineHeight: 1.6 }}>
-              Aquí concede o revoca <strong>códigos de permiso</strong> por <strong>rol institucional</strong>. Si la
-              lista aparece vacía, ejecute <code>npx prisma db seed</code> en el servidor (crea permisos y valores por
-              defecto).
-            </Typography>
-            {rbacPermissionCatalog.length === 0 ? (
-              <Alert severity="warning">
-                No hay permisos en catálogo. Verifique backend actualizado y seed ejecutado.
-              </Alert>
-            ) : (
-              <>
-                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                  <InputLabel id="rbac-role-label">Rol a editar</InputLabel>
-                  <Select<RbacRoleRow['codigo']>
-                    labelId="rbac-role-label"
-                    label="Rol a editar"
-                    value={
-                      rbacRolesCatalog.some((r) => r.codigo === rbacRoleCodigo) ? rbacRoleCodigo : ''
-                    }
-                    onChange={(e) => setRbacRoleCodigo(String(e.target.value))}
-                  >
-                    {rbacRolesCatalog.map((r) => (
-                      <MenuItem key={r.id} value={r.codigo}>
-                        {r.nombre} ({r.codigo})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                {rbacRoleCodigo === 'ADMIN' ? (
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    Modificar los permisos del rol ADMIN puede impedir operaciones administrativas. Mantenga todos los
-                    códigos a menos que tenga un plan explícito de segregación de funciones.
-                  </Alert>
-                ) : null}
-                <Box
-                  sx={{
-                    maxHeight: 420,
-                    overflow: 'auto',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 2,
-                    p: 1.5,
-                    bgcolor: 'grey.50',
-                  }}
-                  aria-busy={rbacRolePermsLoading || rbacMatrixSaving}
-                >
-                  {rbacRolePermsLoading ? (
-                    <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
-                      <CircularProgress size={32} aria-label="Cargando permisos del rol" />
-                    </Box>
-                  ) : (
-                    rbacPermissionCatalog
-                      .slice()
-                      .sort((a, b) => a.codigo.localeCompare(b.codigo))
-                      .map((p) => (
-                        <FormControlLabel
-                          key={p.id}
-                          sx={{ display: 'flex', alignItems: 'flex-start', ml: 0, mb: 0.5 }}
-                          control={
-                            <Checkbox
-                              size="small"
-                              checked={rbacSelectedCodes.has(p.codigo)}
-                              onChange={() => toggleRbacPermission(p.codigo)}
-                            />
-                          }
-                          label={
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                {p.codigo}
-                              </Typography>
-                              {p.descripcion ? (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                  {p.descripcion}
-                                </Typography>
-                              ) : null}
-                            </Box>
-                          }
-                        />
-                      ))
-                  )}
-                </Box>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
-                  <Button
-                    variant="contained"
-                    disabled={rbacMatrixSaving || rbacRolePermsLoading || !rbacRoleCodigo}
-                    onClick={() => void saveRbacMatrix()}
+          {isAdmin ? (
+            <Paper
+              id="matriz-role-permissions-bd"
+              elevation={0}
+              sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
+            >
+              <SectionLetterHeader
+                letter="P"
+                accent="teal"
+                title="Matriz rol ↔ permiso (base de datos)"
+                subtitle="Asignación persistida · `role_permissions` · fuente de verdad para `PermissionsGuard`"
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2, lineHeight: 1.6 }}>
+                Aquí concede o revoca <strong>códigos de permiso</strong> por <strong>rol institucional</strong>. Si la
+                lista aparece vacía, ejecute <code>npx prisma db seed</code> en el servidor (crea permisos y valores por
+                defecto).
+              </Typography>
+              {rbacPermissionCatalog.length === 0 ? (
+                <Alert severity="warning">
+                  No hay permisos en catálogo. Verifique backend actualizado y seed ejecutado.
+                </Alert>
+              ) : (
+                <>
+                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                    <InputLabel id="rbac-role-label">Rol a editar</InputLabel>
+                    <Select<RbacRoleRow['codigo']>
+                      labelId="rbac-role-label"
+                      label="Rol a editar"
+                      value={
+                        rbacRolesCatalog.some((r) => r.codigo === rbacRoleCodigo) ? rbacRoleCodigo : ''
+                      }
+                      onChange={(e) => setRbacRoleCodigo(String(e.target.value))}
+                    >
+                      {rbacRolesCatalog.map((r) => (
+                        <MenuItem key={r.id} value={r.codigo}>
+                          {r.nombre} ({r.codigo})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {rbacRoleCodigo === 'ADMIN' ? (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Modificar los permisos del rol ADMIN puede impedir operaciones administrativas. Mantenga todos los
+                      códigos a menos que tenga un plan explícito de segregación de funciones.
+                    </Alert>
+                  ) : null}
+                  <Box
                     sx={{
-                      textTransform: 'none',
-                      fontWeight: 800,
-                      bgcolor: INSTITUTIONAL_NAVY,
-                      '&:hover': { bgcolor: '#132030' },
+                      maxHeight: 420,
+                      overflow: 'auto',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      p: 1.5,
+                      bgcolor: 'grey.50',
                     }}
+                    aria-busy={rbacRolePermsLoading || rbacMatrixSaving}
                   >
-                    {rbacMatrixSaving ? 'Guardando…' : 'Guardar permisos del rol'}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    href="#matriz-rbac"
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Ver matriz de referencia (rutas)
-                  </Button>
-                </Stack>
-              </>
-            )}
-          </Paper>
+                    {rbacRolePermsLoading ? (
+                      <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+                        <CircularProgress size={32} aria-label="Cargando permisos del rol" />
+                      </Box>
+                    ) : (
+                      rbacPermissionCatalog
+                        .slice()
+                        .sort((a, b) => a.codigo.localeCompare(b.codigo))
+                        .map((p) => (
+                          <FormControlLabel
+                            key={p.id}
+                            sx={{ display: 'flex', alignItems: 'flex-start', ml: 0, mb: 0.5 }}
+                            control={
+                              <Checkbox
+                                size="small"
+                                checked={rbacSelectedCodes.has(p.codigo)}
+                                onChange={() => toggleRbacPermission(p.codigo)}
+                              />
+                            }
+                            label={
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                  {p.codigo}
+                                </Typography>
+                                {p.descripcion ? (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    {p.descripcion}
+                                  </Typography>
+                                ) : null}
+                              </Box>
+                            }
+                          />
+                        ))
+                    )}
+                  </Box>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
+                    <Button
+                      variant="contained"
+                      disabled={rbacMatrixSaving || rbacRolePermsLoading || !rbacRoleCodigo}
+                      onClick={() => void saveRbacMatrix()}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 800,
+                        bgcolor: INSTITUTIONAL_NAVY,
+                        '&:hover': { bgcolor: '#132030' },
+                      }}
+                    >
+                      {rbacMatrixSaving ? 'Guardando…' : 'Guardar permisos del rol'}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      href="#matriz-rbac"
+                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                    >
+                      Ver matriz de referencia (rutas)
+                    </Button>
+                  </Stack>
+                </>
+              )}
+            </Paper>
+          ) : null}
 
         <Paper
           id="matriz-rbac"
@@ -949,50 +962,58 @@ export function UsuariosPage() {
           paper: { sx: { minWidth: 200, mt: 0.5 } },
         }}
       >
-        <MenuItem
-          dense
-          onClick={() => {
-            if (!actionsUsuario) return;
-            const u = actionsUsuario;
-            closeActionsMenu();
-            openEdit(u);
-          }}
-        >
-          <ListItemText primary="Editar usuario" secondary="Roles, dependencia, cargo" />
-        </MenuItem>
-        <MenuItem
-          dense
-          onClick={() => {
-            if (!actionsUsuario) return;
-            const u = actionsUsuario;
-            closeActionsMenu();
-            openReset(u);
-          }}
-        >
-          <ListItemText primary="Restablecer contraseña" />
-        </MenuItem>
-        <MenuItem
-          dense
-          sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0.5 }}
-          onClick={() => {
-            if (!actionsUsuario) return;
-            const u = actionsUsuario;
-            closeActionsMenu();
-            void onToggleActivo(u);
-          }}
-        >
-          <ListItemText
-            primary={actionsUsuario?.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
-            slotProps={{
-              primary: {
-                sx: {
-                  fontWeight: 600,
-                  ...(actionsUsuario?.activo ? { color: 'warning.main' } : {}),
-                },
-              },
-            }}
-          />
-        </MenuItem>
+        {isAdmin ? (
+          <>
+            <MenuItem
+              dense
+              onClick={() => {
+                if (!actionsUsuario) return;
+                const u = actionsUsuario;
+                closeActionsMenu();
+                openEdit(u);
+              }}
+            >
+              <ListItemText primary="Editar usuario" secondary="Roles, dependencia, cargo" />
+            </MenuItem>
+            <MenuItem
+              dense
+              onClick={() => {
+                if (!actionsUsuario) return;
+                const u = actionsUsuario;
+                closeActionsMenu();
+                openReset(u);
+              }}
+            >
+              <ListItemText primary="Restablecer contraseña" />
+            </MenuItem>
+            <MenuItem
+              dense
+              sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0.5 }}
+              onClick={() => {
+                if (!actionsUsuario) return;
+                const u = actionsUsuario;
+                closeActionsMenu();
+                void onToggleActivo(u);
+              }}
+            >
+              <ListItemText
+                primary={actionsUsuario?.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
+                slotProps={{
+                  primary: {
+                    sx: {
+                      fontWeight: 600,
+                      ...(actionsUsuario?.activo ? { color: 'warning.main' } : {}),
+                    },
+                  },
+                }}
+              />
+            </MenuItem>
+          </>
+        ) : (
+          <MenuItem dense disabled>
+            <ListItemText primary="Acciones restringidas" secondary="Solo ADMIN" />
+          </MenuItem>
+        )}
       </Menu>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">

@@ -24,6 +24,16 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-07 — ngrok — Frontend Vite (5175)
+
+- **Comando:** `ngrok http 5175`
+- **URL pública:** `https://05ff-200-112-221-9.ngrok-free.app`
+- **Propósito:** acceso remoto temporal fuera de la LAN para revisión/demos.
+- **Alcance:** solo UI (SPA) en `frontend/` (no expone directamente la API).
+- **Riesgos:** exposición pública temporal (enumeración de rutas, fuerza bruta contra login si el backend también es accesible por otros medios).
+- **Medidas:** tiempo mínimo del túnel, usar datos de prueba, no compartir credenciales, cerrar túnel al terminar.
+- **Referencia:** `18-seguridad-y-hardening.md` → sección “ngrok (temporal)” y `23-entorno-local-xampp-ngrok.md`.
+
 ### 2026-05-07 — RBAC granular: `PermissionsGuard`, API `/rbac`, seed `role_permissions`, UI «Matriz rol ↔ permiso»
 
 - **Backend:** `permission-codes.ts`, `@Permissions`, `PermissionsGuard`, módulo `rbac/` (listar permisos/roles; `GET/PUT .../roles/:codigo/permissions`; `GET /rbac/me/permissions`). Cambios registrados **`ROLE_PERMISSIONS_UPDATED`**.

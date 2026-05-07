@@ -19,10 +19,7 @@ import {
   jwtUserIsAdmin,
   jwtUserIsRevisor,
 } from '../auth/request-user';
-import {
-  assertUsuarioPuedeVerDocumento,
-  documentoVisibilityWhere,
-} from './documento-scope.util';
+import { documentoVisibilityWhere } from './documento-scope.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
@@ -127,6 +124,19 @@ export class DocumentosService {
       include: includeCatalogos,
     });
     if (!row) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+    return row;
+  }
+
+  private async loadDocumentoVisibleById(id: string, viewer: JwtRequestUser) {
+    const scope = documentoVisibilityWhere(viewer);
+    const row = await this.prisma.documento.findFirst({
+      where: scope ? { AND: [{ id }, scope] } : { id },
+      include: includeCatalogos,
+    });
+    if (!row) {
+      // anti-IDOR: ocultar existencia
       throw new NotFoundException('Documento no encontrado');
     }
     return row;
@@ -568,9 +578,7 @@ export class DocumentosService {
   }
 
   async findOne(id: string, viewer: JwtRequestUser) {
-    const row = await this.loadDocumentoById(id);
-    assertUsuarioPuedeVerDocumento(row, viewer);
-    return row;
+    return this.loadDocumentoVisibleById(id, viewer);
   }
 
   private async assertTipoDocumentalExists(id: string) {
@@ -672,8 +680,7 @@ export class DocumentosService {
   }
 
   async findEventos(documentoId: string, viewer: JwtRequestUser) {
-    const doc = await this.loadDocumentoById(documentoId);
-    assertUsuarioPuedeVerDocumento(doc, viewer);
+    await this.loadDocumentoVisibleById(documentoId, viewer);
     return this.prisma.documentoEvento.findMany({
       where: { documentoId },
       orderBy: [{ createdAt: 'desc' }],
@@ -684,8 +691,7 @@ export class DocumentosService {
   }
 
   async findArchivos(documentoId: string, viewer: JwtRequestUser) {
-    const doc = await this.loadDocumentoById(documentoId);
-    assertUsuarioPuedeVerDocumento(doc, viewer);
+    await this.loadDocumentoVisibleById(documentoId, viewer);
     return this.prisma.documentoArchivo.findMany({
       where: { documentoId, activo: true },
       orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
@@ -866,8 +872,7 @@ export class DocumentosService {
     ip: string | null,
     ctx?: AuditContext,
   ) {
-    const doc = await this.loadDocumentoById(documentoId);
-    assertUsuarioPuedeVerDocumento(doc, viewer);
+    await this.loadDocumentoVisibleById(documentoId, viewer);
     const userId = viewer.id;
     const row = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId, activo: true },
@@ -973,8 +978,7 @@ export class DocumentosService {
     archivoId: string,
     viewer: JwtRequestUser,
   ) {
-    const doc = await this.loadDocumentoById(documentoId);
-    assertUsuarioPuedeVerDocumento(doc, viewer);
+    await this.loadDocumentoVisibleById(documentoId, viewer);
     const exists = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId },
       select: { id: true },
@@ -1090,8 +1094,7 @@ export class DocumentosService {
 
   /** R-28: REGISTRADO → EN_REVISION (creador o ADMIN, con visibilidad). */
   async enviarRevision(id: string, viewer: JwtRequestUser, ctx?: AuditContext) {
-    const doc = await this.loadDocumentoById(id);
-    assertUsuarioPuedeVerDocumento(doc, viewer);
+    const doc = await this.loadDocumentoVisibleById(id, viewer);
 
     const puedeEnviar = jwtUserIsAdmin(viewer) || doc.createdById === viewer.id;
     if (!puedeEnviar) {
@@ -1137,8 +1140,7 @@ export class DocumentosService {
       );
     }
 
-    const doc = await this.loadDocumentoById(id);
-    assertUsuarioPuedeVerDocumento(doc, viewer);
+    const doc = await this.loadDocumentoVisibleById(id, viewer);
 
     if (normalizeDocumentoEstado(doc.estado) !== 'EN_REVISION') {
       throw new BadRequestException(
@@ -1181,6 +1183,111 @@ export class DocumentosService {
     });
 
     return updated;
+  }
+
+  async getAccess(documentoId: string) {
+    const doc = await this.prisma.documento.findUnique({
+      where: { id: documentoId },
+      select: {
+        id: true,
+        accessPolicy: true,
+        userAccess: { select: { userId: true, access: true } },
+        roleAccess: {
+          select: { role: { select: { codigo: true } }, access: true },
+        },
+      },
+    });
+    if (!doc) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+    return {
+      documentoId: doc.id,
+      accessPolicy: doc.accessPolicy,
+      userIds: doc.userAccess
+        .filter((x) => x.access === 'READ')
+        .map((x) => x.userId),
+      roleCodigos: doc.roleAccess
+        .filter((x) => x.access === 'READ')
+        .map((x) => x.role.codigo),
+    };
+  }
+
+  async updateAccess(
+    documentoId: string,
+    input: {
+      accessPolicy: 'INHERIT' | 'RESTRICTED';
+      userIds: string[];
+      roleCodigos?: string[];
+    },
+    actor: JwtRequestUser,
+    ctx?: AuditContext,
+  ) {
+    const before = await this.getAccess(documentoId);
+    const roleCodigos = (input.roleCodigos ?? []).map((r) =>
+      String(r).trim().toUpperCase(),
+    );
+
+    const roles = roleCodigos.length
+      ? await this.prisma.role.findMany({
+          where: { codigo: { in: roleCodigos } },
+          select: { id: true, codigo: true },
+        })
+      : [];
+    const roleIdByCodigo = new Map(roles.map((r) => [r.codigo, r.id]));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.documento.update({
+        where: { id: documentoId },
+        data: { accessPolicy: input.accessPolicy },
+      });
+      await tx.documentoUserAccess.deleteMany({ where: { documentoId } });
+      await tx.documentoRoleAccess.deleteMany({ where: { documentoId } });
+
+      if (input.accessPolicy === 'RESTRICTED') {
+        const cleanedUserIds = [...new Set(input.userIds)].filter(Boolean);
+        if (cleanedUserIds.length) {
+          await tx.documentoUserAccess.createMany({
+            data: cleanedUserIds.map((userId) => ({
+              documentoId,
+              userId,
+              access: 'READ',
+              createdById: actor.id,
+            })),
+          });
+        }
+
+        const cleanedRoleIds = [...new Set(roleCodigos)]
+          .map((c) => roleIdByCodigo.get(c))
+          .filter((x): x is string => Boolean(x));
+        if (cleanedRoleIds.length) {
+          await tx.documentoRoleAccess.createMany({
+            data: cleanedRoleIds.map((roleId) => ({
+              documentoId,
+              roleId,
+              access: 'READ',
+              createdById: actor.id,
+            })),
+          });
+        }
+      }
+    });
+
+    const after = await this.getAccess(documentoId);
+    void this.audit.log({
+      action: 'DOC_ACCESS_UPDATED',
+      result: 'OK',
+      resource: { type: 'Documento', id: documentoId },
+      context: {
+        actorUserId: actor.id,
+        actorEmail: actor.email,
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
+        correlationId: ctx?.correlationId ?? null,
+      },
+      meta: { before, after },
+    });
+
+    return after;
   }
 
   private diffDocumento(before: DocumentoSnapshot, after: DocumentoSnapshot) {

@@ -29,10 +29,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
+    /**
+     * Necesario para acceder por túneles públicos (ngrok) sin permitir "all".
+     * Mantiene el riesgo acotado a subdominios de ngrok free.
+     */
+    allowedHosts: ['.ngrok-free.app'],
     proxy: { ...apiProxy },
   },
   preview: {
     host: true,
+    allowedHosts: ['.ngrok-free.app'],
     proxy: { ...apiProxy },
   },
   build: {

@@ -39,6 +39,9 @@ model User {
   DocumentoArchivoEvento DocumentoArchivoEvento[]
   auditLogs     AuditLog[]
   updatedSecurityPolicies SecurityPolicy[] @relation("SecurityPolicyUpdatedBy")
+  documentoUserAccess DocumentoUserAccess[]
+  documentoUserAccessCreatedBy DocumentoUserAccess[] @relation("DocumentoUserAccessCreatedBy")
+  documentoRoleAccessCreatedBy DocumentoRoleAccess[] @relation("DocumentoRoleAccessCreatedBy")
 
   @@index([dependenciaId])
   @@index([cargoId])
@@ -153,6 +156,7 @@ model Role {
 
   users       UserRole[]
   permissions RolePermission[]
+  documentoAccess DocumentoRoleAccess[]
 
   @@map("roles")
 }
@@ -284,6 +288,8 @@ model Documento {
   tipoDocumentalId         String   @map("tipo_documental_id")
   subserieId               String   @map("subserie_id")
   dependenciaId            String?  @map("dependencia_id")
+  /// Política de acceso: INHERIT = reglas actuales; RESTRICTED = solo ACL (y ADMIN) + creador.
+  accessPolicy             String   @default("INHERIT") @map("access_policy") @db.VarChar(16)
   createdById              String   @map("created_by_id")
   createdAt                DateTime @default(now()) @map("created_at")
   updatedAt                DateTime @updatedAt @map("updated_at")
@@ -294,13 +300,52 @@ model Documento {
   createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   eventos        DocumentoEvento[]
   archivos       DocumentoArchivo[]
+  userAccess     DocumentoUserAccess[]
+  roleAccess     DocumentoRoleAccess[]
 
   @@index([tipoDocumentalId])
   @@index([subserieId])
   @@index([createdById])
   @@index([dependenciaId])
   @@index([nivelConfidencialidad])
+  @@index([accessPolicy])
   @@map("documentos")
+}
+
+/// ACL por documento (usuario). Solo aplica si `Documento.accessPolicy = RESTRICTED`.
+model DocumentoUserAccess {
+  documentoId String @map("documento_id")
+  userId      String @map("user_id")
+  access      String @default("READ") @db.VarChar(16)
+  createdById String @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  documento Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("DocumentoUserAccessCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@id([documentoId, userId])
+  @@index([userId])
+  @@index([createdById])
+  @@map("documento_user_access")
+}
+
+/// ACL por documento (rol). Solo aplica si `Documento.accessPolicy = RESTRICTED`.
+model DocumentoRoleAccess {
+  documentoId String @map("documento_id")
+  roleId      String @map("role_id")
+  access      String @default("READ") @db.VarChar(16)
+  createdById String @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  documento Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("DocumentoRoleAccessCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@id([documentoId, roleId])
+  @@index([roleId])
+  @@index([createdById])
+  @@map("documento_role_access")
 }
 
 /// Evento de trazabilidad del documento (ETAPA 6).

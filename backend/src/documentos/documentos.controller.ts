@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -31,6 +32,7 @@ import { JwtRequestUser } from '../auth/request-user';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
+import { UpdateDocumentAccessDto } from './dto/update-document-access.dto';
 import { DocumentosService } from './documentos.service';
 
 @Controller('documentos')
@@ -113,6 +115,40 @@ export class DocumentosController {
     @Req() req: Request & { user: JwtRequestUser },
   ) {
     return this.service.findOne(id, req.user);
+  }
+
+  /** ACL por documento (ADMIN). */
+  @Get(':id/access')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Permissions(PERM.DOC_ACCESS_MANAGE)
+  getAccess(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getAccess(id);
+  }
+
+  @Put(':id/access')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Permissions(PERM.DOC_ACCESS_MANAGE)
+  updateAccess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateDocumentAccessDto,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const ua = req.headers['user-agent'];
+    return this.service.updateAccess(
+      id,
+      {
+        accessPolicy: dto.accessPolicy,
+        userIds: dto.userIds,
+        roleCodigos: dto.roleCodigos ?? [],
+      },
+      req.user,
+      {
+        ip: req.ip ?? null,
+        userAgent: typeof ua === 'string' ? ua : null,
+      },
+    );
   }
 
   @Post()

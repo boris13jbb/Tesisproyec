@@ -69,6 +69,8 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 
 Detalle operativo, CORS y cookies: `23-entorno-local-xampp-ngrok.md`. Cada sesión debe registrarse en `22-changelog-tecnico.md`.
 
+- **Sesión activa (2026-05-07)**: frontend Vite en `:5175` expuesto por ngrok (ver entrada en `22-changelog-tecnico.md`).
+
 ## cloudflared tunnel (temporal)
 
 Uso alternativo para exponer el **frontend Vite (5173)** de forma temporal. Reglas mínimas:

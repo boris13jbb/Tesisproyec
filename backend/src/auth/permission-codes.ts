@@ -21,6 +21,7 @@ export const PERM = {
   DOC_READ: 'DOC_READ',
   DOC_CREATE: 'DOC_CREATE',
   DOC_UPDATE: 'DOC_UPDATE',
+  DOC_ACCESS_MANAGE: 'DOC_ACCESS_MANAGE',
 
   DOC_REVISION_SEND: 'DOC_REVISION_SEND',
   DOC_REVISION_RESOLVE: 'DOC_REVISION_RESOLVE',
@@ -63,6 +64,8 @@ export const PERM_DESCRIPTIONS: Record<PermissionCode, string> = {
   DOC_READ: 'Consultar listados, detalle, tablón y clasificación documental.',
   DOC_CREATE: 'Registrar nuevos documentos administrativamente.',
   DOC_UPDATE: 'Editar metadatos de documentos administrativamente.',
+  DOC_ACCESS_MANAGE:
+    'Administrar acceso por documento (ACL): otorgar/revocar visibilidad a usuarios/roles.',
 
   DOC_REVISION_SEND: 'Enviar documento a revisión.',
   DOC_REVISION_RESOLVE: 'Resolver revisión (aprobar/rechazar).',

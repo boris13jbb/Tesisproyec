@@ -20,7 +20,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
@@ -107,6 +107,15 @@ function formatShortDateEc(iso: string): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+  }).format(d);
+}
+
+function formatTimeEc(iso: string): string {
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat('es-EC', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   }).format(d);
 }
 
@@ -330,80 +339,118 @@ export function DashboardPage() {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  /** Evita segundo clic mientras refresco manual paralelo está en curso. */
+  const [manualRefreshing, setManualRefreshing] = useState(false);
 
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
 
+  const aliveRef = useRef(false);
+  const healthInflightRef = useRef(false);
+  const summaryInflightRef = useRef(false);
+  const manualRefreshingLockRef = useRef(false);
+
   useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get<HealthResponse>('/health')
-      .then((res) => {
-        if (!cancelled) {
-          setHealth(res.data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHealthError(
-            'No se pudo contactar al API. Compruebe que el backend esté en marcha.',
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setHealthLoading(false);
-        }
-      });
+    aliveRef.current = true;
     return () => {
-      cancelled = true;
+      aliveRef.current = false;
     };
   }, []);
 
-  useEffect(() => {
-    if (!isAdmin) {
-      return;
+  const reloadHealth = useCallback(async (opts?: { silent?: boolean }) => {
+    if (healthInflightRef.current) return;
+    healthInflightRef.current = true;
+    const silent = opts?.silent ?? false;
+    try {
+      if (!silent && aliveRef.current) {
+        setHealthLoading(true);
+      }
+      const res = await apiClient.get<HealthResponse>('/health');
+      if (!aliveRef.current) return;
+      setHealth(res.data);
+      setHealthError(null);
+    } catch {
+      if (!aliveRef.current) return;
+      setHealthError(
+        'No se pudo contactar al API. Compruebe que el backend esté en marcha.',
+      );
+    } finally {
+      healthInflightRef.current = false;
+      if (aliveRef.current) setHealthLoading(false);
     }
-    let cancelled = false;
-    apiClient
-      .get<{ ok: boolean; scope: string }>('/admin/ping')
-      .then((res) => {
-        if (!cancelled) {
-          setAdminOk(res.data.ok);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAdminError(true);
-          setAdminOk(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+  }, []);
+
+  const reloadSummary = useCallback(async (opts?: { silent?: boolean }) => {
+    if (summaryInflightRef.current) return;
+    summaryInflightRef.current = true;
+    const silent = opts?.silent ?? false;
+    try {
+      if (!silent && aliveRef.current) {
+        setSummaryError(null);
+        setSummaryLoading(true);
+      }
+      const { data } = await apiClient.get<DashboardSummary>('/dashboard/summary');
+      if (!aliveRef.current) return;
+      setSummary(data);
+      setSummaryError(null);
+    } catch {
+      if (!aliveRef.current) return;
+      setSummaryError('No se pudo cargar el resumen del dashboard.');
+      setSummary(null);
+    } finally {
+      summaryInflightRef.current = false;
+      if (aliveRef.current) setSummaryLoading(false);
+    }
+  }, []);
+
+  const reloadAdminPing = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const res = await apiClient.get<{ ok: boolean; scope: string }>('/admin/ping');
+      if (!aliveRef.current) return;
+      setAdminOk(res.data.ok);
+      setAdminError(false);
+    } catch {
+      if (!aliveRef.current) return;
+      setAdminError(true);
+      setAdminOk(false);
+    }
   }, [isAdmin]);
 
+  /** Carga inicial + sondeo silencioso cada 30s. */
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setSummaryError(null);
-      setSummaryLoading(true);
-      try {
-        const { data } = await apiClient.get<DashboardSummary>('/dashboard/summary');
-        if (cancelled) return;
-        setSummary(data);
-      } catch {
-        if (!cancelled) {
-          setSummaryError('No se pudo cargar el resumen del dashboard.');
-          setSummary(null);
-        }
-      } finally {
-        if (!cancelled) setSummaryLoading(false);
-      }
-    })();
+    const bootstrap = window.setTimeout(() => {
+      void reloadHealth({ silent: true });
+      void reloadSummary({ silent: true });
+    }, 0);
+    const hi = window.setInterval(() => void reloadHealth({ silent: true }), 30_000);
+    const si = window.setInterval(() => void reloadSummary({ silent: true }), 30_000);
     return () => {
-      cancelled = true;
+      window.clearTimeout(bootstrap);
+      window.clearInterval(hi);
+      window.clearInterval(si);
     };
-  }, [isAdmin]);
+  }, [reloadHealth, reloadSummary]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => void reloadAdminPing(), 0);
+    return () => window.clearTimeout(t);
+  }, [reloadAdminPing]);
+
+  const handleManualDashboardRefresh = useCallback(async () => {
+    if (manualRefreshingLockRef.current) return;
+    manualRefreshingLockRef.current = true;
+    setManualRefreshing(true);
+    try {
+      await Promise.all([
+        reloadHealth({ silent: false }),
+        reloadSummary({ silent: false }),
+        reloadAdminPing(),
+      ]);
+    } finally {
+      manualRefreshingLockRef.current = false;
+      if (aliveRef.current) setManualRefreshing(false);
+    }
+  }, [reloadAdminPing, reloadHealth, reloadSummary]);
 
   useEffect(() => {
     const raw = location.hash.replace(/^#/, '').trim();
@@ -486,11 +533,17 @@ export function DashboardPage() {
   const displayRole =
     user?.roles.find((r) => r.codigo === 'ADMIN')?.nombre ?? user?.roles[0]?.nombre ?? 'Usuario';
 
+  const generatedAt = summary?.generatedAt;
+  const updatedAtLabel = useMemo(() => {
+    if (!generatedAt) return null;
+    return `Actualizado: ${formatTimeEc(generatedAt)}`;
+  }, [generatedAt]);
+
   return (
     <Container maxWidth="lg">
       <PageHeader
         title="Panel principal"
-        description="GADPR-LM · Sistema de Gestión Documental · Indicadores en tiempo casi real desde la base de datos."
+        description="GADPR-LM · Sistema de Gestión Documental · Indicadores en tiempo real desde la base de datos."
         actions={
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -498,6 +551,41 @@ export function DashboardPage() {
             sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
           >
             <Chip size="small" label="INTRANET" sx={INTRANET_CHIP_SX} />
+            <Chip
+              size="small"
+              variant="outlined"
+              label={
+                summaryLoading || healthLoading || manualRefreshing
+                  ? 'Actualizando…'
+                  : updatedAtLabel ?? 'Actualizado: —'
+              }
+              sx={{ fontWeight: 800 }}
+            />
+            <Button
+              type="button"
+              variant="outlined"
+              size="small"
+              onClick={() => void handleManualDashboardRefresh()}
+              disabled={manualRefreshing}
+              aria-busy={manualRefreshing}
+              aria-label="Actualizar panel con datos en vivo del servidor"
+              sx={{
+                whiteSpace: 'nowrap',
+                fontWeight: 800,
+              }}
+              startIcon={
+                manualRefreshing ? (
+                  <CircularProgress
+                    aria-hidden
+                    size={14}
+                    thickness={5}
+                    sx={{ color: 'primary.main' }}
+                  />
+                ) : undefined
+              }
+            >
+              Actualizar ahora
+            </Button>
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
               <Avatar
                 sx={{
@@ -530,7 +618,7 @@ export function DashboardPage() {
       ) : null}
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: isAdmin ? 3 : 6 }}>
           <KpiCard
             iconLetter="D"
             title="Documentos"
@@ -542,7 +630,7 @@ export function DashboardPage() {
             }
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: isAdmin ? 3 : 6 }}>
           <KpiCard
             iconLetter="P"
             title="Pendientes"
@@ -553,49 +641,49 @@ export function DashboardPage() {
             accentColor="#B45309"
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KpiCard
-            iconLetter="U"
-            title="Usuarios"
-            subtitle="activos"
-            value={
-              !isAdmin
-                ? '—'
-                : summaryLoading
-                  ? '…'
-                  : formattedNumber(summary?.kpis.usuariosActivos ?? null)
-            }
-            accentColor="#0F766E"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KpiCard
-            iconLetter="A"
-            title="Alertas"
-            subtitle="señales operativas"
-            value={summaryLoading || healthLoading ? '…' : String(alertsCount)}
-            accentColor="#B91C1C"
-            footnote={
-              summaryLoading || healthLoading
-                ? undefined
-                : alertsCount === 0
-                  ? 'Ninguna señal activa.'
-                  : alertsNavigateTarget
-                    ? 'Pulse la tarjeta para ir a la primera acción sugerida según el orden del listado.'
-                    : 'Revise el detalle. Parte de estas señales solo las atiende un usuario ADMIN (Auditoría / Respaldos).'
-            }
-            detailLines={
-              summaryLoading || healthLoading || alertsCount === 0 ? undefined : alertDetailLines
-            }
-            interactive={alertsCardInteractive}
-            interactiveLabel="Abrir destino de la primera alerta navegable"
-            onInteractiveAction={alertsCardInteractive ? navigateToFirstAlert : undefined}
-          />
-        </Grid>
+        {isAdmin ? (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <KpiCard
+              iconLetter="U"
+              title="Usuarios"
+              subtitle="activos"
+              value={summaryLoading ? '…' : formattedNumber(summary?.kpis.usuariosActivos ?? null)}
+              accentColor="#0F766E"
+            />
+          </Grid>
+        ) : null}
+        {isAdmin ? (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <KpiCard
+              iconLetter="A"
+              title="Alertas"
+              subtitle="señales operativas"
+              value={summaryLoading || healthLoading ? '…' : String(alertsCount)}
+              accentColor="#B91C1C"
+              footnote={
+                summaryLoading || healthLoading
+                  ? undefined
+                  : alertsCount === 0
+                    ? 'Ninguna señal activa.'
+                    : alertsNavigateTarget
+                      ? 'Pulse la tarjeta para ir a la primera acción sugerida según el orden del listado.'
+                      : 'Revise el detalle. Parte de estas señales solo las atiende un usuario ADMIN (Auditoría / Respaldos).'
+              }
+              detailLines={
+                summaryLoading || healthLoading || alertsCount === 0
+                  ? undefined
+                  : alertDetailLines
+              }
+              interactive={alertsCardInteractive}
+              interactiveLabel="Abrir destino de la primera alerta navegable"
+              onInteractiveAction={alertsCardInteractive ? navigateToFirstAlert : undefined}
+            />
+          </Grid>
+        ) : null}
       </Grid>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, md: 7 }}>
+        <Grid size={{ xs: 12, md: isAdmin ? 7 : 12 }}>
           <Paper
             elevation={0}
             sx={{
@@ -706,121 +794,126 @@ export function DashboardPage() {
           </Paper>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: '1px solid rgba(15, 23, 42, 0.08)',
-              boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
-              p: 2.5,
-              height: '100%',
-            }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 1.5 }}>
-              <Box
-                aria-hidden
-                sx={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(30, 124, 137, 0.12)',
-                  color: '#0F4C55',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontWeight: 900,
-                }}
-              >
-                S
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                  Cumplimiento de seguridad
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Porcentajes calculados con métricas reales de los últimos 30 días (ver evidencia en API)
-                </Typography>
-              </Box>
-            </Stack>
-
-            {summaryLoading ? (
-              <Box sx={{ py: 2 }}>
-                <CircularProgress size={22} aria-label="Cargando indicadores" />
-              </Box>
-            ) : (
-              summary?.compliance.map((m) => (
-                <ComplianceBar
-                  key={m.key}
-                  title={m.title}
-                  standard={m.standard}
-                  value={m.percent}
-                  color={complianceColorForPercent(m.percent)}
-                />
-              ))
-            )}
-
+        {isAdmin ? (
+          <Grid size={{ xs: 12, md: 5 }}>
             <Paper
               elevation={0}
               sx={{
-                mt: 1,
-                px: 2,
-                py: 1.2,
                 borderRadius: 3,
-                bgcolor: 'rgba(30, 124, 137, 0.10)',
-                border: '1px solid rgba(30, 124, 137, 0.16)',
+                border: '1px solid rgba(15, 23, 42, 0.08)',
+                boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+                p: 2.5,
+                height: '100%',
               }}
             >
-              <Typography
-                variant="caption"
-                sx={{ fontWeight: 800, color: '#0F4C55', display: 'block', mb: 0.75 }}
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 1.5 }}>
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 2,
+                    bgcolor: 'rgba(30, 124, 137, 0.12)',
+                    color: '#0F4C55',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontWeight: 900,
+                  }}
+                >
+                  S
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+                    Cumplimiento de seguridad
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Porcentajes calculados con métricas reales de los últimos 30 días (ver evidencia en
+                    API)
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {summaryLoading ? (
+                <Box sx={{ py: 2 }}>
+                  <CircularProgress size={22} aria-label="Cargando indicadores" />
+                </Box>
+              ) : (
+                summary?.compliance.map((m) => (
+                  <ComplianceBar
+                    key={m.key}
+                    title={m.title}
+                    standard={m.standard}
+                    value={m.percent}
+                    color={complianceColorForPercent(m.percent)}
+                  />
+                ))
+              )}
+
+              <Paper
+                elevation={0}
+                sx={{
+                  mt: 1,
+                  px: 2,
+                  py: 1.2,
+                  borderRadius: 3,
+                  bgcolor: 'rgba(30, 124, 137, 0.10)',
+                  border: '1px solid rgba(30, 124, 137, 0.16)',
+                }}
               >
-                {formatUltimoRespaldoVerificado(summary?.lastSignals.lastBackupVerifiedAt ?? null)}
-              </Typography>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: '#0F4C55', opacity: 0.9 }}>
-                Última línea auditada en el sistema:{' '}
-                {summary?.lastSignals.lastAuditAt
-                  ? new Intl.DateTimeFormat('es-EC', {
-                      dateStyle: 'short',
-                      timeStyle: 'short',
-                    }).format(new Date(summary.lastSignals.lastAuditAt))
-                  : '—'}
-              </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 800, color: '#0F4C55', display: 'block', mb: 0.75 }}
+                >
+                  {formatUltimoRespaldoVerificado(summary?.lastSignals.lastBackupVerifiedAt ?? null)}
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#0F4C55', opacity: 0.9 }}>
+                  Última línea auditada en el sistema:{' '}
+                  {summary?.lastSignals.lastAuditAt
+                    ? new Intl.DateTimeFormat('es-EC', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      }).format(new Date(summary.lastSignals.lastAuditAt))
+                    : '—'}
+                </Typography>
+              </Paper>
             </Paper>
-          </Paper>
-        </Grid>
+          </Grid>
+        ) : null}
       </Grid>
 
-      <Card
-        id="estado-servicio"
-        variant="outlined"
-        sx={{ mb: 2, borderRadius: 3, scrollMarginTop: { xs: 88, md: 96 } }}
-      >
-        <CardContent>
-          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 800 }}>
-            Estado del servicio
-          </Typography>
-          <Box sx={{ minHeight: 40, display: 'flex', alignItems: 'center' }}>
-            {healthLoading && (
-              <CircularProgress size={28} aria-label="Comprobando salud del API" />
-            )}
-            {!healthLoading && healthError && (
-              <Alert severity="warning">{healthError}</Alert>
-            )}
-            {!healthLoading && health && !healthError && (
-              <Alert severity={health.database === 'down' ? 'warning' : 'success'}>
-                API en línea: {health.service} — estado {health.status}
-                {health.database !== undefined &&
-                  ` — base de datos: ${health.database === 'up' ? 'conectada' : 'sin conexión'}`}
-              </Alert>
-            )}
-          </Box>
-        </CardContent>
-        <CardActions sx={{ pt: 0, pb: 2, px: 2 }}>
-          <Button component={RouterLink} to="/documentos" size="small">
-            Ir a documentos
-          </Button>
-        </CardActions>
-      </Card>
+      {isAdmin ? (
+        <Card
+          id="estado-servicio"
+          variant="outlined"
+          sx={{ mb: 2, borderRadius: 3, scrollMarginTop: { xs: 88, md: 96 } }}
+        >
+          <CardContent>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 800 }}>
+              Estado del servicio
+            </Typography>
+            <Box sx={{ minHeight: 40, display: 'flex', alignItems: 'center' }}>
+              {healthLoading && (
+                <CircularProgress size={28} aria-label="Comprobando salud del API" />
+              )}
+              {!healthLoading && healthError && (
+                <Alert severity="warning">{healthError}</Alert>
+              )}
+              {!healthLoading && health && !healthError && (
+                <Alert severity={health.database === 'down' ? 'warning' : 'success'}>
+                  API en línea: {health.service} — estado {health.status}
+                  {health.database !== undefined &&
+                    ` — base de datos: ${health.database === 'up' ? 'conectada' : 'sin conexión'}`}
+                </Alert>
+              )}
+            </Box>
+          </CardContent>
+          <CardActions sx={{ pt: 0, pb: 2, px: 2 }}>
+            <Button component={RouterLink} to="/documentos" size="small">
+              Ir a documentos
+            </Button>
+          </CardActions>
+        </Card>
+      ) : null}
 
       {isAdmin && (
         <Card

@@ -108,6 +108,17 @@ type DocumentoArchivoEventoRow = {
   createdBy: { id: string; email: string };
 };
 
+type UsuarioOption = { id: string; email: string; nombres: string | null; apellidos: string | null; activo: boolean };
+
+type DocumentoAccessPayload = {
+  documentoId: string;
+  accessPolicy: 'INHERIT' | 'RESTRICTED';
+  userIds: string[];
+  roleCodigos: string[];
+};
+
+type RoleOption = { codigo: string; nombre: string };
+
 const editSchema = z.object({
   asunto: z.string().min(3).max(250),
   descripcion: z.string().max(1000).optional(),
@@ -341,6 +352,11 @@ export function DocumentoDetallePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
+  const canManageDocAccess = useMemo(() => {
+    if (isAdmin) return true;
+    return myPermissionCodes?.includes('DOC_ACCESS_MANAGE') ?? false;
+  }, [isAdmin, myPermissionCodes]);
 
   const [doc, setDoc] = useState<DocumentoRow | null>(null);
 
@@ -364,6 +380,22 @@ export function DocumentoDetallePage() {
   const [archivoEventosOpen, setArchivoEventosOpen] = useState(false);
   const [archivoEventosTitle, setArchivoEventosTitle] = useState<string>('');
   const [archivoEventos, setArchivoEventos] = useState<DocumentoArchivoEventoRow[]>([]);
+
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessSaveLoading, setAccessSaveLoading] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [accessOk, setAccessOk] = useState<string | null>(null);
+  const [accessPolicy, setAccessPolicy] = useState<'INHERIT' | 'RESTRICTED'>('INHERIT');
+  const [accessUsers, setAccessUsers] = useState<UsuarioOption[]>([]);
+  const [accessUserIds, setAccessUserIds] = useState<string[]>([]);
+  const [accessRoleCodigos, setAccessRoleCodigos] = useState<string[]>([]);
+  const [accessRolesCatalog, setAccessRolesCatalog] = useState<RoleOption[]>([
+    { codigo: 'ADMIN', nombre: 'Administrador' },
+    { codigo: 'USUARIO', nombre: 'Usuario' },
+    { codigo: 'REVISOR', nombre: 'Revisor' },
+    { codigo: 'AUDITOR', nombre: 'Auditor' },
+    { codigo: 'CONSULTA', nombre: 'Consulta' },
+  ]);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<'pdf' | 'image' | null>(null);
@@ -418,6 +450,27 @@ export function DocumentoDetallePage() {
     doc && doc.estado === 'EN_REVISION' && esRevisorOAdmin,
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!user?.id) {
+          if (!cancelled) setMyPermissionCodes(null);
+          return;
+        }
+        const res = await apiClient.get<string[]>('/rbac/me/permissions');
+        if (cancelled) return;
+        setMyPermissionCodes(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        if (cancelled) return;
+        setMyPermissionCodes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const editForm = useForm<EditForm>({
     resolver: zodResolver(editSchema),
     defaultValues: {
@@ -455,6 +508,74 @@ export function DocumentoDetallePage() {
       setLoading(false);
     }
   }, [id]);
+
+  const loadAccess = useCallback(async () => {
+    if (!id || !canManageDocAccess) return;
+    setAccessError(null);
+    setAccessOk(null);
+    setAccessLoading(true);
+    try {
+      const [accessRes, usersRes] = await Promise.all([
+        apiClient.get<DocumentoAccessPayload>(`/documentos/${id}/access`),
+        apiClient.get<UsuarioOption[]>('/usuarios'),
+      ]);
+      // Roles: cargar dinámico si el backend lo permite; fallback seguro si falla
+      try {
+        const rolesRes = await apiClient.get<RoleOption[]>('/rbac/roles');
+        if (Array.isArray(rolesRes.data) && rolesRes.data.length) {
+          setAccessRolesCatalog(
+            rolesRes.data
+              .filter((r) => typeof r?.codigo === 'string')
+              .map((r) => ({ codigo: r.codigo, nombre: r.nombre ?? r.codigo })),
+          );
+        }
+      } catch {
+        // sin acción: mantenemos catálogo local
+      }
+      const payload = accessRes.data;
+      setAccessPolicy(payload.accessPolicy);
+      setAccessUserIds(payload.userIds ?? []);
+      setAccessRoleCodigos(payload.roleCodigos ?? []);
+      setAccessUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+    } catch (e) {
+      if (isAxiosError(e) && e.response?.status === 403) {
+        setAccessError('No tiene permiso para administrar el acceso del documento (DOC_ACCESS_MANAGE).');
+      } else {
+        setAccessError('No se pudo cargar la configuración de acceso del documento.');
+      }
+      setAccessUsers([]);
+    } finally {
+      setAccessLoading(false);
+    }
+  }, [id, canManageDocAccess]);
+
+  const saveAccess = useCallback(async () => {
+    if (!id) return;
+    if (!canManageDocAccess) {
+      setAccessError('No tiene permiso para guardar el acceso del documento (DOC_ACCESS_MANAGE).');
+      return;
+    }
+    setAccessError(null);
+    setAccessOk(null);
+    setAccessSaveLoading(true);
+    try {
+      const payload = {
+        accessPolicy,
+        userIds: accessUserIds,
+        roleCodigos: accessRoleCodigos,
+      };
+      await apiClient.put(`/documentos/${id}/access`, payload);
+      setAccessOk('Acceso actualizado. El cambio es efectivo inmediatamente en listados/detalle/archivos.');
+    } catch (e) {
+      if (isAxiosError(e) && e.response?.status === 403) {
+        setAccessError('No tiene permiso para guardar el acceso del documento (DOC_ACCESS_MANAGE).');
+      } else {
+        setAccessError('No se pudo guardar el acceso del documento.');
+      }
+    } finally {
+      setAccessSaveLoading(false);
+    }
+  }, [id, canManageDocAccess, accessPolicy, accessUserIds, accessRoleCodigos]);
 
   useEffect(() => {
     let cancelled = false;
@@ -504,7 +625,8 @@ export function DocumentoDetallePage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza vista con :id
     void load();
-  }, [load]);
+    void loadAccess();
+  }, [load, loadAccess]);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- blobs y revocations se sincronizan con archivo visible */
@@ -1083,6 +1205,125 @@ export function DocumentoDetallePage() {
                   </Box>
 
                   <Divider />
+
+                  {canManageDocAccess ? (
+                    <>
+                      <Box sx={{ px: 2.5, py: 2 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5 }}>
+                          Acceso al documento (ACL)
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
+                          Use <strong>RESTRICTED</strong> para que el documento sea visible solo para los usuarios/roles
+                          listados aquí (además de ADMIN). En <strong>INHERIT</strong> aplica la política actual por
+                          dependencia/confidencialidad.
+                        </Typography>
+
+                        {accessError ? (
+                          <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setAccessError(null)}>
+                            {accessError}
+                          </Alert>
+                        ) : null}
+                        {accessOk ? (
+                          <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setAccessOk(null)}>
+                            {accessOk}
+                          </Alert>
+                        ) : null}
+
+                        {accessLoading ? (
+                          <Box sx={{ py: 3, display: 'flex', justifyContent: 'center' }}>
+                            <CircularProgress size={30} aria-label="Cargando acceso del documento" />
+                          </Box>
+                        ) : (
+                          <Stack spacing={1.5}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel id="doc-access-policy-label">Política de acceso</InputLabel>
+                              <Select
+                                labelId="doc-access-policy-label"
+                                label="Política de acceso"
+                                value={accessPolicy}
+                                onChange={(e) =>
+                                  setAccessPolicy(e.target.value as 'INHERIT' | 'RESTRICTED')
+                                }
+                              >
+                                <MenuItem value="INHERIT">INHERIT (política actual)</MenuItem>
+                                <MenuItem value="RESTRICTED">RESTRICTED (solo ACL)</MenuItem>
+                              </Select>
+                            </FormControl>
+
+                            <FormControl fullWidth size="small" disabled={accessPolicy !== 'RESTRICTED'}>
+                              <InputLabel id="doc-access-users-label">Usuarios con acceso</InputLabel>
+                              <Select
+                                multiple
+                                labelId="doc-access-users-label"
+                                label="Usuarios con acceso"
+                                value={accessUserIds}
+                                onChange={(e) => setAccessUserIds(e.target.value as string[])}
+                                renderValue={(selected) => {
+                                  const map = new Map(accessUsers.map((u) => [u.id, u]));
+                                  const names = (selected as string[])
+                                    .map((id) => map.get(id))
+                                    .filter(Boolean)
+                                    .map((u) => u!.email);
+                                  return names.length ? names.join(', ') : '—';
+                                }}
+                              >
+                                {accessUsers
+                                  .filter((u) => u.activo)
+                                  .slice()
+                                  .sort((a, b) => a.email.localeCompare(b.email))
+                                  .map((u) => (
+                                    <MenuItem key={u.id} value={u.id}>
+                                      {u.email}
+                                    </MenuItem>
+                                  ))}
+                              </Select>
+                            </FormControl>
+
+                            <FormControl fullWidth size="small" disabled={accessPolicy !== 'RESTRICTED'}>
+                              <InputLabel id="doc-access-roles-label">Roles con acceso</InputLabel>
+                              <Select
+                                multiple
+                                labelId="doc-access-roles-label"
+                                label="Roles con acceso"
+                                value={accessRoleCodigos}
+                                onChange={(e) => setAccessRoleCodigos(e.target.value as string[])}
+                                renderValue={(selected) => ((selected as string[]).length ? (selected as string[]).join(', ') : '—')}
+                              >
+                                {accessRolesCatalog
+                                  .slice()
+                                  .sort((a, b) => a.codigo.localeCompare(b.codigo))
+                                  .map((r) => (
+                                    <MenuItem key={r.codigo} value={r.codigo}>
+                                      {r.nombre} ({r.codigo})
+                                    </MenuItem>
+                                  ))}
+                              </Select>
+                            </FormControl>
+
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                              <Button
+                                variant="contained"
+                                disabled={accessSaveLoading || accessLoading || !id}
+                                onClick={() => void saveAccess()}
+                                sx={{ textTransform: 'none', fontWeight: 800 }}
+                              >
+                                {accessSaveLoading ? 'Guardando…' : 'Guardar acceso'}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                disabled={accessLoading || !id}
+                                onClick={() => void loadAccess()}
+                                sx={{ textTransform: 'none', fontWeight: 700 }}
+                              >
+                                Recargar
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        )}
+                      </Box>
+                      <Divider />
+                    </>
+                  ) : null}
 
                   <Box sx={{ px: 2.5, py: 2 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5 }}>
