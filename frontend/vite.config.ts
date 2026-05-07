@@ -35,4 +35,31 @@ export default defineConfig({
     host: true,
     proxy: { ...apiProxy },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        /** Orden relevante: `react-router-dom` contiene el substring `react-dom`. */
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) {
+            return
+          }
+          if (id.includes('@mui/icons-material')) {
+            return 'vendor-mui-icons'
+          }
+          if (id.includes('@mui') || id.includes('@emotion')) {
+            return 'vendor-mui'
+          }
+          if (id.includes('node_modules/react-router')) {
+            return 'vendor-react-router'
+          }
+          if (id.includes('node_modules/react-dom')) {
+            return 'vendor-react-dom'
+          }
+          if (id.includes('node_modules/react/')) {
+            return 'vendor-react'
+          }
+        },
+      },
+    },
+  },
 })

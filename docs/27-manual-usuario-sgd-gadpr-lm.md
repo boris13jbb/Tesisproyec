@@ -1,6 +1,6 @@
 # Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
 
-**Versión del manual:** 2026-05-07 (alineado a snapshot en `docs/README.md`)  
+**Versión del manual:** 2026-05-06 (alineado a snapshot en `docs/README.md`; carga diferida de pantallas por módulo)  
 **Audiencia:** personal institucional (usuario final), administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores (pruebas).  
 
 ---
@@ -28,6 +28,10 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 
 - En local (frontend Vite): `http://localhost:5173/` (si el puerto cambia, revisa la consola donde se levantó el frontend).
 - El backend debe estar disponible en `http://localhost:3000/api/v1`
+
+### 1.4 Carga inicial por módulo
+
+- La **primera vez** que abres una ruta después de iniciar sesión puede mostrarse brevemente **Cargando pantalla** mientras el navegador descarga el bloque correspondiente del frontend. Las visitas siguientes al mismo módulo suelen ser más rápidas si el caché conserva esos archivos.
 
 ---
 

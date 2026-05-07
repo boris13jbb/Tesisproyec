@@ -1,33 +1,51 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import {
+  AuditoriaPage,
+  CargosPage,
+  ClasificacionDocumentalPage,
+  ConfiguracionSeguridadPage,
+  DashboardPage,
+  DependenciasPage,
+  DocumentoDetallePage,
+  DocumentosPage,
+  FlujoTramitePage,
+  ForbiddenPage,
+  ForgotPasswordPage,
+  LoginPage,
+  NotFoundPage,
+  NuevoDocumentoPage,
+  PerfilUsuarioPage,
+  ReportesInstitucionalesPage,
+  ResetPasswordPage,
+  RespaldosSeguridadPage,
+  SeriesPage,
+  SplashInicioPage,
+  SubseriesPage,
+  TiposDocumentalesPage,
+  UsuariosPage,
+} from './lazyPages';
 import { MainLayout } from '../layouts/MainLayout';
-import { CargosPage } from '../pages/catalogos/CargosPage';
-import { DependenciasPage } from '../pages/catalogos/DependenciasPage';
-import { SeriesPage } from '../pages/catalogos/SeriesPage';
-import { SubseriesPage } from '../pages/catalogos/SubseriesPage';
-import { TiposDocumentalesPage } from '../pages/catalogos/TiposDocumentalesPage';
-import { DocumentoDetallePage } from '../pages/documentos/DocumentoDetallePage';
-import { DocumentosPage } from '../pages/documentos/DocumentosPage';
-import { NuevoDocumentoPage } from '../pages/documentos/NuevoDocumentoPage';
-import { ClasificacionDocumentalPage } from '../pages/clasificacion/ClasificacionDocumentalPage';
-import { FlujoTramitePage } from '../pages/tramites/FlujoTramitePage';
-import { DashboardPage } from '../pages/DashboardPage';
-import { AuditoriaPage } from '../pages/admin/AuditoriaPage';
-import { RespaldosSeguridadPage } from '../pages/admin/RespaldosSeguridadPage';
-import { ReportesInstitucionalesPage } from '../pages/admin/ReportesInstitucionalesPage';
-import { ConfiguracionSeguridadPage } from '../pages/admin/ConfiguracionSeguridadPage';
-import { PerfilUsuarioPage } from '../pages/PerfilUsuarioPage';
-import { UsuariosPage } from '../pages/admin/UsuariosPage';
-import { ForbiddenPage } from '../pages/ForbiddenPage';
-import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
-import { LoginPage } from '../pages/LoginPage';
-import { NotFoundPage } from '../pages/NotFoundPage';
-import { ResetPasswordPage } from '../pages/ResetPasswordPage';
-import { SplashInicioPage } from '../pages/SplashInicioPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { RoleRoute } from '../routes/RoleRoute';
+
+function RouteLoadingFallback() {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '48vh',
+        py: 4,
+      }}
+    >
+      <CircularProgress aria-label="Cargando pantalla" />
+    </Box>
+  );
+}
 
 function SessionGate({ children }: { children: ReactNode }) {
   const { ready } = useAuth();
@@ -53,43 +71,45 @@ function SessionGate({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <SessionGate>
-      <Routes>
-        <Route path="/inicio" element={<SplashInicioPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/recuperar" element={<ForgotPasswordPage />} />
-        <Route path="/restablecer" element={<ResetPasswordPage />} />
-        <Route path="/forbidden" element={<ForbiddenPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/perfil" element={<PerfilUsuarioPage />} />
-            <Route path="/documentos" element={<DocumentosPage />} />
-            <Route path="/tramites" element={<FlujoTramitePage />} />
-            <Route path="/clasificacion" element={<ClasificacionDocumentalPage />} />
-            <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
-            <Route element={<RoleRoute roles={['ADMIN']} />}>
-              <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
-              <Route path="/admin/auditoria" element={<AuditoriaPage />} />
-              <Route path="/admin/respaldos" element={<RespaldosSeguridadPage />} />
-              <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
-              <Route path="/admin/configuracion" element={<ConfiguracionSeguridadPage />} />
-              <Route path="/admin/usuarios" element={<UsuariosPage />} />
-              <Route
-                path="/catalogos/dependencias"
-                element={<DependenciasPage />}
-              />
-              <Route path="/catalogos/cargos" element={<CargosPage />} />
-              <Route
-                path="/catalogos/tipos-documentales"
-                element={<TiposDocumentalesPage />}
-              />
-              <Route path="/catalogos/series" element={<SeriesPage />} />
-              <Route path="/catalogos/subseries" element={<SubseriesPage />} />
+      <Suspense fallback={<RouteLoadingFallback />}>
+        <Routes>
+          <Route path="/inicio" element={<SplashInicioPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/recuperar" element={<ForgotPasswordPage />} />
+          <Route path="/restablecer" element={<ResetPasswordPage />} />
+          <Route path="/forbidden" element={<ForbiddenPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/perfil" element={<PerfilUsuarioPage />} />
+              <Route path="/documentos" element={<DocumentosPage />} />
+              <Route path="/tramites" element={<FlujoTramitePage />} />
+              <Route path="/clasificacion" element={<ClasificacionDocumentalPage />} />
+              <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
+              <Route element={<RoleRoute roles={['ADMIN']} />}>
+                <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
+                <Route path="/admin/auditoria" element={<AuditoriaPage />} />
+                <Route path="/admin/respaldos" element={<RespaldosSeguridadPage />} />
+                <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
+                <Route path="/admin/configuracion" element={<ConfiguracionSeguridadPage />} />
+                <Route path="/admin/usuarios" element={<UsuariosPage />} />
+                <Route
+                  path="/catalogos/dependencias"
+                  element={<DependenciasPage />}
+                />
+                <Route path="/catalogos/cargos" element={<CargosPage />} />
+                <Route
+                  path="/catalogos/tipos-documentales"
+                  element={<TiposDocumentalesPage />}
+                />
+                <Route path="/catalogos/series" element={<SeriesPage />} />
+                <Route path="/catalogos/subseries" element={<SubseriesPage />} />
+              </Route>
             </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </SessionGate>
   );
 }
