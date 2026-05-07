@@ -1,6 +1,6 @@
 # Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
 
-**Versión del manual:** 2026-05-06 (alineado a snapshot en `docs/README.md`; carga diferida de pantallas por módulo)  
+**Versión del manual:** 2026-05-06 (snapshot `docs/README.md`; carga diferida + precarga tras login + LCP auditado para ADMIN)  
 **Audiencia:** personal institucional (usuario final), administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores (pruebas).  
 
 ---
@@ -32,6 +32,11 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 ### 1.4 Carga inicial por módulo
 
 - La **primera vez** que abres una ruta después de iniciar sesión puede mostrarse brevemente **Cargando pantalla** mientras el navegador descarga el bloque correspondiente del frontend. Las visitas siguientes al mismo módulo suelen ser más rápidas si el caché conserva esos archivos.
+
+### 1.5 Precarga en segundo plano y métrica LCP (panel principal)
+
+- Con sesión iniciada el sistema puede, cuando el navegador está menos ocupado, **precargar** en segundo plano el código y datos más usados (panel **`/`**, lista **`/documentos`** por defecto, **`/perfil`**). Es normal observar peticiones paralelas sin haber pulsado esos menús todavía; no cambia permisos ni datos visibles hasta que abras cada pantalla.
+- Al cargar el **panel principal**, el cliente puede registrar una métrica de rendimiento (**LCP**) en auditoría (**`CLIENT_WEB_VITAL_LCP`**), visible para **ADMIN** en **Auditoría** junto al resto de acciones del sistema.
 
 ---
 

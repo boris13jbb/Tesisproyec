@@ -30,6 +30,7 @@ import {
 import { MainLayout } from '../layouts/MainLayout';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { RoleRoute } from '../routes/RoleRoute';
+import { PostLoginPerfScheduler } from './PostLoginPerfScheduler';
 
 function RouteLoadingFallback() {
   return (
@@ -71,6 +72,7 @@ function SessionGate({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <SessionGate>
+      <PostLoginPerfScheduler />
       <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           <Route path="/inicio" element={<SplashInicioPage />} />

@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { useDashboardLcpReporting } from '../perf/useDashboardLcpReporting';
 import { PageHeader } from '../components/PageHeader';
 import { labelDocumentoEstado } from '../constants/documento-estado';
 import {
@@ -317,6 +318,7 @@ function ComplianceBar({
 }
 
 export function DashboardPage() {
+  useDashboardLcpReporting();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();

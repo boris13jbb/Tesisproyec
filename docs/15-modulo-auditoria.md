@@ -99,6 +99,9 @@ Tener una bitácora transversal para eventos de **seguridad** y **administració
 **Reportes**
 - `REPORT_EXPORTED` (tipo, filtro resumido, tamaño)
 
+**Cliente (RUM / rendimiento)**
+- **`CLIENT_WEB_VITAL_LCP`** — LCP del panel principal informado por el navegador (`POST /api/v1/client-perf/web-vitals`). `meta_json` incluye `valueMs`, `rating`, `pathname`, `navigationType`, `metricId` (sin PII ni elementos DOM).
+
 **Respaldos (registro manual en aplicación)**
 - **`BACKUP_VERIFIED`** — un `ADMIN` registra que ejecutó y validó el respaldo institucional (MySQL/storage). Se expone en **`GET /api/v1/dashboard/summary`** (`lastSignals.lastBackupVerifiedAt`) y se crea con **`POST /api/v1/dashboard/admin/backup-verification`**.
 

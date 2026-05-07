@@ -38,6 +38,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 - **Frontend:** radios OK/FAIL, columna Origen, tarjeta y botón mysqldump inmediato.
 - **Docs:** `scripts/README-backups-mysql-xampp.md`, `27-manual-usuario-sgd-gadpr-lm.md` § 11, `backend/.env.example`.
 
+### 2026-05-07 — Rendimiento: prefetch post-login + LCP en panel (RUM auditado)
+
+- **Frontend:** `PostLoginPerfScheduler` + `perf/postLoginPrefetch.ts` — `requestIdleCallback` precarga chunks de `/`, `/documentos`, `/perfil` y GET alineados (resumen dashboard, perfil, bandeja documentos por defecto, catálogos de bandeja, `health`, `admin/ping` si ADMIN). Dependencia **`web-vitals`**; hook `useDashboardLcpReporting` en `DashboardPage`.
+- **Backend:** `POST /api/v1/client-perf/web-vitals` (JWT, throttle) → `audit_logs` (`CLIENT_WEB_VITAL_LCP`, `resourceType=ClientPerf`).
+- **Docs:** `40-rendimiento-post-login-web-vitals.md`, `15-modulo-auditoria.md`, `27-manual-usuario` § 1.5.
+- **PR:** rama `perf/post-login-prefetch-web-vitals` → `main`.
+
 ### 2026-05-06 — Respaldos (ADMIN): KPI + historial real desde auditoría `BACKUP_VERIFIED`
 
 - **API:** `GET /api/v1/dashboard/admin/backup-overview` — hasta 50 filas recientes de `BACKUP_VERIFIED`, conteos OK/FAIL en 90 días, último OK y texto opcional `BACKUP_EXPECTED_SCHEDULE_HINT` desde entorno (sin cron en la app).
