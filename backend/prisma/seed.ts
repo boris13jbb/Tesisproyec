@@ -1,7 +1,64 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import {
+  ALL_PERMISSION_CODES,
+  PERM_DESCRIPTIONS,
+  PERM,
+} from '../src/auth/permission-codes';
 
 const prisma = new PrismaClient();
+
+/** Permisos y matriz rol ↔ permiso (idempotente; alineado con `PermissionsGuard`). */
+async function seedRolePermissions(): Promise<void> {
+  for (const codigo of ALL_PERMISSION_CODES) {
+    await prisma.permission.upsert({
+      where: { codigo },
+      create: { codigo, descripcion: PERM_DESCRIPTIONS[codigo] },
+      update: { descripcion: PERM_DESCRIPTIONS[codigo] },
+    });
+  }
+
+  const rows = await prisma.permission.findMany({ select: { id: true, codigo: true } });
+  const permissionIdByCode = new Map(rows.map((p) => [p.codigo, p.id]));
+
+  const replaceForRole = async (roleCodigo: string, codes: readonly string[]) => {
+    const role = await prisma.role.findUnique({ where: { codigo: roleCodigo } });
+    if (!role) return;
+    const data = codes
+      .map((c) => {
+        const permissionId = permissionIdByCode.get(c);
+        return permissionId ? { roleId: role.id, permissionId } : null;
+      })
+      .filter((x): x is { roleId: string; permissionId: string } => x !== null);
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    if (data.length) {
+      await prisma.rolePermission.createMany({ data });
+    }
+  };
+
+  await replaceForRole('ADMIN', ALL_PERMISSION_CODES);
+
+  const auditorConsultaBase = [
+    PERM.DASHBOARD_SUMMARY,
+    PERM.DOC_READ,
+    PERM.DOC_FILES_READ,
+    PERM.DOC_FILES_DOWNLOAD,
+  ];
+  await replaceForRole('AUDITOR', auditorConsultaBase);
+  await replaceForRole('CONSULTA', auditorConsultaBase);
+
+  await replaceForRole('USUARIO', [
+    ...auditorConsultaBase,
+    PERM.DOC_REVISION_SEND,
+  ]);
+
+  await replaceForRole('REVISOR', [
+    ...auditorConsultaBase,
+    PERM.DOC_REVISION_SEND,
+    PERM.DOC_REVISION_RESOLVE,
+    PERM.REPORTS_PENDIENTES,
+  ]);
+}
 
 async function main() {
   const email =
@@ -65,6 +122,8 @@ async function main() {
     },
     update: {},
   });
+
+  await seedRolePermissions();
 
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
@@ -220,7 +279,7 @@ async function main() {
   }
 
   console.log(
-    `Seed OK: usuario ${email} con rol ADMIN; catálogos y documento de ejemplo`,
+    `Seed OK: usuario ${email} con rol ADMIN; permisos RBAC; catálogos y documento de ejemplo`,
   );
 }
 

@@ -87,6 +87,9 @@ type UsuarioCreateResponse = Usuario & {
   invitacionCorreo: InvitacionCorreoInfo;
 };
 
+type RbacPermRow = { id: string; codigo: string; descripcion: string | null };
+type RbacRoleRow = { id: string; codigo: string; nombre: string };
+
 const ROLE_OPTIONS = [
   'ADMIN',
   'USUARIO',
@@ -206,6 +209,13 @@ export function UsuariosPage() {
   const [actionsUsuario, setActionsUsuario] = useState<Usuario | null>(null);
 
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
+  const [rbacNotice, setRbacNotice] = useState<string | null>(null);
+  const [rbacPermissionCatalog, setRbacPermissionCatalog] = useState<RbacPermRow[]>([]);
+  const [rbacRolesCatalog, setRbacRolesCatalog] = useState<RbacRoleRow[]>([]);
+  const [rbacRoleCodigo, setRbacRoleCodigo] = useState('USUARIO');
+  const [rbacSelectedCodes, setRbacSelectedCodes] = useState<Set<string>>(new Set());
+  const [rbacRolePermsLoading, setRbacRolePermsLoading] = useState(false);
+  const [rbacMatrixSaving, setRbacMatrixSaving] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -226,14 +236,18 @@ export function UsuariosPage() {
     setError(null);
     setLoading(true);
     try {
-      const [usersRes, depsRes, cargosRes] = await Promise.all([
+      const [usersRes, depsRes, cargosRes, rbacPermRes, rbacRolesRes] = await Promise.all([
         apiClient.get<Usuario[]>('/usuarios'),
         apiClient.get<Dependencia[]>('/dependencias'),
         apiClient.get<Cargo[]>('/cargos'),
+        apiClient.get<RbacPermRow[]>('/rbac/permissions').catch(() => ({ data: [] as RbacPermRow[] })),
+        apiClient.get<RbacRoleRow[]>('/rbac/roles').catch(() => ({ data: [] as RbacRoleRow[] })),
       ]);
       setItems(usersRes.data);
       setDependencias(depsRes.data.filter((d) => d.activo));
       setCargos(cargosRes.data.filter((c) => c.activo));
+      setRbacPermissionCatalog(Array.isArray(rbacPermRes.data) ? rbacPermRes.data : []);
+      setRbacRolesCatalog(Array.isArray(rbacRolesRes.data) ? rbacRolesRes.data : []);
 
       try {
         const { data } = await apiClient.get<AccessMatrixReferencia>(
@@ -255,6 +269,53 @@ export function UsuariosPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza tabla con API
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!rbacRoleCodigo || rbacPermissionCatalog.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      setRbacRolePermsLoading(true);
+      try {
+        const res = await apiClient.get<{ codigos: string[] }>(
+          `/rbac/roles/${encodeURIComponent(rbacRoleCodigo)}/permissions`,
+        );
+        if (!cancelled) setRbacSelectedCodes(new Set(res.data.codigos ?? []));
+      } catch {
+        if (!cancelled) setRbacSelectedCodes(new Set());
+      } finally {
+        if (!cancelled) setRbacRolePermsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rbacRoleCodigo, rbacPermissionCatalog]);
+
+  const toggleRbacPermission = (codigo: string) => {
+    setRbacSelectedCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(codigo)) next.delete(codigo);
+      else next.add(codigo);
+      return next;
+    });
+  };
+
+  const saveRbacMatrix = async () => {
+    setRbacNotice(null);
+    setRbacMatrixSaving(true);
+    try {
+      await apiClient.put(`/rbac/roles/${encodeURIComponent(rbacRoleCodigo)}/permissions`, {
+        permissionCodes: [...rbacSelectedCodes].sort(),
+      });
+      setRbacNotice(
+        'Matriz de permisos guardada en base de datos. Los usuarios con este rol heredan los cambios en el próximo token (o al refrescar sesión).',
+      );
+    } catch {
+      setError('No se pudo guardar la matriz de permisos (revise que ejecutó el seed y que su rol tiene permisos).');
+    } finally {
+      setRbacMatrixSaving(false);
+    }
+  };
 
   const onCreate = async () => {
     setError(null);
@@ -431,6 +492,12 @@ export function UsuariosPage() {
         </Alert>
       )}
 
+      {rbacNotice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setRbacNotice(null)}>
+          {rbacNotice}
+        </Alert>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
@@ -457,14 +524,17 @@ export function UsuariosPage() {
         <AccordionDetails>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.65 }}>
             El directorio se obtiene desde <strong>GET /usuarios</strong> (ADMIN). Referencia RBAC desde{' '}
-            <strong>GET /usuarios/matriz-acceso-referencia</strong>.
+            <strong>GET /usuarios/matriz-acceso-referencia</strong>. La matriz persistida usa{' '}
+            <strong>GET/PUT /rbac/roles/:codigo/permissions</strong> (tablas <code>permissions</code> y{' '}
+            <code>role_permissions</code>), aplicada por <code>@Permissions</code> +{' '}
+            <code>PermissionsGuard</code> en rutas seleccionadas.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
             <strong>ISO/IEC 27001 A.5.16/A.5.18</strong> — gestión segura del ciclo de vida de identidades.{' '}
             <strong>ISO 15489</strong> — trazabilidad de decisiones institucionalizadas. La columna{' '}
             <strong>Último ingreso</strong> muestra el campo servidor <strong>ultimoLoginAt</strong> tras login con
-            credenciales exitoso (no se actualiza sólo por refresh silencioso). Las capacidades efectivas están en las
-            rutas NestJS (<code>@Roles</code>); cambie el alcance mediante asignación de roles en cada usuario.
+            credenciales exitoso (no se actualiza sólo por refresh silencioso). Autorización:{' '}
+            <code>@Roles</code> (menú/UI) más <code>@Permissions</code> (capacidades en BD por rol).
           </Typography>
         </AccordionDetails>
       </Accordion>
@@ -636,7 +706,133 @@ export function UsuariosPage() {
               >
                 Ver matriz RBAC
               </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                href="#matriz-role-permissions-bd"
+                sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
+              >
+                Permisos por rol (BD)
+              </Button>
             </Stack>
+          </Paper>
+
+          <Paper
+            id="matriz-role-permissions-bd"
+            elevation={0}
+            sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
+          >
+            <SectionLetterHeader
+              letter="P"
+              accent="teal"
+              title="Matriz rol ↔ permiso (base de datos)"
+              subtitle="Asignación persistida · `role_permissions` · fuente de verdad para `PermissionsGuard`"
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2, lineHeight: 1.6 }}>
+              Aquí concede o revoca <strong>códigos de permiso</strong> por <strong>rol institucional</strong>. Si la
+              lista aparece vacía, ejecute <code>npx prisma db seed</code> en el servidor (crea permisos y valores por
+              defecto).
+            </Typography>
+            {rbacPermissionCatalog.length === 0 ? (
+              <Alert severity="warning">
+                No hay permisos en catálogo. Verifique backend actualizado y seed ejecutado.
+              </Alert>
+            ) : (
+              <>
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                  <InputLabel id="rbac-role-label">Rol a editar</InputLabel>
+                  <Select<RbacRoleRow['codigo']>
+                    labelId="rbac-role-label"
+                    label="Rol a editar"
+                    value={
+                      rbacRolesCatalog.some((r) => r.codigo === rbacRoleCodigo) ? rbacRoleCodigo : ''
+                    }
+                    onChange={(e) => setRbacRoleCodigo(String(e.target.value))}
+                  >
+                    {rbacRolesCatalog.map((r) => (
+                      <MenuItem key={r.id} value={r.codigo}>
+                        {r.nombre} ({r.codigo})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {rbacRoleCodigo === 'ADMIN' ? (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    Modificar los permisos del rol ADMIN puede impedir operaciones administrativas. Mantenga todos los
+                    códigos a menos que tenga un plan explícito de segregación de funciones.
+                  </Alert>
+                ) : null}
+                <Box
+                  sx={{
+                    maxHeight: 420,
+                    overflow: 'auto',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    p: 1.5,
+                    bgcolor: 'grey.50',
+                  }}
+                  aria-busy={rbacRolePermsLoading || rbacMatrixSaving}
+                >
+                  {rbacRolePermsLoading ? (
+                    <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+                      <CircularProgress size={32} aria-label="Cargando permisos del rol" />
+                    </Box>
+                  ) : (
+                    rbacPermissionCatalog
+                      .slice()
+                      .sort((a, b) => a.codigo.localeCompare(b.codigo))
+                      .map((p) => (
+                        <FormControlLabel
+                          key={p.id}
+                          sx={{ display: 'flex', alignItems: 'flex-start', ml: 0, mb: 0.5 }}
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={rbacSelectedCodes.has(p.codigo)}
+                              onChange={() => toggleRbacPermission(p.codigo)}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                {p.codigo}
+                              </Typography>
+                              {p.descripcion ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  {p.descripcion}
+                                </Typography>
+                              ) : null}
+                            </Box>
+                          }
+                        />
+                      ))
+                  )}
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
+                  <Button
+                    variant="contained"
+                    disabled={rbacMatrixSaving || rbacRolePermsLoading || !rbacRoleCodigo}
+                    onClick={() => void saveRbacMatrix()}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      bgcolor: INSTITUTIONAL_NAVY,
+                      '&:hover': { bgcolor: '#132030' },
+                    }}
+                  >
+                    {rbacMatrixSaving ? 'Guardando…' : 'Guardar permisos del rol'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    href="#matriz-rbac"
+                    sx={{ textTransform: 'none', fontWeight: 700 }}
+                  >
+                    Ver matriz de referencia (rutas)
+                  </Button>
+                </Stack>
+              </>
+            )}
           </Paper>
 
         <Paper

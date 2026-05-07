@@ -8,9 +8,12 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PERM } from '../auth/permission-codes';
 import { JwtRequestUser } from '../auth/request-user';
 import { AuditService } from '../auditoria/audit.service';
 import type { Request, Response } from 'express';
@@ -19,7 +22,7 @@ import PDFDocument from 'pdfkit';
 import { ReportesService } from './reportes.service';
 
 @Controller('reportes')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles('ADMIN')
 export class ReportesController {
   constructor(
@@ -55,6 +58,7 @@ export class ReportesController {
 
   @Get('pendientes-revision.xlsx')
   @Roles('ADMIN', 'REVISOR')
+  @Permissions(PERM.REPORTS_PENDIENTES)
   @Header(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -108,6 +112,7 @@ export class ReportesController {
 
   @Get('pendientes-revision.pdf')
   @Roles('ADMIN', 'REVISOR')
+  @Permissions(PERM.REPORTS_PENDIENTES)
   @Header('Content-Type', 'application/pdf')
   async exportPendientesRevisionPdf(
     @Req() req: Request & { user: JwtRequestUser },
@@ -174,6 +179,7 @@ export class ReportesController {
   }
 
   @Get('documentos.xlsx')
+  @Permissions(PERM.REPORTS_EXPORT)
   @Header(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -260,6 +266,7 @@ export class ReportesController {
   }
 
   @Get('documentos.pdf')
+  @Permissions(PERM.REPORTS_EXPORT)
   @Header('Content-Type', 'application/pdf')
   async exportDocumentosPdf(
     @Req() req: Request & { user: JwtRequestUser },
@@ -358,6 +365,7 @@ export class ReportesController {
   }
 
   @Get('auditoria.xlsx')
+  @Permissions(PERM.AUDIT_EXPORT)
   @Header(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -422,6 +430,7 @@ export class ReportesController {
   }
 
   @Get('auditoria.pdf')
+  @Permissions(PERM.AUDIT_EXPORT)
   @Header('Content-Type', 'application/pdf')
   async exportAuditoriaPdf(
     @Req() req: Request & { user: JwtRequestUser },

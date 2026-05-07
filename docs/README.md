@@ -9,7 +9,7 @@ Vista rápida del **código** frente a estos documentos. Lista de brechas y matr
 | Área | Implementado hoy (resumen) |
 |------|----------------------------|
 | **Autenticación** | JWT + refresh HttpOnly, rotación, inactividad (`last_used_at`), throttling global y en `/auth`, lockout por cuenta (`AUTH_LOCKOUT_*`), recuperación de contraseña. |
-| **RBAC** | Roles en seed: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`. Autorización principal con `@Roles`; tablas `permissions` / `role_permissions` sin `PermissionsGuard` (backlog `07`). |
+| **RBAC** | Roles seed + **`@Roles`** para menú/UI; **`@Permissions` + `PermissionsGuard`** usando `permissions` / `role_permissions` (seed + UI «Matriz rol ↔ permiso» en Usuarios; API `/rbac/...`; ver **`07`**). |
 | **Documentos** | Estados normalizados y transiciones (`documento-estado.util`); flujo **enviar a revisión** / **resolver** (R-28); `dependencia_id` + `nivel_confidencialidad` en consulta/descarga/export. |
 | **Notificaciones** | Correo SMTP opcional (nodemailer) en envío a revisión y al resolver (ver `12`, `28` R-44); sin SMTP el flujo sigue. |
 | **Auditoría** | `audit_logs`; API `GET /auditoria` (ADMIN); UI **`/admin/auditoria`**; `AUTHZ_FORBIDDEN` en 403 autenticados; export Excel/PDF de auditoría. |

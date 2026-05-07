@@ -47,7 +47,7 @@
 |-------|-----------|
 | `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`; contador de intentos fallidos y `locked_until` (R-9 MVP); `ultimo_login_at` (login exitoso con contraseña). |
 | `roles` / `permissions` | Catálogo de roles y permisos granulares. |
-| `user_roles` / `role_permissions` | N:M usuario↔rol y rol↔permiso. |
+| `user_roles` / `role_permissions` | N:M usuario↔rol y rol↔permiso. **Seed** (`prisma/seed.ts`): inserta/actualiza catálogo `permissions` y reemplaza enlaces por rol (idempotente). |
 
 **Sesión y credenciales**
 

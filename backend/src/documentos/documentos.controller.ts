@@ -21,9 +21,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PERM } from '../auth/permission-codes';
 import { JwtRequestUser } from '../auth/request-user';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
@@ -31,11 +34,12 @@ import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import { DocumentosService } from './documentos.service';
 
 @Controller('documentos')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DocumentosController {
   constructor(private readonly service: DocumentosService) {}
 
   @Get()
+  @Permissions(PERM.DOC_READ)
   findAll(
     @Req() req: Request & { user: JwtRequestUser },
     @Query('incluirInactivos') incluirInactivos?: string,
@@ -76,6 +80,7 @@ export class DocumentosController {
   @Get('next-codigo')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.DOC_CREATE)
   getSiguienteCodigo(@Query('anio') anio?: string) {
     let y: number | undefined;
     if (anio !== undefined && String(anio).trim() !== '') {
@@ -90,16 +95,19 @@ export class DocumentosController {
   }
 
   @Get('tablon-tramites')
+  @Permissions(PERM.DOC_READ)
   tablonTramites(@Req() req: Request & { user: JwtRequestUser }) {
     return this.service.findTablonTramites(req.user);
   }
 
   @Get('clasificacion-agregados')
+  @Permissions(PERM.DOC_READ)
   clasificacionAgregados(@Req() req: Request & { user: JwtRequestUser }) {
     return this.service.getClasificacionAgregados(req.user);
   }
 
   @Get(':id')
+  @Permissions(PERM.DOC_READ)
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request & { user: JwtRequestUser },
@@ -124,6 +132,7 @@ export class DocumentosController {
   }
 
   @Get(':id/eventos')
+  @Permissions(PERM.DOC_READ)
   findEventos(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request & { user: JwtRequestUser },
@@ -132,6 +141,7 @@ export class DocumentosController {
   }
 
   @Get(':id/archivos')
+  @Permissions(PERM.DOC_FILES_READ)
   findArchivos(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request & { user: JwtRequestUser },
@@ -142,6 +152,7 @@ export class DocumentosController {
   @Post(':id/archivos')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.DOC_FILES_UPLOAD)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -168,6 +179,7 @@ export class DocumentosController {
   }
 
   @Get(':id/archivos/:archivoId/download')
+  @Permissions(PERM.DOC_FILES_DOWNLOAD)
   @Header('Cache-Control', 'no-store')
   async downloadArchivo(
     @Param('id', ParseUUIDPipe) id: string,
@@ -199,6 +211,7 @@ export class DocumentosController {
   }
 
   @Get(':id/archivos/:archivoId/eventos')
+  @Permissions(PERM.DOC_FILES_READ)
   findArchivoEventos(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('archivoId', ParseUUIDPipe) archivoId: string,
@@ -226,6 +239,7 @@ export class DocumentosController {
   @HttpCode(200)
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'REVISOR')
+  @Permissions(PERM.DOC_REVISION_RESOLVE)
   resolverRevision(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolverRevisionDto,
@@ -243,6 +257,7 @@ export class DocumentosController {
   @Delete(':id/archivos/:archivoId')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.DOC_FILES_DELETE)
   deleteArchivo(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('archivoId', ParseUUIDPipe) archivoId: string,
@@ -265,6 +280,7 @@ export class DocumentosController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.DOC_UPDATE)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateDocumentoDto,

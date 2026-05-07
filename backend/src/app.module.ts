@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { BackupModule } from './backup/backup.module';
 import { ClientPerfModule } from './client-perf/client-perf.module';
+import { RbacModule } from './rbac/rbac.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { CargosModule } from './cargos/cargos.module';
@@ -98,6 +99,7 @@ class StartupConfigGuard implements OnModuleInit {
     DashboardModule,
     BackupModule,
     ClientPerfModule,
+    RbacModule,
   ],
   controllers: [AppController],
   providers: [

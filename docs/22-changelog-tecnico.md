@@ -24,6 +24,14 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-07 — RBAC granular: `PermissionsGuard`, API `/rbac`, seed `role_permissions`, UI «Matriz rol ↔ permiso»
+
+- **Backend:** `permission-codes.ts`, `@Permissions`, `PermissionsGuard`, módulo `rbac/` (listar permisos/roles; `GET/PUT .../roles/:codigo/permissions`; `GET /rbac/me/permissions`). Cambios registrados **`ROLE_PERMISSIONS_UPDATED`**.
+- **Seed:** `permissions` + asignaciones por rol después de crear roles (idempotente).
+- **Rutas:** documentos (incl. archivos/revisión), catálogo escrituras, usuarios, reportes, auditoría lista, dashboard admin/backup KPI, ejecutar backup, política seguridad GET/POST auth.
+- **Frontend:** pantalla usuarios · sección matriz BD + botón **Permisos por rol (BD)**.
+- **Docs:** `07`, `README` snapshot RBAC, `27-manual` § 5.1.
+
 ### 2026-05-07 — Seguimiento respaldos: `.gitignore`, carpeta `backups/automated`, script PowerShell y hardening doc
 
 - **Repo:** ignorar `*.sql` / `*.zip` bajo `backups/automated/`; `README.md` de la carpeta con reglas de permisos y no exposición web.

@@ -149,13 +149,17 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 La pantalla **Administración de identidades** muestra, en orden vertical y a **ancho completo**, primero el **directorio de usuarios institucionales** y, más abajo, la **matriz RBAC de referencia** (así la tabla no queda tan estrecha como en diseños de dos columnas). Los detalles técnicos (endpoints API, último ingreso `ultimoLoginAt`, alcance efectivo `@Roles`) y las referencias ISO/ASVS están en el apartado **Evidencia técnica y normativa (API, último ingreso)** (panel colapsable bajo la cabecera).
 
-En el fondo la información sigue siendo la misma: tabla (`GET /usuarios`: nombres, correo, dependencia/cargo del catálogo, roles RBAC, estado) y matriz (`GET /usuarios/matriz-acceso-referencia`) alineada con las rutas NestJS. La matriz es **solo lectura**: no guarda cambios; la capacidad efectiva se ajusta con **Editar usuario** desde el menú de acciones. Use **Actualizar** (icono de recarga en la cabecera de página) para volver a cargar listado y matriz.
+La tabla reproduce `GET /usuarios` y la **matriz de referencia** `GET /usuarios/matriz-acceso-referencia` (lectura útil por rol vs módulos; no persiste cambios).
+
+La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + **permisos en base de datos** (`role_permissions`) aplicados por el servidor (`@Permissions`). La sección **Matriz rol ↔ permiso (base de datos)** permite **marcar/desmarcar códigos** por cada rol institucional y **Guardar** (API `PUT /rbac/roles/:codigo/permissions`; queda evidencia **`ROLE_PERMISSIONS_UPDATED`** en auditoría para administradores).
+
+**Los usuarios** siguen administrándose con **roles** (**Editar usuario** / menú ⋮): los permisos del rol definen lo que pueden hacer dentro de ese rol una vez ejecutado el seed (sin permisos asignados a un rol, la API puede responder `403` aun manteniendo el mismo código de rol en la cuenta).
 
 1. En el menú lateral, entra a **Administración → Usuarios y roles**.
 2. En el directorio, revisa chips **Activos** / **Total** y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
 3. Para crear un usuario:
    - Presiona **Crear usuario**
-   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`; en esta versión, salvo **ADMIN**, el acceso efectivo es el de usuario con JWT; los códigos adicionales sirven para preparar flujos futuros).
+   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`). El **alcance en API** viene de la **unión de roles** del usuario × **permisos configurados por rol** en la matriz BD (no basta el nombre del rol si ese rol quedó sin permisos).
    - Deja marcada la opción recomendada **“Enviar al correo un enlace…”** para que llegue un mensaje con el enlace a **definir contraseña** (página de restablecer). Si no marcas la casilla, el usuario solo puede entrar con la contraseña temporal.
    - Presiona **Crear**
    - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
@@ -168,12 +172,19 @@ En el fondo la información sigue siendo la misma: tabla (`GET /usuarios`: nombr
 6. Para restablecer contraseña:
    - En **Acciones**, elija **Restablecer contraseña**
    - Ingresa nueva contraseña y confirma
+7. **Permisos por rol (BD)** (matriz efectiva ante el API):
+   - Usa **Permisos por rol (BD)** o desplázate a **Matriz rol ↔ permiso (base de datos)**.
+   - En **Rol a editar**, elige el código (`USUARIO`, `REVISOR`, etc.).
+   - Marca o quita los códigos de permiso necesarios (**Guardar permisos del rol**).
+   - Tras un cambio, los usuarios con ese rol heredan el nuevo conjunto; si ya tenían sesión abierta puede bastar esperar caducidad/refresh según configuración JWT o volver a iniciar sesión.
 
 **Resultado esperado**
-- El listado se actualiza con los cambios.
+- El listado de usuarios refleja altas/edición; la matriz de referencia muestra vista comparativa por rol.
+- Si guardaste la matriz en BD: mensaje de éxito y registro **`ROLE_PERMISSIONS_UPDATED`** en **Auditoría** (filtro opcional por acción).
 
 **Fallos a revisar**
-- `403`: tu usuario no tiene rol `ADMIN`.
+- `403`: su cuenta no tiene rol `ADMIN` o el rol ADMIN **perdió permisos** en BD (recover: DB o ejecutar **`npx prisma db seed`** en `backend/` con precaución en producción).
+- Catálogo de permisos vacío en pantalla: no se ejecutó seed RBAC después de migrar código.
 - Error de validación: correo duplicado o contraseña corta.
 
 ---

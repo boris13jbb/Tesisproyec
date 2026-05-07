@@ -1,6 +1,6 @@
 /**
  * Matriz de acceso de referencia servida por API (ADMIN).
- * Debe alinearse con JwtAuthGuard + @Roles en controladores NestJS.
+ * Debe alinearse con JwtAuthGuard + @Roles + @Permissions (PermissionsGuard) en controladores NestJS.
  * Espejo del catálogo en `frontend/src/constants/roles-access-matrix.ts`.
  */
 export const ACCESS_MATRIX_COLUMNAS = [

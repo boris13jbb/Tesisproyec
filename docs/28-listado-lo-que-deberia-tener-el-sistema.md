@@ -48,10 +48,10 @@ Queda **pendiente de gobierno / producto** (entre otros): bandeja dedicada / SLA
    - **Hoy**: `ADMIN`, `USUARIO`, **REVISOR**, **AUDITOR**, **CONSULTA**; **REVISOR** resuelve revisión documental vía API/UI (R-28 MVP).  
    - **Falta**: flujos para **AUDITOR** / **CONSULTA** y matriz de permisos fina.
 
-5. **Permisos por rol (ver/subir/editar/eliminar/descargar)** — **Parcial**  
-   - **Hoy**: mutaciones sensibles con `ADMIN`; lectura con JWT; **filtrado por dependencia + confidencialidad** en consulta/descarga/export documentos (no‑ADMIN).  
-   - **Falta**: matriz `Permission`/`role_permissions` y guards por permiso (no solo rol).
-   - **Docs**: `07-modulo-roles-permisos.md` (marca pendiente permisos granulares).
+5. **Permisos por rol (ver/subir/editar/eliminar/descargar)** — **Parcial (mejorado MVP)**  
+   - **Hoy**: mutaciones sensibles con `ADMIN`; lectura con JWT; **filtrado por dependencia + confidencialidad** en consulta/descarga/export documentos (no‑ADMIN); **`permissions` / `role_permissions`** con `@Permissions` + `PermissionsGuard` en rutas clave + UI matriz BD + `/rbac/...`; seed RBAC (`prisma db seed`).  
+   - **Falta**: permisos ABAC por registro/documento más allá de dependencia/confidencialidad ya modelados; segregación institucional avanzada (§3 en `07`).  
+   - **Docs**: `07-modulo-roles-permisos.md`.
 
 6. **Control de acceso por documento (área/tipo/confidencialidad)** — **Parcial (MVP código)**  
    - **Hoy**: `documentos.dependencia_id`, `nivel_confidencialidad` y reglas en servicio (listado/detalle/eventos/archivos/export).  

@@ -9,15 +9,18 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PERM } from '../auth/permission-codes';
 import { CreateSerieDto } from './dto/create-serie.dto';
 import { UpdateSerieDto } from './dto/update-serie.dto';
 import { SeriesService } from './series.service';
 
 @Controller('series')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SeriesController {
   constructor(private readonly service: SeriesService) {}
 
@@ -35,6 +38,7 @@ export class SeriesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SERIES_WRITE)
   create(@Body() dto: CreateSerieDto) {
     return this.service.create(dto);
   }
@@ -42,6 +46,7 @@ export class SeriesController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SERIES_WRITE)
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateSerieDto) {
     return this.service.update(id, dto);
   }

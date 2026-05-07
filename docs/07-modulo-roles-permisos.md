@@ -10,28 +10,39 @@ Definición de roles, matriz permiso ↔ rol, enforcement en backend y UI.
 
 ## Estado actual
 
-**Completado (roles).** En backend: decorador `@Roles(...)` y `RolesGuard` sobre rutas (p. ej. `GET /api/v1/admin/ping` restringido a rol `ADMIN`; mutaciones de catálogos y documentos restringidas a `ADMIN`). En frontend: rutas y menú condicionados por rol (p. ej. catálogos solo `ADMIN`).
+### Completado (MVP institucional)
 
-**Ejemplos de granularidad por ruta (sin `PermissionsGuard`):** resolución de revisión documental (`POST /api/v1/documentos/:id/resolver-revision`) permite **`ADMIN`** o **`REVISOR`**; export **pendientes de revisión** (`GET /api/v1/reportes/pendientes-revision.{xlsx,pdf}`) idem — ver `12` y `16`.
+- **Roles** (`@Roles`, `RolesGuard`): sin cambios; menú/UI sigue usando códigos de rol en JWT (`ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`).
+- **Permisos en BD**: `permissions` + `role_permissions` poblados de forma **idempotente** al ejecutar `npx prisma db seed` (desde `backend/`). **`ADMIN`** recibe todos los códigos; los demás roles reciben un subconjunto alineado con el comportamiento previo (`DOC_READ`, revisión, reportes pendientes para `REVISOR`, etc.).
+- **Enforcement técnico**: `@Permissions(...)` + `PermissionsGuard` (AND de códigos requeridos) en rutas de documentos, catálogo (escritura), usuarios, reportes, auditoría, dashboard (admin/backups KPI), backup y política de seguridad. Lista canónica: `backend/src/auth/permission-codes.ts`.
+- **API administración**: `GET /api/v1/rbac/permissions`, `GET /api/v1/rbac/roles`, `GET /api/v1/rbac/roles/:codigo/permissions`, `PUT .../permissions` (cuerpo `{ "permissionCodes": ["DOC_READ", ...] }`; reemplazo total), `GET /api/v1/rbac/me/permissions` (opcional UX). Auditoría ante cambios: **`ROLE_PERMISSIONS_UPDATED`**.
+- **UI**: pantalla **Administración → Usuarios y roles** → sección **Matriz rol ↔ permiso (base de datos)** (casillas por código + guardar).
 
-**Pendiente (permiso granular).** La parte de permisos granulares en BD (`Permission`, `role_permissions`) queda como base de datos preparada, pero aún no se usa como fuente de autorización en guards.
+**Prerrequisito operativo:** si la BD ya existía **antes** del seed RBAC y no se ejecutó seed (o sólo usuarios sin permisos en `role_permissions`), los usuarios con rol pero sin filas efectivas pueden recibir **`403`** en rutas con `@Permissions` hasta que **`npx prisma db seed`** rellene la matriz o un `ADMIN` ajuste `PUT .../permissions`.
+
+### Pendiente / evolución
+
+- **`CATALOGS_READ`** del §2 sigue como opcional (lecturas públicas JWT de catálogos no llevan `@Permissions`).
+- **`DOC_CHANGE_STATE`** y roles institutionales finos (**ADMIN_SEGURIDAD**, etc.) del §3: no implementados; los códigos usados están en `permission-codes.ts`.
+
+**Aclaración “permisos por documento” (registro/concreto):** sigue en §4 / módulo `12`; no es sólo completar casillas RBAC globales por rol.
 
 ## Decisiones técnicas
 
 - Guards en NestJS; decoradores o metadatos por ruta; sincronización de permisos en frontend solo para UX (fuente de verdad en API).
 - Evolución recomendada: **RBAC + permisos por acción** (ABAC opcional por dependencia/confidencialidad en documentos).
 
-## Estructura prevista
+## Estructura prevista / implementada
 
-- Tablas: `Role`, `Permission`, tablas de unión; seeds iniciales.
+- Tablas: `roles`, `permissions`, `user_roles`, `role_permissions`; seed idempotente en `backend/prisma/seed.ts`.
 
-## Endpoints (previstos)
+## Endpoints RBAC (`/api/v1/rbac/...`)
 
-- Gestión de roles/permisos (admin); validación implícita en todos los módulos.
+- Ver § “Estado actual” (implementados).
 
 ## Pantallas
 
-- Administración de roles (si el alcance lo incluye).
+- **Usuarios y roles** · matriz **rol ↔ permiso (BD)**.
 
 ## Dependencias
 
@@ -41,23 +52,13 @@ Definición de roles, matriz permiso ↔ rol, enforcement en backend y UI.
 
 ## Pendientes para empezar a desarrollar (backlog accionable)
 
-### 1) Permisos granulares en backend (fuente de verdad)
+### 1) Permisos granulares — **implementado base** ✅
 
-**Objetivo:** que el backend autorice por **permiso** (no solo por rol), usando `Permission` y `role_permissions`.
+Cubiertos: `@Permissions`, `PermissionsGuard`, seed, rutas RBAC administrativas y auditoría `ROLE_PERMISSIONS_UPDATED`. Las **403** por guard siguen usando el filtro `ForbiddenAuditFilter` (**`AUTHZ_FORBIDDEN`**) ante `ForbiddenException`.
 
-- **Entregables**
-  - Decorador `@Permissions('USERS_CREATE', 'USERS_UPDATE', ...)`
-  - Guard `PermissionsGuard` que:
-    - obtenga permisos del usuario (por roles → permisos),
-    - compare contra permisos requeridos,
-    - niegue por defecto (fail secure).
-  - Seeds de permisos y asignación a roles.
+Seguimiento sugerido: tests e2e automáticos; matriz HTML “referencia” vs permisos reales (evitar deriva).
 
-- **Evidencia**
-  - Pruebas negativas: usuario sin permiso recibe `403`.
-  - Registro en auditoría transversal: **`AUTHZ_FORBIDDEN`** ante HTTP **403** (usuario autenticado sin rol suficiente).
-
-### 2) Matriz acción → permiso (mínimo recomendado)
+### 2) Matriz acción → permiso (referencia histórica; códigos reales en `permission-codes.ts`)
 
 > Nota: los códigos son sugeridos; se pueden ajustar, pero deben ser **estables**.
 

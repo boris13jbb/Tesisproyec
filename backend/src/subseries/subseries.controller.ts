@@ -9,15 +9,18 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PERM } from '../auth/permission-codes';
 import { CreateSubserieDto } from './dto/create-subserie.dto';
 import { UpdateSubserieDto } from './dto/update-subserie.dto';
 import { SubseriesService } from './subseries.service';
 
 @Controller('subseries')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SubseriesController {
   constructor(private readonly service: SubseriesService) {}
 
@@ -38,6 +41,7 @@ export class SubseriesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SUBSERIES_WRITE)
   create(@Body() dto: CreateSubserieDto) {
     return this.service.create(dto);
   }
@@ -45,6 +49,7 @@ export class SubseriesController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SUBSERIES_WRITE)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateSubserieDto,

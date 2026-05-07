@@ -2,7 +2,7 @@
  * Respaldo local solo si falla GET /usuarios/matriz-acceso-referencia (ADMIN).
  *
  * Mantener sincronizada con `backend/src/usuarios/access-matrix.reference.ts`.
- * Refleja políticas efectivas (JwtAuthGuard + @Roles), no sustituye IdM corporativo.
+ * Refleja políticas efectivas (`JwtAuthGuard` + `@Roles` + `@Permissions`), no sustituye IdM corporativo.
  */
 export const ROLES_MATRIX_COLS = [
   'ADMIN',

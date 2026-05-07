@@ -17,8 +17,11 @@ import { LoginDto } from './dto/login.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { UpdateSecurityPolicyDto } from './dto/security-policy.dto';
+import { Permissions } from './decorators/permissions.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { PERM } from './permission-codes';
 import type { JwtRequestUser } from './request-user';
 
 @Controller('auth')
@@ -160,24 +163,27 @@ export class AuthController {
 
   /** Transparencia de políticas para UI “Configuración de seguridad” (ADMIN, sin secretos). */
   @Get('admin/security-summary')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SECURITY_POLICY_READ)
   adminSecuritySummary() {
     return this.authService.getAdminSecuritySummary();
   }
 
   /** Política institucional persistida (ISO 15489): editable por ADMIN, sin secretos. */
   @Get('admin/security-policy')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SECURITY_POLICY_READ)
   adminSecurityPolicy() {
     return this.authService.getSecurityPolicyRecord();
   }
 
   @Post('admin/security-policy')
   @HttpCode(200)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles('ADMIN')
+  @Permissions(PERM.SECURITY_POLICY_WRITE)
   async updateAdminSecurityPolicy(
     @Body() dto: UpdateSecurityPolicyDto,
     @Req() req: Request & { user: JwtRequestUser },
