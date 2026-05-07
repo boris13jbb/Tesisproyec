@@ -56,6 +56,15 @@ ISO/IEC 27001:2022, ISO 15489, OWASP ASVS.
 3. (Opcional) Ejecutar “run now” si está habilitado.
 4. Confirmar que el dashboard refleja el último OK y el historial.
 
+### 6) Rendimiento post-login (prefetch + LCP panel)
+Referencias: `docs/40-rendimiento-post-login-web-vitals.md`, manual § 1.5.
+
+1. Con sesión iniciada, esperar ~2–3 s sin navegar lejos (precarga en idle).
+2. En pestaña Red del navegador, observar solicitudes paralelas esperables (chunks de página y `GET` frecuentes; ver doc 40) sin errores repetidos ni `429` masivos por LCP (`POST .../client-perf/web-vitals` está rate-limited).
+3. Abrir el **panel principal** `/` y cargar hasta estabilizar.
+4. Como `ADMIN`: **Auditoría** → filtrar por acción **`CLIENT_WEB_VITAL_LCP`** → confirmar al menos una fila con `meta_json` que incluye `valueMs`, `rating` (sin contenido sensible de negocio).
+5. Navegar a **Documentos** y **Mi perfil** y comprobar que la primera visita después del idle suele percibirse fluida (caché de red; no equivalencia garantizada en todos los navegadores).
+
 ## Resultado esperado
 - Login crea sesión y el refresh se rota/renueva sin exponer el refresh token al JS.
 - Acciones sin permisos fallan con `403` (defensa en profundidad).
@@ -69,7 +78,7 @@ ISO/IEC 27001:2022, ISO 15489, OWASP ASVS.
 - Roles mal asignados en BD/seed (403 inesperados o permisos excesivos).
 
 ## Evidencia que debe quedar
-- Filas en `audit_logs` (acciones como `AUTHZ_FORBIDDEN`, `AUTH_RATE_LIMITED`, `REPORT_EXPORTED`, `BACKUP_VERIFIED` y eventos de auth).
+- Filas en `audit_logs` (acciones como `AUTHZ_FORBIDDEN`, `AUTH_RATE_LIMITED`, `REPORT_EXPORTED`, `BACKUP_VERIFIED`, `CLIENT_WEB_VITAL_LCP` y eventos de auth).
 - Exportes `*.xlsx`/`*.pdf` descargados.
 - Si se usan respaldos automatizados: artefactos en `backups/automated/` con permisos adecuados (y **no** versionados).
 
