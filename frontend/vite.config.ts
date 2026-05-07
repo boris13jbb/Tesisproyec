@@ -2,10 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Proxy del API en dev: misma origen que el Vite (útil con ngrok HTTPS → evita mixed content con http://localhost)
+/** mysqldump + ZIP pueden tardar minutos; evitar cierre prematuro del proxy en dev/LAN */
+const BACKUP_PROXY_TIMEOUT_MS = 15 * 60 * 1000
+
 const apiProxy = {
   '/api': {
     target: 'http://127.0.0.1:3000',
     changeOrigin: true,
+    timeout: BACKUP_PROXY_TIMEOUT_MS,
+    proxyTimeout: BACKUP_PROXY_TIMEOUT_MS,
   },
 } as const
 

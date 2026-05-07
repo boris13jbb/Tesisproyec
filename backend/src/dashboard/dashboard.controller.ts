@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -37,6 +46,7 @@ export class DashboardController {
     @Body() dto: RecordBackupVerificationDto,
   ): Promise<{ ok: true; recordedAt: string }> {
     return this.service.recordBackupVerification(req.user, {
+      result: dto.result,
       notes: dto.notes,
       tipoRespaldo: dto.tipoRespaldo,
       tamanoBytes: dto.tamanoBytes,

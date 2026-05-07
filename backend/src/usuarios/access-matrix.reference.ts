@@ -88,7 +88,8 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Reportes servidor (documentos y auditoría)',
-    ayuda: 'GET /reportes/documentos*, /reportes/auditoria* · UI /admin/reportes',
+    ayuda:
+      'GET /reportes/documentos*, /reportes/auditoria* · UI /admin/reportes',
     porRol: {
       ADMIN: true,
       REVISOR: false,

@@ -16,6 +16,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
+import { UpdateSecurityPolicyDto } from './dto/security-policy.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import type { JwtRequestUser } from './request-user';
@@ -163,6 +164,34 @@ export class AuthController {
   @Roles('ADMIN')
   adminSecuritySummary() {
     return this.authService.getAdminSecuritySummary();
+  }
+
+  /** Política institucional persistida (ISO 15489): editable por ADMIN, sin secretos. */
+  @Get('admin/security-policy')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  adminSecurityPolicy() {
+    return this.authService.getSecurityPolicyRecord();
+  }
+
+  @Post('admin/security-policy')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async updateAdminSecurityPolicy(
+    @Body() dto: UpdateSecurityPolicyDto,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipFromForwarded =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    const ua = req.headers['user-agent'];
+    return this.authService.updateSecurityPolicyRecord(dto, req.user, {
+      ip: ipFromForwarded ?? req.ip,
+      userAgent: typeof ua === 'string' ? ua : undefined,
+    });
   }
 
   @Post('password-reset/request')

@@ -72,6 +72,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [25-ui-ux-diseno-sistema-institucional.md](./25-ui-ux-diseno-sistema-institucional.md) | UI/UX institucional, IA, design system, ISO/ASVS |
 | [26-cloudflared-tunnel.md](./26-cloudflared-tunnel.md) | Exposición temporal del frontend (Vite) con cloudflared |
 | [28-listado-lo-que-deberia-tener-el-sistema.md](./28-listado-lo-que-deberia-tener-el-sistema.md) | Gap vs checklist institucional (1–45) |
+| [99-guia-de-prueba-por-modulos.md](./99-guia-de-prueba-por-modulos.md) | Guía de prueba consolidada (formato obligatorio de cierre) |
 
 ## Otros
 

@@ -39,6 +39,23 @@ export type AdminSecuritySummary = {
   };
 };
 
+export type SecurityPolicyRecord = {
+  schemaVersion: 1;
+  desired: {
+    passwordMinLength: number;
+    lockoutEnabled: boolean;
+    lockoutMaxAttempts: number;
+    lockoutMinutes: number;
+    jwtAccessExpiresIn: string;
+    refreshSessionDays: number;
+    passwordHistoryCount: number;
+    adminStepUpAuth: boolean;
+  };
+  notes: string | null;
+  updatedAt: string | null;
+  updatedBy: { userId: string | null; email: string | null } | null;
+};
+
 @Injectable()
 export class AuthService {
   /** Coincide con `CreateUsuarioDto` / `PasswordResetConfirmDto` (MinLength). */
@@ -51,6 +68,238 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly mail: MailService,
   ) {}
+
+  private clampInt(
+    v: unknown,
+    fallback: number,
+    min: number,
+    max: number,
+  ): number {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, Math.floor(n)));
+  }
+
+  private normalizeExpiresIn(
+    v: string | undefined | null,
+    fallback: string,
+  ): string {
+    const t = (v ?? '').trim();
+    return t.length > 0 && t.length <= 16 ? t : fallback;
+  }
+
+  async getSecurityPolicyRecord(): Promise<SecurityPolicyRecord> {
+    const row = await this.prisma.securityPolicy.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        desiredPasswordMinLength: AuthService.USER_PASSWORD_MIN_LENGTH,
+        desiredLockoutEnabled: true,
+        desiredLockoutMaxAttempts: this.loginLockoutMaxAttempts(),
+        desiredLockoutMinutes: this.loginLockoutMinutes(),
+        desiredJwtAccessExpiresIn:
+          this.config.get<string>('JWT_ACCESS_EXPIRES') ?? '15m',
+        desiredRefreshSessionDays: this.clampInt(
+          this.config.get('JWT_REFRESH_DAYS', 7),
+          7,
+          1,
+          365,
+        ),
+        desiredPasswordHistoryCount: 0,
+        desiredAdminStepUpAuth: false,
+        notes: null,
+        updatedByUserId: null,
+      },
+      update: {},
+      select: {
+        desiredPasswordMinLength: true,
+        desiredLockoutEnabled: true,
+        desiredLockoutMaxAttempts: true,
+        desiredLockoutMinutes: true,
+        desiredJwtAccessExpiresIn: true,
+        desiredRefreshSessionDays: true,
+        desiredPasswordHistoryCount: true,
+        desiredAdminStepUpAuth: true,
+        notes: true,
+        updatedAt: true,
+        updatedBy: { select: { id: true, email: true } },
+      },
+    });
+
+    return {
+      schemaVersion: 1,
+      desired: {
+        passwordMinLength: row.desiredPasswordMinLength,
+        lockoutEnabled: row.desiredLockoutEnabled,
+        lockoutMaxAttempts: row.desiredLockoutMaxAttempts,
+        lockoutMinutes: row.desiredLockoutMinutes,
+        jwtAccessExpiresIn: row.desiredJwtAccessExpiresIn,
+        refreshSessionDays: row.desiredRefreshSessionDays,
+        passwordHistoryCount: row.desiredPasswordHistoryCount,
+        adminStepUpAuth: row.desiredAdminStepUpAuth,
+      },
+      notes: row.notes ?? null,
+      updatedAt: row.updatedAt?.toISOString() ?? null,
+      updatedBy: row.updatedBy
+        ? { userId: row.updatedBy.id, email: row.updatedBy.email }
+        : null,
+    };
+  }
+
+  async updateSecurityPolicyRecord(
+    dto: {
+      desiredPasswordMinLength: number;
+      desiredLockoutEnabled: boolean;
+      desiredLockoutMaxAttempts: number;
+      desiredLockoutMinutes: number;
+      desiredJwtAccessExpiresIn: string;
+      desiredRefreshSessionDays: number;
+      desiredPasswordHistoryCount: number;
+      desiredAdminStepUpAuth: boolean;
+      notes?: string;
+    },
+    actor: JwtRequestUser,
+    context?: { ip?: string; userAgent?: string },
+  ): Promise<SecurityPolicyRecord> {
+    const updated = await this.prisma.securityPolicy.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        desiredPasswordMinLength: this.clampInt(
+          dto.desiredPasswordMinLength,
+          8,
+          8,
+          128,
+        ),
+        desiredLockoutEnabled: !!dto.desiredLockoutEnabled,
+        desiredLockoutMaxAttempts: this.clampInt(
+          dto.desiredLockoutMaxAttempts,
+          5,
+          1,
+          50,
+        ),
+        desiredLockoutMinutes: this.clampInt(
+          dto.desiredLockoutMinutes,
+          20,
+          1,
+          1440,
+        ),
+        desiredJwtAccessExpiresIn: this.normalizeExpiresIn(
+          dto.desiredJwtAccessExpiresIn,
+          '15m',
+        ),
+        desiredRefreshSessionDays: this.clampInt(
+          dto.desiredRefreshSessionDays,
+          7,
+          1,
+          365,
+        ),
+        desiredPasswordHistoryCount: this.clampInt(
+          dto.desiredPasswordHistoryCount,
+          0,
+          0,
+          24,
+        ),
+        desiredAdminStepUpAuth: !!dto.desiredAdminStepUpAuth,
+        notes: dto.notes?.trim() ? dto.notes.trim().slice(0, 800) : null,
+        updatedByUserId: actor.id,
+      },
+      update: {
+        desiredPasswordMinLength: this.clampInt(
+          dto.desiredPasswordMinLength,
+          8,
+          8,
+          128,
+        ),
+        desiredLockoutEnabled: !!dto.desiredLockoutEnabled,
+        desiredLockoutMaxAttempts: this.clampInt(
+          dto.desiredLockoutMaxAttempts,
+          5,
+          1,
+          50,
+        ),
+        desiredLockoutMinutes: this.clampInt(
+          dto.desiredLockoutMinutes,
+          20,
+          1,
+          1440,
+        ),
+        desiredJwtAccessExpiresIn: this.normalizeExpiresIn(
+          dto.desiredJwtAccessExpiresIn,
+          '15m',
+        ),
+        desiredRefreshSessionDays: this.clampInt(
+          dto.desiredRefreshSessionDays,
+          7,
+          1,
+          365,
+        ),
+        desiredPasswordHistoryCount: this.clampInt(
+          dto.desiredPasswordHistoryCount,
+          0,
+          0,
+          24,
+        ),
+        desiredAdminStepUpAuth: !!dto.desiredAdminStepUpAuth,
+        notes: dto.notes?.trim() ? dto.notes.trim().slice(0, 800) : null,
+        updatedByUserId: actor.id,
+      },
+      select: {
+        desiredPasswordMinLength: true,
+        desiredLockoutEnabled: true,
+        desiredLockoutMaxAttempts: true,
+        desiredLockoutMinutes: true,
+        desiredJwtAccessExpiresIn: true,
+        desiredRefreshSessionDays: true,
+        desiredPasswordHistoryCount: true,
+        desiredAdminStepUpAuth: true,
+        notes: true,
+        updatedAt: true,
+        updatedBy: { select: { id: true, email: true } },
+      },
+    });
+
+    await this.audit.log({
+      action: 'SECURITY_POLICY_UPDATED',
+      result: 'OK',
+      context: {
+        actorUserId: actor.id,
+        actorEmail: actor.email ?? null,
+        ip: context?.ip ?? null,
+        userAgent: context?.userAgent ?? null,
+      },
+      resource: { type: 'SecurityPolicy', id: 'default' },
+      meta: {
+        desiredPasswordMinLength: updated.desiredPasswordMinLength,
+        desiredLockoutEnabled: updated.desiredLockoutEnabled,
+        desiredLockoutMaxAttempts: updated.desiredLockoutMaxAttempts,
+        desiredLockoutMinutes: updated.desiredLockoutMinutes,
+        desiredJwtAccessExpiresIn: updated.desiredJwtAccessExpiresIn,
+        desiredRefreshSessionDays: updated.desiredRefreshSessionDays,
+        desiredPasswordHistoryCount: updated.desiredPasswordHistoryCount,
+        desiredAdminStepUpAuth: updated.desiredAdminStepUpAuth,
+      },
+    });
+
+    return {
+      schemaVersion: 1,
+      desired: {
+        passwordMinLength: updated.desiredPasswordMinLength,
+        lockoutEnabled: updated.desiredLockoutEnabled,
+        lockoutMaxAttempts: updated.desiredLockoutMaxAttempts,
+        lockoutMinutes: updated.desiredLockoutMinutes,
+        jwtAccessExpiresIn: updated.desiredJwtAccessExpiresIn,
+        refreshSessionDays: updated.desiredRefreshSessionDays,
+        passwordHistoryCount: updated.desiredPasswordHistoryCount,
+        adminStepUpAuth: updated.desiredAdminStepUpAuth,
+      },
+      notes: updated.notes ?? null,
+      updatedAt: updated.updatedAt?.toISOString() ?? null,
+      updatedBy: updated.updatedBy
+        ? { userId: updated.updatedBy.id, email: updated.updatedBy.email }
+        : null,
+    };
+  }
 
   private buildPasswordResetUrl(rawToken: string): string {
     const explicit =
@@ -628,7 +877,9 @@ export class AuthService {
     }
   }
 
-  private profileDocumentoIdFromRow(meta: Record<string, unknown>): string | null {
+  private profileDocumentoIdFromRow(
+    meta: Record<string, unknown>,
+  ): string | null {
     const raw = meta.documentoId;
     return typeof raw === 'string' && raw.length > 0 ? raw : null;
   }
@@ -675,11 +926,17 @@ export class AuthService {
           ? `Eliminó un archivo del documento ${codigo}`
           : 'Eliminó un archivo documental';
       case 'DOC_STATE_CHANGED':
-        return codigo ? `Actualizó documento ${codigo}` : 'Actualizó un documento';
+        return codigo
+          ? `Actualizó documento ${codigo}`
+          : 'Actualizó un documento';
       case 'DOC_SUBMITTED_FOR_REVIEW':
-        return codigo ? `Envió a revisión el documento ${codigo}` : 'Envió un documento a revisión';
+        return codigo
+          ? `Envió a revisión el documento ${codigo}`
+          : 'Envió un documento a revisión';
       case 'DOC_REVIEW_RESOLVED':
-        return codigo ? `Resolvió la revisión del documento ${codigo}` : 'Resolvió una revisión documental';
+        return codigo
+          ? `Resolvió la revisión del documento ${codigo}`
+          : 'Resolvió una revisión documental';
       case 'REPORT_EXPORTED':
         return `Exportó reporte (${this.profileReportKindLabel(meta.kind)})`;
       case 'USER_UPDATED':
@@ -719,7 +976,9 @@ export class AuthService {
         ultimoLoginAt: true,
         dependencia: { select: { codigo: true, nombre: true } },
         cargo: { select: { nombre: true } },
-        roles: { include: { role: { select: { codigo: true, nombre: true } } } },
+        roles: {
+          include: { role: { select: { codigo: true, nombre: true } } },
+        },
       },
     });
     if (!user) {
@@ -740,10 +999,7 @@ export class AuthService {
       where: {
         AND: [
           {
-            OR: [
-              { actorUserId: viewer.id },
-              { actorEmail: viewer.email },
-            ],
+            OR: [{ actorUserId: viewer.id }, { actorEmail: viewer.email }],
           },
           { result: 'OK' },
           { action: { notIn: [...PROFILE_AUDIT_SKIP] } },

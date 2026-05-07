@@ -1,0 +1,100 @@
+---
+description: Regla obligatoria: avisar finalización y entregar guía de prueba paso a paso
+alwaysApply: true
+---
+
+# REGLA OBLIGATORIA DEL PROYECTO: AVISO DE FINALIZACIÓN Y GUÍA DE PRUEBA
+
+## Contexto del proyecto
+
+Este proyecto es una **aplicación web de gestión documental institucional digitalizada** para el GADPR-LM. Debe priorizar confidencialidad, integridad, disponibilidad, trazabilidad y seguridad, alineado con:
+
+- **ISO/IEC 27001:2022** (control de acceso, identidades, información de autenticación).
+- **ISO 15489** (clasificación/organización documental, trazabilidad, conservación, recuperación).
+- **OWASP ASVS** (validación de entradas, autenticación y sesiones, formularios, archivos y permisos).
+
+## Regla principal (obligatoria)
+
+Cada vez que completes cualquier cambio **funcional o verificable** (funcionalidad, corrección, pantalla, módulo, integración, mejora visual observable, conexión DB, regla de seguridad, reporte/exportación, navegación, etc.), **debes avisar explícitamente** que:
+
+- **está listo para probar**, o
+- **está listo parcialmente para probar**, o
+- **requiere un paso previo antes de probar**.
+
+Está prohibido cerrar una respuesta únicamente con “ya está / terminado / corregido / implementado” sin guía de prueba.
+
+## Reglas de cierre (obligatorias)
+
+- **Siempre** indicar qué se terminó y en qué módulo se trabajó.
+- Si aplica, indicar el **estándar/lineamiento** relacionado (ISO/IEC 27001:2022, ISO 15489, OWASP ASVS). Si no, escribir **“No aplica”**.
+- Entregar **pasos de prueba concretos** (qué pantalla, qué botón, qué datos, qué acción, qué ver).
+- Indicar **resultado esperado** (incluyendo evidencia: UI, DB, auditoría, archivos).
+- Indicar **qué revisar si falla** (puntos probables: servidor/DB/permisos/logs/validaciones).
+- Terminar siempre con el **siguiente paso recomendado** del desarrollo.
+- Si no quedó completo, decirlo con honestidad: **qué sí se puede probar** y **qué aún no**.
+
+## Checklist de validación por tipo de cambio (usar cuando aplique)
+
+- **Seguridad (ISO/IEC 27001 + ASVS)**:
+  - Control de acceso y autorización por rol/permisos (incluye bloqueo por URL directa).
+  - Gestión de identidades/autenticación (login/logout, intentos fallidos, sesiones, expiración).
+  - Validación de entradas (campos requeridos, formatos, rangos; errores controlados).
+  - Protección de formularios (evitar envíos duplicados, mensajes claros, no filtrar detalles).
+- **Gestión documental (ISO 15489)**:
+  - Clasificación y organización documental.
+  - Búsqueda y recuperación (filtros, paginación, resultados esperados).
+  - Conservación y trazabilidad (historial/auditoría: actor, acción, recurso, timestamp, origen).
+  - Integridad del documento (no cambios indebidos; control de descargas/visualización).
+- **Archivos**:
+  - Tipo permitido, tamaño permitido, nombre/normalización, ruta/ubicación de almacenamiento.
+  - Registro en DB, visualización/descarga, y restricción por rol.
+- **Usuarios / roles / permisos**:
+  - CRUD de usuarios, estado activo/inactivo, asignación de rol, restricción de acceso.
+  - Admin ve todo; usuario ve solo lo permitido; sin permiso no entra ni por URL.
+- **Reportes / exportaciones**:
+  - Filtros por fecha/categoría/usuario/dependencia; datos correctos; formato legible.
+  - Exportación genera archivo correcto (PDF/Excel/CSV) y descarga consistente.
+- **Respaldos**:
+  - Generación, ubicación, timestamp, confirmación; restauración si existe.
+- **UI/UX**:
+  - Diseño limpio y consistente; textos correctos; navegación sin errores; responsive.
+
+## FORMATO OBLIGATORIO AL FINALIZAR (usar EXACTAMENTE esta estructura)
+
+## Estado
+Listo para probar.
+
+## Módulo afectado
+Nombre del módulo trabajado.
+
+## Qué se terminó
+Explicación breve y concreta de lo implementado, corregido o conectado.
+
+## Estándar o lineamiento aplicado
+Indicar ISO/IEC 27001:2022, ISO 15489, OWASP ASVS o “No aplica”.
+
+## Prerrequisitos para probar
+Indicar qué debe estar listo antes de probar, o:
+No requiere prerrequisitos adicionales.
+
+## Qué debe probar el usuario
+1. Paso exacto 1.
+2. Paso exacto 2.
+3. Paso exacto 3.
+4. Paso exacto 4.
+5. Paso exacto 5.
+
+## Resultado esperado
+Explicar qué debe pasar si todo está correcto (incluye evidencia visible/UI y evidencia técnica si aplica: DB, auditoría, archivo).
+
+## Qué revisar si falla
+- Punto probable 1.
+- Punto probable 2.
+- Punto probable 3.
+
+## Evidencia que debe quedar
+Indicar qué registro, archivo, pantalla, mensaje o reporte debe quedar como evidencia tras la prueba.
+
+## Siguiente paso recomendado
+Indicar cuál es el siguiente módulo o corrección lógica.
+

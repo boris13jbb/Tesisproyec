@@ -28,6 +28,15 @@ Desktop.ini
 /storage/*
 !/storage/.gitkeep
 
+# Volcados mysqldump y ZIP de respaldo (datos sensibles; no versionar)
+/backups/automated/**/*.sql
+/backups/automated/**/*.zip
+/backups/automated/**/.DS_Store
+
+# Defensa extra: backups locales accidentales (si alguien genera fuera de automated/)
+/backups/**/*.sql
+/backups/**/*.zip
+
 # Prisma (opcional: descomentar si se generan artefactos locales no deseados)
 # backend/prisma/*.db
 # backend/prisma/*.db-journal

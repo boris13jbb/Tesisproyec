@@ -59,6 +59,12 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 - Protección de rutas y datos por rol.
 - Subida de archivos acotada y trazada.
 
+## Directorio `backups/automated`
+
+- Los volcados **MySQL** (`.sql`) y **ZIP opcional de `storage/`** pueden generarse desde el proceso Nest (`BACKUP_*` en `backend/.env`).
+- **Contienen datos completos:** aplicar controles ISO 27001 (mínimo privilegio en NTFS/Linux, sin exposición web, sin versionar en git — ver `.gitignore` y `backups/automated/README.md`).
+- La **restauración** no se ejecuta desde la aplicación web; debe ser procedimiento institucional acotado.
+
 ## ngrok (temporal)
 
 Detalle operativo, CORS y cookies: `23-entorno-local-xampp-ngrok.md`. Cada sesión debe registrarse en `22-changelog-tecnico.md`.

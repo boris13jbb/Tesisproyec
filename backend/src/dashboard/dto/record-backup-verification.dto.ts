@@ -1,8 +1,19 @@
 import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 /** Registry manual de que se verificó un respaldo (auditoría `BACKUP_VERIFIED`). */
 export class RecordBackupVerificationDto {
+  @IsOptional()
+  @IsIn(['OK', 'FAIL'])
+  result?: 'OK' | 'FAIL';
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

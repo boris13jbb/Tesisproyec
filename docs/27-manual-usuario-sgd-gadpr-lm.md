@@ -437,22 +437,23 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 ## 11. Respaldos y seguridad (solo ADMIN)
 
 1. Menú lateral → **Administración** → **Respaldos** (ruta `/admin/respaldos`).
-2. Lea el aviso informativo: **el sistema no ejecuta respaldos ni restauraciones automáticas** desde la aplicación web; las copias reales se hacen con **mysqldump / MySQL** y respaldo de **storage/** según **`scripts/README-backups-mysql-xampp.md`**.
-3. **Datos reales en pantalla:** las tarjetas y la tabla se alimentan de **auditoría** (`audit_logs`, acción **`BACKUP_VERIFIED`**) mediante `GET /api/v1/dashboard/admin/backup-overview` (solo ADMIN). Si no hay registros, la tabla queda vacía y las tarjetas lo indican claramente.
-4. **Registrar verificación:** después de comprobar una copia fuera del SGD, puede indicar tipo y tamaño opcionales y guardar; se crea el evento anterior y aparece en historial y en el panel principal (`lastSignals.lastBackupVerifiedAt`).
-5. **“Próximo respaldo”:** solo muestra texto si en el servidor existe la variable opcional **`BACKUP_EXPECTED_SCHEDULE_HINT`** (ver `backend/.env.example`). No es un cron calculado por la aplicación.
-6. **Integridad (90 días):** muestra el porcentaje de verificaciones **OK** frente a **fallidas** entre eventos `BACKUP_VERIFIED` en los últimos 90 días (si no hay ninguno, muestra “N/D”).
-7. **Restaurar copia** y **Probar respaldo** abren diálogos con orientación; la restauración o la prueba técnica real ocurren en el servidor, no como botón remoto ejecutable desde el navegador.
+2. El **servidor puede programar mysqldump** (cron dentro del proceso API) usando variables en `backend/.env` (`BACKUP_AUTOMATED_*`, `BACKUP_MYSQLDUMP_PATH`, etc. — véase **`backend/.env.example`**, checklist en **`scripts/README-backups-mysql-xampp.md`** y, para añadir el bloque automáticamente en una copia nueva del repo, **`scripts/configure-local-backups.ps1`**). Tras cambiar `.env`, **reinicie el proceso del backend** para que el cron quede registrado.
+3. **Copia desde la UI:** puede pulsar **Ejecutar mysqldump ahora (manual)**; llama `POST /api/v1/backup/admin/run-now` y escribe artefactos en disco (`BACKUP_OUTPUT_DIR`). Opcionalmente el job incluye un **ZIP de `storage/`** si `BACKUP_INCLUDE_STORAGE_ZIP=true`.
+4. **Restauración** no se ejecuta desde el navegador: sigue siendo procedimiento institucional (MySQL CLI + recuperación de `storage/`).
+5. **Datos en pantalla:** `GET /api/v1/dashboard/admin/backup-overview` (solo ADMIN): historial hasta 50 filas de **`BACKUP_VERIFIED`** (OK o FAIL), columna **Origen** (Manual vs Automático según `meta.source`), KPIs 90 días y señal de cron activo.
+6. **Registrar verificación manual:** elija **Resultado** OK o **FAIL**; si elige **FAIL**, **Notas** es obligatorio (motivo). Opcional: tipo, tamaño. Genera el mismo tipo de evento de auditoría que el job automático.
+7. **“Próximo respaldo / programación”:** combina `BACKUP_EXPECTED_SCHEDULE_HINT` (texto) y, si el cron automático está activo, la expresión cron configurada.
+8. Diálogos **Restaurar copia** y **Probar respaldo** siguen siendo solo orientación.
 
 **Resultado esperado**
 
-- El administrador ve historial y KPIs coherentes con lo registrado en auditoría y sabe que la copia física sigue siendo procedimiento externo documentado.
+- El administrador distingue eventos automáticos y manuales, puede documentar fallos (FAIL) y conoce dónde quedan los `.sql`/`.zip` en el servidor.
 
 **Posibles fallos**
 
-- **403:** el usuario no es ADMIN o el token expiró (vuelva a iniciar sesión).
-- **Tabla vacía:** normal si nadie ha pulsado **Registrar verificación** aún.
-- Expectativa incorrecta: la aplicación no ejecuta mysqldump ni restore por API; solo documenta verificaciones y muestra estadísticas derivadas de auditoría.
+- **403:** usuario no ADMIN o sesión caducada.
+- **Ejecutar mysqldump ahora falla:** comprobar `BACKUP_MYSQLDUMP_PATH`, `DATABASE_URL`, permisos de carpeta de salida y logs del proceso Node.
+- **Tabla vacía:** aún no hubo registros OK/FAIL ni en automático ni en manual.
 
 ---
 
@@ -477,12 +478,16 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 ## 13. Configuración de seguridad (solo ADMIN)
 
 1. Menú lateral → **Administración** → **Configuración** (ruta `/admin/configuracion`).
-2. La pantalla muestra valores **operativos reales** leídos desde el servidor con `GET /auth/admin/security-summary` (interruptores solo lectura).
-3. **Guardar política** abre una explicación: **los cambios reales no se editan desde la UI**, sino mediante despliegue (variables de entorno como `JWT_ACCESS_EXPIRES`, `AUTH_LOCKOUT_*`, DTO NestJS y límite de adjuntos Multer).
+2. La pantalla muestra:
+   - **Estado efectivo** (lo que el backend aplica hoy) leído desde `GET /auth/admin/security-summary`.
+   - **Política institucional** (valores deseados) persistida como registro en base de datos con `GET /auth/admin/security-policy`.
+3. Ajuste los valores deseados (p. ej. longitud mínima, bloqueo por intentos, caducidad JWT deseada) y presione **Guardar política**.
+4. Al guardar, el sistema registra auditoría `SECURITY_POLICY_UPDATED` y conserva el contexto (actor, fecha/hora, IP si aplica).
 
 **Importante**
 
-- El mínimo de contraseña en API de usuarios/recuperación hoy está alineado a **8 caracteres** (DTO servidor), no necesariamente a un valor distinto marcado sólo como expectativa institucional.
+- Guardar la política institucional **no cambia automáticamente** el runtime si el control no está implementado (ej. historial de contraseñas o step-up ADMIN). La pantalla muestra **Efectivo vs Deseado** para evitar falsas expectativas.
+- El mínimo de contraseña efectivo hoy está alineado a **8 caracteres** (DTO servidor), aunque la política deseada pueda definirse distinta.
 
 ---
 

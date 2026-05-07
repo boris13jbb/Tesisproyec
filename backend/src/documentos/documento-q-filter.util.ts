@@ -5,7 +5,9 @@ import type { Prisma } from '@prisma/client';
  * texto en metadatos del documento, dependencia aplicada, quien registra,
  * tipo/subserie/serie documental.
  */
-export function documentoWhereLibre(qRaw: string | undefined): Prisma.DocumentoWhereInput {
+export function documentoWhereLibre(
+  qRaw: string | undefined,
+): Prisma.DocumentoWhereInput {
   const q = qRaw?.trim();
   if (!q) return {};
 
@@ -16,10 +18,7 @@ export function documentoWhereLibre(qRaw: string | undefined): Prisma.DocumentoW
       { descripcion: { contains: q } },
       {
         dependencia: {
-          OR: [
-            { nombre: { contains: q } },
-            { codigo: { contains: q } },
-          ],
+          OR: [{ nombre: { contains: q } }, { codigo: { contains: q } }],
         },
       },
       {
@@ -33,10 +32,7 @@ export function documentoWhereLibre(qRaw: string | undefined): Prisma.DocumentoW
       },
       {
         tipoDocumental: {
-          OR: [
-            { nombre: { contains: q } },
-            { codigo: { contains: q } },
-          ],
+          OR: [{ nombre: { contains: q } }, { codigo: { contains: q } }],
         },
       },
       {
@@ -46,10 +42,7 @@ export function documentoWhereLibre(qRaw: string | undefined): Prisma.DocumentoW
             { codigo: { contains: q } },
             {
               serie: {
-                OR: [
-                  { nombre: { contains: q } },
-                  { codigo: { contains: q } },
-                ],
+                OR: [{ nombre: { contains: q } }, { codigo: { contains: q } }],
               },
             },
           ],

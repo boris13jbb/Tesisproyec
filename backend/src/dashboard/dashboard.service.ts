@@ -1,11 +1,16 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
 import type { JwtRequestUser } from '../auth/request-user';
 import { jwtUserIsAdmin } from '../auth/request-user';
-import { documentoVisibilityWhere } from '../documentos/documento-scope.util';
+import type { AuditResult } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
+import {
+  AUDIT_ACTION_BACKUP_VERIFIED,
+  BACKUP_META_SOURCE_MANUAL,
+} from '../backup/backup.constants';
+import { documentoVisibilityWhere } from '../documentos/documento-scope.util';
+import { PrismaService } from '../prisma/prisma.service';
 
 export type DashboardRecentDocumento = {
   id: string;
@@ -42,6 +47,8 @@ export type DashboardBackupVerificationRowDto = {
   createdAt: string;
   result: string;
   actorEmail: string | null;
+  /** meta.source cuando existe (manual_registry | scheduled_mysqldump). */
+  source: string | null;
   notes: string | null;
   tipoRespaldo: string | null;
   tamanoLabel: string | null;
@@ -49,12 +56,17 @@ export type DashboardBackupVerificationRowDto = {
 };
 
 export type DashboardBackupOverviewDto = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   lastVerifiedAt: string | null;
-  /** Texto institucional opcional desde `BACKUP_EXPECTED_SCHEDULE_HINT` (el SGD no programa cron). */
+  /** Pista institucional y/o expresión cron del respaldo automático en servidor. */
   siguienteCopiaEtiqueta: string | null;
   verificaciones90d: { ok: number; fail: number };
   historial: DashboardBackupVerificationRowDto[];
+  automatedBackup: {
+    enabled: boolean;
+    cronExpression: string | null;
+    includeStorageZip: boolean;
+  };
 };
 
 export type DashboardAlertItem = {
@@ -95,14 +107,14 @@ function clampPercent(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/** Acción de auditoría cuando un administrador registra verificación institucional de respaldo (ver pantalla Respaldos). */
-export const AUDIT_ACTION_BACKUP_VERIFIED = 'BACKUP_VERIFIED' as const;
+export { AUDIT_ACTION_BACKUP_VERIFIED } from '../backup/backup.constants';
 
 function parseBackupVerifiedMeta(metaJson: string | null): {
   notes?: string;
   tipoRespaldo?: string;
   tamanoLabel?: string;
   tamanoBytes?: number;
+  source?: string;
 } {
   if (!metaJson?.trim()) return {};
   try {
@@ -116,7 +128,8 @@ function parseBackupVerifiedMeta(metaJson: string | null): {
       typeof m.tamanoBytes === 'number' && Number.isFinite(m.tamanoBytes)
         ? m.tamanoBytes
         : undefined;
-    return { notes, tipoRespaldo, tamanoLabel, tamanoBytes };
+    const source = typeof m.source === 'string' ? m.source : undefined;
+    return { notes, tipoRespaldo, tamanoLabel, tamanoBytes, source };
   } catch {
     return {};
   }
@@ -133,6 +146,7 @@ export class DashboardService {
   async recordBackupVerification(
     viewer: JwtRequestUser,
     payload?: {
+      result?: 'OK' | 'FAIL';
       notes?: string;
       tipoRespaldo?: string;
       tamanoBytes?: number;
@@ -143,22 +157,30 @@ export class DashboardService {
       throw new ForbiddenException();
     }
     const recordedAt = new Date();
+    const verdict: AuditResult = payload?.result === 'FAIL' ? 'FAIL' : 'OK';
     const notes = payload?.notes?.trim();
     const tipo = payload?.tipoRespaldo?.trim();
     const tamLabel = payload?.tamanoLabel?.trim();
     const tamBytes = payload?.tamanoBytes;
 
-    const meta: Record<string, unknown> = { source: 'manual_registry' };
+    const meta: Record<string, unknown> = {
+      source: BACKUP_META_SOURCE_MANUAL,
+    };
     if (notes && notes.length > 0) meta.notes = notes.slice(0, 500);
     if (tipo && tipo.length > 0) meta.tipoRespaldo = tipo.slice(0, 64);
-    if (tamLabel && tamLabel.length > 0) meta.tamanoLabel = tamLabel.slice(0, 40);
-    if (typeof tamBytes === 'number' && Number.isFinite(tamBytes) && tamBytes >= 0) {
+    if (tamLabel && tamLabel.length > 0)
+      meta.tamanoLabel = tamLabel.slice(0, 40);
+    if (
+      typeof tamBytes === 'number' &&
+      Number.isFinite(tamBytes) &&
+      tamBytes >= 0
+    ) {
       meta.tamanoBytes = Math.floor(tamBytes);
     }
 
     await this.audit.log({
       action: AUDIT_ACTION_BACKUP_VERIFIED,
-      result: 'OK',
+      result: verdict,
       context: {
         actorUserId: viewer.id,
         actorEmail: viewer.email,
@@ -168,7 +190,9 @@ export class DashboardService {
     return { ok: true, recordedAt: recordedAt.toISOString() };
   }
 
-  async getBackupOverview(viewer: JwtRequestUser): Promise<DashboardBackupOverviewDto> {
+  async getBackupOverview(
+    viewer: JwtRequestUser,
+  ): Promise<DashboardBackupOverviewDto> {
     if (!jwtUserIsAdmin(viewer)) {
       throw new ForbiddenException();
     }
@@ -213,11 +237,14 @@ export class DashboardService {
           createdAt: r.createdAt.toISOString(),
           result: r.result,
           actorEmail: r.actorEmail,
+          source:
+            typeof m.source === 'string' && m.source.length > 0
+              ? m.source
+              : null,
           notes: m.notes ?? null,
           tipoRespaldo: m.tipoRespaldo ?? null,
           tamanoLabel: m.tamanoLabel ?? null,
-          tamanoBytes:
-            typeof m.tamanoBytes === 'number' ? m.tamanoBytes : null,
+          tamanoBytes: typeof m.tamanoBytes === 'number' ? m.tamanoBytes : null,
         };
       },
     );
@@ -225,12 +252,34 @@ export class DashboardService {
     const hint =
       this.config.get<string>('BACKUP_EXPECTED_SCHEDULE_HINT')?.trim() || null;
 
+    const autoEnabled =
+      this.config.get<string>('BACKUP_AUTOMATED_ENABLED')?.toLowerCase() ===
+      'true';
+    const cronExprRaw =
+      this.config.get<string>('BACKUP_AUTOMATED_CRON')?.trim() || '0 3 * * *';
+    const includeZip =
+      this.config.get<string>('BACKUP_INCLUDE_STORAGE_ZIP')?.toLowerCase() ===
+      'true';
+
+    const hintParts: string[] = [];
+    if (hint && hint.length > 0) hintParts.push(hint);
+    if (autoEnabled && cronExprRaw.length > 0) {
+      hintParts.push(`Cron automático (servidor): ${cronExprRaw}`);
+    }
+    const siguienteCopiaEtiqueta =
+      hintParts.length > 0 ? hintParts.join(' · ') : null;
+
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       lastVerifiedAt: lastOk?.createdAt.toISOString() ?? null,
-      siguienteCopiaEtiqueta: hint && hint.length > 0 ? hint : null,
+      siguienteCopiaEtiqueta,
       verificaciones90d: { ok: ok90d, fail: fail90d },
       historial,
+      automatedBackup: {
+        enabled: autoEnabled,
+        cronExpression: autoEnabled ? cronExprRaw : null,
+        includeStorageZip: autoEnabled && includeZip,
+      },
     };
   }
 
@@ -241,7 +290,15 @@ export class DashboardService {
 
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const now = new Date();
-    const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const inicioMes = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
 
     const [
       documentosTotal,
@@ -377,11 +434,15 @@ export class DashboardService {
         mensaje: `Se registraron ${loginFail30d} intento(s) fallido(s) de inicio de sesión en los últimos 30 días; revisar Auditoría (AUTH_LOGIN_FAIL) o posibles abusos.`,
       });
     }
+    const backupAutoEnabled =
+      this.config.get<string>('BACKUP_AUTOMATED_ENABLED')?.toLowerCase() ===
+      'true';
     if (isAdmin && !lastBackupVerified) {
       alertasItems.push({
         codigo: 'BACKUP_SIN_REGISTRO',
-        mensaje:
-          'No hay verificación de respaldo registrada en el sistema; tras la copia MySQL/storage use Respaldos → «Registrar verificación».',
+        mensaje: backupAutoEnabled
+          ? 'Aún no hay un evento BACKUP_VERIFIED con resultado OK; si BACKUP_AUTOMATED_ENABLED está activo, revise logs del servidor e historial en Respaldos.'
+          : 'No hay verificación de respaldo OK en auditoría; tras copia MySQL/storage use Respaldos → «Registrar verificación», o habilite el respaldo automático en servidor (ver .env.example).',
       });
     }
     const alerts = alertasItems.length;
@@ -496,10 +557,14 @@ export class DashboardService {
         : null;
 
     const filtroTipo = filtros.tipoDocumentalId
-      ? ({ tipoDocumentalId: filtros.tipoDocumentalId } satisfies Prisma.DocumentoWhereInput)
+      ? ({
+          tipoDocumentalId: filtros.tipoDocumentalId,
+        } satisfies Prisma.DocumentoWhereInput)
       : null;
     const filtroDep = filtros.dependenciaId
-      ? ({ dependenciaId: filtros.dependenciaId } satisfies Prisma.DocumentoWhereInput)
+      ? ({
+          dependenciaId: filtros.dependenciaId,
+        } satisfies Prisma.DocumentoWhereInput)
       : null;
 
     const AND: Prisma.DocumentoWhereInput[] = [{ activo: true }];

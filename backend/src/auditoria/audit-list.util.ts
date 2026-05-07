@@ -30,9 +30,7 @@ export function buildAuditWhere(
       : actorMail
         ? { actorEmail: { contains: actorMail } }
         : {}),
-    ...(q.resourceType?.trim()
-      ? { resourceType: q.resourceType.trim() }
-      : {}),
+    ...(q.resourceType?.trim() ? { resourceType: q.resourceType.trim() } : {}),
     ...(q.resourceId?.trim() ? { resourceId: q.resourceId.trim() } : {}),
     ...(q.from || q.to
       ? {
@@ -46,7 +44,9 @@ export function buildAuditWhere(
 }
 
 /** `documentoId` en meta de eventos ligados a `DocumentoArchivo` u otros. */
-export function parseDocumentoIdFromAuditMeta(metaJson: string | null): string | null {
+export function parseDocumentoIdFromAuditMeta(
+  metaJson: string | null,
+): string | null {
   if (!metaJson?.trim()) return null;
   try {
     const m = JSON.parse(metaJson) as { documentoId?: unknown };

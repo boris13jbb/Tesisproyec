@@ -3,6 +3,13 @@ import axios, {
   isAxiosError,
   type InternalAxiosRequestConfig,
 } from 'axios';
+
+/** Opcional por petición: evita toast global cuando la pantalla muestra otro mensaje */
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    suppressGlobalNetworkErrorToast?: boolean;
+  }
+}
 import type { AuthUser } from '../auth/types';
 import {
   getAccessToken,
@@ -50,7 +57,15 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    if (!error.response && !esCancelacionCliente(error)) {
+    const cfg = error.config as (InternalAxiosRequestConfig & {
+      suppressGlobalNetworkErrorToast?: boolean;
+    }) | undefined;
+    const suppressToast = cfg?.suppressGlobalNetworkErrorToast === true;
+    if (
+      !error.response &&
+      !esCancelacionCliente(error) &&
+      !suppressToast
+    ) {
       notifyGlobalError(
         'No se pudo conectar con la API. Verifica que el backend esté levantado.',
       );

@@ -81,7 +81,9 @@ export class DocumentosController {
     if (anio !== undefined && String(anio).trim() !== '') {
       y = Number(String(anio).trim());
       if (!Number.isInteger(y)) {
-        throw new BadRequestException('Query «anio» debe ser un entero (ej. 2026).');
+        throw new BadRequestException(
+          'Query «anio» debe ser un entero (ej. 2026).',
+        );
       }
     }
     return this.service.sugerirSiguienteCodigo(y);

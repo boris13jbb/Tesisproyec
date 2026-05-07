@@ -159,10 +159,7 @@ export class DocumentosService {
     }
 
     const start = `${prefijo}-${y}-`;
-    const matcher = new RegExp(
-      `^${escapeRegExpSegment(start)}(\\d{5})$`,
-      'i',
-    );
+    const matcher = new RegExp(`^${escapeRegExpSegment(start)}(\\d{5})$`, 'i');
 
     const rows = await this.prisma.documento.findMany({
       where: { codigo: { startsWith: start } },
@@ -369,42 +366,45 @@ export class DocumentosService {
       ? { AND: [baseWhere, scope] }
       : baseWhere;
 
-    const [seriesRows, subs, todasSubseriePadres, countBySub, depRows, confRows] =
-      await this.prisma.$transaction([
-        this.prisma.serie.findMany({
-          where: { activo: true },
-          select: { id: true },
-        }),
-        this.prisma.subserie.findMany({
-          where: { activo: true },
-          select: { id: true, serieId: true },
-        }),
-        /** Todas las subseries (árbol agregados): para mapear documentos al padre Serie aunque la subserie esté inactiva. */
-        this.prisma.subserie.findMany({
-          select: { id: true, serieId: true },
-        }),
-        this.prisma.documento.groupBy({
-          by: ['subserieId'],
-          where,
-          _count: { _all: true },
-          orderBy: { subserieId: 'asc' },
-        }),
-        this.prisma.documento.groupBy({
-          by: ['subserieId', 'dependenciaId'],
-          where,
-          _count: { _all: true },
-          orderBy: [{ subserieId: 'asc' }, { dependenciaId: 'asc' }],
-        }),
-        this.prisma.documento.groupBy({
-          by: ['subserieId', 'nivelConfidencialidad'],
-          where,
-          _count: { _all: true },
-          orderBy: [
-            { subserieId: 'asc' },
-            { nivelConfidencialidad: 'asc' },
-          ],
-        }),
-      ]);
+    const [
+      seriesRows,
+      subs,
+      todasSubseriePadres,
+      countBySub,
+      depRows,
+      confRows,
+    ] = await this.prisma.$transaction([
+      this.prisma.serie.findMany({
+        where: { activo: true },
+        select: { id: true },
+      }),
+      this.prisma.subserie.findMany({
+        where: { activo: true },
+        select: { id: true, serieId: true },
+      }),
+      /** Todas las subseries (árbol agregados): para mapear documentos al padre Serie aunque la subserie esté inactiva. */
+      this.prisma.subserie.findMany({
+        select: { id: true, serieId: true },
+      }),
+      this.prisma.documento.groupBy({
+        by: ['subserieId'],
+        where,
+        _count: { _all: true },
+        orderBy: { subserieId: 'asc' },
+      }),
+      this.prisma.documento.groupBy({
+        by: ['subserieId', 'dependenciaId'],
+        where,
+        _count: { _all: true },
+        orderBy: [{ subserieId: 'asc' }, { dependenciaId: 'asc' }],
+      }),
+      this.prisma.documento.groupBy({
+        by: ['subserieId', 'nivelConfidencialidad'],
+        where,
+        _count: { _all: true },
+        orderBy: [{ subserieId: 'asc' }, { nivelConfidencialidad: 'asc' }],
+      }),
+    ]);
 
     /** Mapa global subserie → serie (incluye inactivas en catálogo). */
     const subToSerieFull = new Map(
@@ -417,7 +417,7 @@ export class DocumentosService {
 
     const depBySub = new Map<string, Map<string | null, number>>();
     for (const r of depRows) {
-      const m = depBySub.get(r.subserieId) ?? new Map();
+      const m = depBySub.get(r.subserieId) ?? new Map<string | null, number>();
       m.set(
         r.dependenciaId,
         (m.get(r.dependenciaId) ?? 0) + documentoGroupByAll(r),
@@ -426,7 +426,7 @@ export class DocumentosService {
     }
     const confBySub = new Map<string, Map<string, number>>();
     for (const r of confRows) {
-      const m = confBySub.get(r.subserieId) ?? new Map();
+      const m = confBySub.get(r.subserieId) ?? new Map<string, number>();
       m.set(
         r.nivelConfidencialidad,
         (m.get(r.nivelConfidencialidad) ?? 0) + documentoGroupByAll(r),
@@ -434,7 +434,9 @@ export class DocumentosService {
       confBySub.set(r.subserieId, m);
     }
 
-    function pickTopNullableBucket(m: Map<string | null, number>): string | null {
+    function pickTopNullableBucket(
+      m: Map<string | null, number>,
+    ): string | null {
       let bestK: string | null = null;
       let bestN = -1;
       const sorted = [...m.entries()].sort(([a], [b]) =>
@@ -469,8 +471,8 @@ export class DocumentosService {
 
     for (const sid of serieIds) {
       serieEx.set(sid, 0);
-      serieDep.set(sid, new Map());
-      serieConf.set(sid, new Map());
+      serieDep.set(sid, new Map<string | null, number>());
+      serieConf.set(sid, new Map<string, number>());
     }
 
     for (const row of countBySub) {
@@ -505,8 +507,12 @@ export class DocumentosService {
       let dependenciaId: string | null = null;
       let nivelConfidencialidad: string | null = null;
       if (expedientes > 0) {
-        dependenciaId = pickTopNullableBucket(depBySub.get(sub.id) ?? new Map());
-        nivelConfidencialidad = pickTopConf(confBySub.get(sub.id) ?? new Map());
+        dependenciaId = pickTopNullableBucket(
+          depBySub.get(sub.id) ?? new Map<string | null, number>(),
+        );
+        nivelConfidencialidad = pickTopConf(
+          confBySub.get(sub.id) ?? new Map<string, number>(),
+        );
         if (dependenciaId) depIdsNeeded.add(dependenciaId);
       }
       subseries[sub.id] = {
@@ -523,8 +529,12 @@ export class DocumentosService {
       let dependenciaId: string | null = null;
       let nivelConfidencialidad: string | null = null;
       if (expedientes > 0) {
-        dependenciaId = pickTopNullableBucket(serieDep.get(sid) ?? new Map());
-        nivelConfidencialidad = pickTopConf(serieConf.get(sid) ?? new Map());
+        dependenciaId = pickTopNullableBucket(
+          serieDep.get(sid) ?? new Map<string | null, number>(),
+        );
+        nivelConfidencialidad = pickTopConf(
+          serieConf.get(sid) ?? new Map<string, number>(),
+        );
         if (dependenciaId) depIdsNeeded.add(dependenciaId);
       }
       seriesAgg[sid] = {

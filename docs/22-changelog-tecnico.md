@@ -24,6 +24,20 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-07 — Seguimiento respaldos: `.gitignore`, carpeta `backups/automated`, script PowerShell y hardening doc
+
+- **Repo:** ignorar `*.sql` / `*.zip` bajo `backups/automated/`; `README.md` de la carpeta con reglas de permisos y no exposición web.
+- **Script:** `scripts/configure-local-backups.ps1` — añade bloque `BACKUP_*` a `backend/.env` si falta `BACKUP_MYSQLDUMP_PATH`.
+- **Docs:** `18-seguridad-y-hardening.md` (directorio de respaldos), `scripts/README-backups-mysql-xampp.md` (checklist), `27-manual-usuario` § 11.
+
+### 2026-05-07 — Respaldos: mysqldump automático (cron), registro FAIL y `POST /backup/admin/run-now`
+
+- **Backend:** módulo `backup/` + `ScheduleModule` — `MysqlDumpBackupService` ejecuta `mysqldump` con `.cnf` temporal (sin password en línea de comandos), rotación `BACKUP_KEEP_COUNT`, ZIP opcional de `storage/` (`BACKUP_INCLUDE_STORAGE_ZIP`); auditoría `BACKUP_VERIFIED` con `meta.source=scheduled_mysqldump` y resultado OK/FAIL.
+- **API:** `POST /api/v1/backup/admin/run-now` (ADMIN) — mismo flujo sin esperar al cron.
+- **Dashboard:** `POST .../backup-verification` acepta `result` OK|FAIL; `backup-overview` v2 añade `automatedBackup` y `historial[].source`.
+- **Frontend:** radios OK/FAIL, columna Origen, tarjeta y botón mysqldump inmediato.
+- **Docs:** `scripts/README-backups-mysql-xampp.md`, `27-manual-usuario-sgd-gadpr-lm.md` § 11, `backend/.env.example`.
+
 ### 2026-05-06 — Respaldos (ADMIN): KPI + historial real desde auditoría `BACKUP_VERIFIED`
 
 - **API:** `GET /api/v1/dashboard/admin/backup-overview` — hasta 50 filas recientes de `BACKUP_VERIFIED`, conteos OK/FAIL en 90 días, último OK y texto opcional `BACKUP_EXPECTED_SCHEDULE_HINT` desde entorno (sin cron en la app).

@@ -10,8 +10,12 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
@@ -25,6 +29,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { isAxiosError } from 'axios';
 import { apiClient } from '../../api/client';
 import { PageHeader } from '../../components/PageHeader';
 
@@ -35,6 +40,7 @@ type DashboardBackupVerificationRow = {
   createdAt: string;
   result: string;
   actorEmail: string | null;
+  source?: string | null;
   notes: string | null;
   tipoRespaldo: string | null;
   tamanoLabel: string | null;
@@ -42,11 +48,16 @@ type DashboardBackupVerificationRow = {
 };
 
 type DashboardBackupOverview = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   lastVerifiedAt: string | null;
   siguienteCopiaEtiqueta: string | null;
   verificaciones90d: { ok: number; fail: number };
   historial: DashboardBackupVerificationRow[];
+  automatedBackup?: {
+    enabled: boolean;
+    cronExpression: string | null;
+    includeStorageZip: boolean;
+  };
 };
 
 const paperCardSx = {
@@ -117,6 +128,13 @@ function formatTamanoDisplay(row: DashboardBackupVerificationRow): string {
   return '—';
 }
 
+function formatOrigenRow(source: string | null | undefined): string {
+  if (!source?.trim()) return '—';
+  if (source === 'scheduled_mysqldump') return 'Automático';
+  if (source === 'manual_registry') return 'Manual';
+  return source;
+}
+
 function LetterTile({
   letter,
   bgTint,
@@ -160,6 +178,11 @@ export function RespaldosSeguridadPage() {
   const [regTipo, setRegTipo] = useState('');
   const [regTamLabel, setRegTamLabel] = useState('');
   const [regTamBytes, setRegTamBytes] = useState('');
+  const [regOutcome, setRegOutcome] = useState<'OK' | 'FAIL'>('OK');
+  const [runNowBusy, setRunNowBusy] = useState(false);
+  const [runNowBanner, setRunNowBanner] = useState<{ severity: 'success' | 'error' | 'info'; text: string } | null>(
+    null,
+  );
 
   const fetchOverview = useCallback(async (): Promise<DashboardBackupOverview> => {
     const { data } = await apiClient.get<DashboardBackupOverview>('/dashboard/admin/backup-overview');
@@ -231,19 +254,22 @@ export function RespaldosSeguridadPage() {
 
   const siguienteCard = useMemo(() => {
     const hint = overview?.siguienteCopiaEtiqueta?.trim();
+    const autoOn = overview?.automatedBackup?.enabled === true;
     if (hint) {
       return {
         headline: hint,
-        detail:
-          'Texto de referencia (`BACKUP_EXPECTED_SCHEDULE_HINT` en servidor). La aplicación no programa copias.',
+        detail: autoOn
+          ? 'Incluye pista institucional y/o expresión cron configurada en el servidor (véase backend/.env.example).'
+          : 'Textos de referencia definidos en el servidor (BACKUP_EXPECTED_SCHEDULE_HINT u otros).',
       };
     }
     return {
-      headline: 'No definido aquí',
-      detail:
-        'La aplicación no calcula próximos respaldos. Opcional: defina BACKUP_EXPECTED_SCHEDULE_HINT en el backend para una ventana horaria institucional.',
+      headline: autoOn ? `Cron: ${overview?.automatedBackup?.cronExpression ?? '—'}` : 'Sin datos de programación',
+      detail: autoOn
+        ? 'Respaldo automático habilitado; la expresión debería mostrarse en la API.'
+        : 'Defina BACKUP_AUTOMATED_ENABLED=true y MYSQLDUMP/mysqldump, o BACKUP_EXPECTED_SCHEDULE_HINT.',
     };
-  }, [overview?.siguienteCopiaEtiqueta]);
+  }, [overview?.siguienteCopiaEtiqueta, overview?.automatedBackup]);
 
   const restorationSteps = [
     'Seleccionar punto de respaldo',
@@ -272,8 +298,17 @@ export function RespaldosSeguridadPage() {
       }
       tamanoBytes = n;
     }
+    if (regOutcome === 'FAIL' && trimmedNotes.length === 0) {
+      setBackupRegMsg({
+        severity: 'error',
+        text: 'Si el resultado es «Fallida», describa el motivo en Notas (obligatorio).',
+      });
+      setBackupRegBusy(false);
+      return;
+    }
     try {
       await apiClient.post('/dashboard/admin/backup-verification', {
+        ...(regOutcome === 'FAIL' ? { result: 'FAIL' } : {}),
         ...(trimmedNotes.length > 0 ? { notes: trimmedNotes } : {}),
         ...(trimmedTipo.length > 0 ? { tipoRespaldo: trimmedTipo } : {}),
         ...(trimmedLabel.length > 0 ? { tamanoLabel: trimmedLabel } : {}),
@@ -281,11 +316,15 @@ export function RespaldosSeguridadPage() {
       });
       setBackupRegMsg({
         severity: 'success',
-        text: 'Verificación registrada (`BACKUP_VERIFIED`). La tabla y las tarjetas se actualizarán desde auditoría.',
+        text:
+          regOutcome === 'FAIL'
+            ? 'Fallo registrado en auditoría (BACKUP_VERIFIED / FAIL).'
+            : 'Verificación registrada (BACKUP_VERIFIED / OK). La tabla se actualiza desde auditoría.',
       });
       setRegNotes('');
       setRegTamLabel('');
       setRegTamBytes('');
+      setRegOutcome('OK');
       await manualReload();
     } catch {
       setBackupRegMsg({
@@ -294,6 +333,58 @@ export function RespaldosSeguridadPage() {
       });
     } finally {
       setBackupRegBusy(false);
+    }
+  }
+
+  async function runDumpNow(): Promise<void> {
+    setRunNowBusy(true);
+    setRunNowBanner(null);
+    try {
+      const { data } = await apiClient.post<{ ok: boolean; skipped?: boolean }>(
+        '/backup/admin/run-now',
+        {},
+        {
+          suppressGlobalNetworkErrorToast: true,
+          timeout: 15 * 60 * 1000,
+        },
+      );
+      if (data.skipped) {
+        setRunNowBanner({
+          severity: 'info',
+          text: 'Omitido: ya había un respaldo en ejecución. Intente de nuevo en unos minutos.',
+        });
+      } else if (data.ok) {
+        setRunNowBanner({
+          severity: 'success',
+          text: 'mysqldump finalizado. Revise el historial y la carpeta BACKUP_OUTPUT_DIR en el servidor.',
+        });
+        await manualReload();
+      } else {
+        setRunNowBanner({
+          severity: 'error',
+          text: 'El comando devolvió error; revise auditoría (FAIL) y logs del API.',
+        });
+        await manualReload();
+      }
+    } catch (err: unknown) {
+      let text =
+        'No se pudo ejecutar mysqldump. Revise BACKUP_MYSQLDUMP_PATH, DATABASE_URL, rol ADMIN en el servidor y reinicie la API tras cambiar .env.';
+      if (isAxiosError(err)) {
+        if (!err.response) {
+          text =
+            err.code === 'ECONNABORTED'
+              ? 'Tiempo de espera agotado (mysqldump o ZIP muy lentos). Puede ejecutar por consola en el servidor o aumentar timeouts de proxy/API.'
+              : 'Sin respuesta del servidor (¿API apagada, proxy/Vite cortado o entrada por LAN con VITE_API_URL apuntando a localhost del cliente?). Deje sin definir VITE_API_URL y use base relativa /api/v1 tras reiniciar Vite.';
+        } else if (err.response.status === 403) {
+          text = 'No autorizado: se requiere rol ADMIN para ejecutar mysqldump.';
+        }
+      }
+      setRunNowBanner({
+        severity: 'error',
+        text,
+      });
+    } finally {
+      setRunNowBusy(false);
     }
   }
 
@@ -324,7 +415,7 @@ export function RespaldosSeguridadPage() {
               · GADPR-LM · Sistema de Gestión Documental
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              Verificación documentada en auditoría; copias físicas según procedimiento institucional.
+              Evidencia en auditoría; copia MySQL puede ser automática en servidor; restauración sigue siendo manual.
             </Typography>
           </Stack>
         }
@@ -332,17 +423,46 @@ export function RespaldosSeguridadPage() {
 
       <Alert severity="info" sx={{ mb: { xs: 2, md: 2.25 }, borderRadius: 2 }}>
         <Typography variant="body2">
-          Esta aplicación <strong>no ejecuta respaldos ni restauraciones automáticas</strong>. Las copias de MySQL/MariaDB y de{' '}
-          <code style={{ wordBreak: 'break-all' }}>storage/</code> se hacen fuera del SGD web; guía:{' '}
-          <strong>scripts/README-backups-mysql-xampp.md</strong>.
+          El servidor puede ejecutar <strong>mysqldump programado</strong> (cron NestJS + <code>BACKUP_MYSQLDUMP_PATH</code>) y
+          opcionalmente un ZIP de <code>storage/</code>. La <strong>restauración</strong> sigue siendo manual (MySQL + extracción
+          de archivos); guía: <strong>scripts/README-backups-mysql-xampp.md</strong>.
         </Typography>
         <Typography variant="body2" sx={{ mt: 1 }}>
-          Las tarjetas y la tabla de esta pantalla muestran <strong>datos reales</strong> leídos de{' '}
-          <code>audit_logs</code> (acción <code>BACKUP_VERIFIED</code>) cuando un administrador registra la verificación.
-          La fila &quot;próximo respaldo&quot; solo aparece si el servidor define la variable opcional{' '}
-          <code>BACKUP_EXPECTED_SCHEDULE_HINT</code>.
+          Las tarjetas y la tabla leen <strong>auditoría real</strong> (<code>BACKUP_VERIFIED</code>, OK/FAIL) por registro manual
+          o por el job automático. Los artefactos (.sql / .zip) quedan en disco según <code>BACKUP_OUTPUT_DIR</code>, no en la base
+          de datos.
         </Typography>
       </Alert>
+
+      <Paper elevation={0} sx={{ ...paperCardSx, mb: { xs: 2, md: 2.25 } }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+          Copia automática MySQL (servidor)
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.65 }}>
+          Requiere <code>BACKUP_MYSQLDUMP_PATH</code> apuntando a <code>mysqldump</code> (p. ej. XAMPP).{' '}
+          {overview?.automatedBackup?.enabled ? (
+            <>
+              Estado: <strong>programación activa</strong>
+              {overview.automatedBackup.includeStorageZip ? ' (incluye ZIP de storage).' : '.'}
+            </>
+          ) : (
+            <>Estado en este entorno: <strong>sin cron automático</strong> (puede activar con BACKUP_AUTOMATED_ENABLED).</>
+          )}
+        </Typography>
+        {runNowBanner ? (
+          <Alert severity={runNowBanner.severity} sx={{ mb: 1.5 }}>
+            {runNowBanner.text}
+          </Alert>
+        ) : null}
+        <Button
+          variant="outlined"
+          disabled={runNowBusy || overviewLoading}
+          onClick={() => void runDumpNow()}
+          sx={{ textTransform: 'none', fontWeight: 700 }}
+        >
+          {runNowBusy ? 'Ejecutando mysqldump…' : 'Ejecutar mysqldump ahora (manual)'}
+        </Button>
+      </Paper>
 
       <Paper elevation={0} sx={{ ...paperCardSx, mb: { xs: 2, md: 2.25 } }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
@@ -359,6 +479,18 @@ export function RespaldosSeguridadPage() {
           </Alert>
         ) : null}
         <Stack spacing={2} sx={{ mb: 2 }}>
+          <FormControl>
+            <FormLabel id="outcome-label">Resultado de la verificación</FormLabel>
+            <RadioGroup
+              row
+              aria-labelledby="outcome-label"
+              value={regOutcome}
+              onChange={(_, v) => setRegOutcome(v as 'OK' | 'FAIL')}
+            >
+              <FormControlLabel value="OK" control={<Radio size="small" />} label="Verificación correcta (OK)" />
+              <FormControlLabel value="FAIL" control={<Radio size="small" />} label="Verificación fallida (FAIL)" />
+            </RadioGroup>
+          </FormControl>
           <FormControl fullWidth size="small">
             <InputLabel id="tipo-respaldo-label">Tipo de copia (opcional)</InputLabel>
             <Select
@@ -465,7 +597,15 @@ export function RespaldosSeguridadPage() {
               </Typography>
             </Box>
           </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#1565c0' }}>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 800,
+              color: '#1565c0',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
             {overviewError ? '—' : overviewLoading ? '…' : siguienteCard.headline}
           </Typography>
         </Paper>
@@ -513,6 +653,7 @@ export function RespaldosSeguridadPage() {
               <TableHead sx={{ '& th': { fontWeight: 800, bgcolor: '#f9fafc' } }}>
                 <TableRow>
                   <TableCell>Fecha</TableCell>
+                  <TableCell>Origen</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Tamaño</TableCell>
                   <TableCell align="center">Estado</TableCell>
@@ -521,7 +662,7 @@ export function RespaldosSeguridadPage() {
               <TableBody>
                 {overviewError ? (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Typography variant="body2" color="error">
                         No se pudo cargar el historial.
                       </Typography>
@@ -529,7 +670,7 @@ export function RespaldosSeguridadPage() {
                   </TableRow>
                 ) : overviewLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CircularProgress size={20} />
                         <Typography variant="body2">Cargando auditoría…</Typography>
@@ -538,9 +679,9 @@ export function RespaldosSeguridadPage() {
                   </TableRow>
                 ) : (overview?.historial?.length ?? 0) === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Typography variant="body2" color="text.secondary">
-                        Sin registros. Use “Registrar verificación” tras una copia verificada.
+                        Sin registros. Use “Registrar verificación” tras una copia verificada o habilite el respaldo automático.
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -548,6 +689,7 @@ export function RespaldosSeguridadPage() {
                   overview!.historial.map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell>{formatTableDate(row.createdAt)}</TableCell>
+                      <TableCell>{formatOrigenRow(row.source)}</TableCell>
                       <TableCell>{row.tipoRespaldo?.trim() || '—'}</TableCell>
                       <TableCell>{formatTamanoDisplay(row)}</TableCell>
                       <TableCell align="center">

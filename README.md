@@ -145,6 +145,7 @@ Suele ser un **archivo bloqueado** (`query_engine-windows.dll.node`). Orden reco
 - Arquitectura: `docs/01-arquitectura-general.md`
 - Problemas y riesgos: `docs/20-problemas-detectados.md`, `docs/21-riesgos-pendientes.md`
 - Changelog técnico: `docs/22-changelog-tecnico.md`
+- Guía de prueba por módulos (formato obligatorio de cierre): `docs/99-guia-de-prueba-por-modulos.md`
 
 ## Licencia
 

@@ -38,6 +38,7 @@ model User {
   DocumentoArchivo DocumentoArchivo[]
   DocumentoArchivoEvento DocumentoArchivoEvento[]
   auditLogs     AuditLog[]
+  updatedSecurityPolicies SecurityPolicy[] @relation("SecurityPolicyUpdatedBy")
 
   @@index([dependenciaId])
   @@index([cargoId])
@@ -108,6 +109,37 @@ model AuditLog {
   @@index([actorUserId, createdAt])
   @@index([resourceType, resourceId])
   @@map("audit_logs")
+}
+
+/// Política institucional de seguridad (registro ISO 15489).
+/// - Persistida en BD para evidencia y gobierno (no necesariamente altera runtime si no está implementado).
+/// - Singleton por entorno: id fijo "default".
+model SecurityPolicy {
+  id String @id @default("default") @db.VarChar(64)
+
+  // Autenticación (ISO 27001 A.5.17 / OWASP ASVS V2)
+  desiredPasswordMinLength   Int  @default(8) @map("desired_password_min_length")
+  desiredLockoutEnabled      Boolean @default(true) @map("desired_lockout_enabled")
+  desiredLockoutMaxAttempts  Int  @default(5) @map("desired_lockout_max_attempts")
+  desiredLockoutMinutes      Int  @default(20) @map("desired_lockout_minutes")
+
+  // Sesión (referencial; JWT stateless, evidencia en config/env)
+  desiredJwtAccessExpiresIn  String @default("15m") @map("desired_jwt_access_expires_in") @db.VarChar(16)
+  desiredRefreshSessionDays  Int    @default(7) @map("desired_refresh_session_days")
+
+  // Controles adicionales (pueden quedar en "pendiente" según implementación)
+  desiredPasswordHistoryCount Int @default(0) @map("desired_password_history_count")
+  desiredAdminStepUpAuth      Boolean @default(false) @map("desired_admin_step_up_auth")
+
+  notes String? @db.VarChar(800)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedByUserId String? @map("updated_by_user_id")
+  updatedBy User? @relation("SecurityPolicyUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+  @@map("security_policy")
 }
 
 model Role {

@@ -197,9 +197,18 @@ export function ReportesInstitucionalesPage() {
   const maxCount = chartRows.length > 0 ? Math.max(...chartRows.map((r) => r.count), 1) : 1;
   const bars = chartRows.slice(0, 6);
 
+  type ExportPath =
+    | '/reportes/documentos.pdf'
+    | '/reportes/documentos.xlsx'
+    | '/reportes/auditoria.pdf'
+    | '/reportes/auditoria.xlsx'
+    | '/reportes/pendientes-revision.pdf'
+    | '/reportes/pendientes-revision.xlsx';
+
   const execExport = async (
-    path: '/reportes/documentos.pdf' | '/reportes/documentos.xlsx' | '/reportes/auditoria.pdf',
+    path: ExportPath,
     ext: string,
+    extraParams?: Record<string, string>,
   ) => {
     setExportMsg(undefined);
     const mime =
@@ -208,16 +217,17 @@ export function ReportesInstitucionalesPage() {
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       : '';
 
-    /** Auditoría no comparte filtros de documentos: solo rango temporal. */
-    const params =
-      path === '/reportes/auditoria.pdf' ?
-        (() => {
-          const audit: Record<string, string> = {};
-          if (appliedBounds?.fechaDesde) audit.from = appliedBounds.fechaDesde;
-          if (appliedBounds?.fechaHasta) audit.to = appliedBounds.fechaHasta;
-          return audit;
-        })()
-      : exportReportParams;
+    /** Auditoría no comparte filtros de documentos: usa `from/to` y filtros por acción/actor/etc. */
+    const baseParams: Record<string, string> = (() => {
+      if (path.startsWith('/reportes/auditoria')) {
+        const audit: Record<string, string> = {};
+        if (appliedBounds?.fechaDesde) audit.from = appliedBounds.fechaDesde;
+        if (appliedBounds?.fechaHasta) audit.to = appliedBounds.fechaHasta;
+        return audit;
+      }
+      return exportReportParams;
+    })();
+    const params = { ...baseParams, ...(extraParams ?? {}) };
 
     try {
       const res = await apiClient.get(path, {
@@ -558,10 +568,10 @@ export function ReportesInstitucionalesPage() {
             >
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  Actividad por usuario
+                  Auditoría (seguridad y trazabilidad)
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Aproximación vía eventos de auditoría (período seleccionado)
+                  Eventos del sistema en el período seleccionado (filtros por acción/actor disponibles en API)
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
@@ -573,6 +583,16 @@ export function ReportesInstitucionalesPage() {
                     sx={{ textTransform: 'none' }}
                   >
                     PDF
+                  </Button>
+                ) : null}
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void execExport('/reportes/auditoria.xlsx', 'xlsx')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
                   </Button>
                 ) : null}
               </Stack>
@@ -590,20 +610,34 @@ export function ReportesInstitucionalesPage() {
             >
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  Trazabilidad por documento
+                  Pendientes de revisión
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Historial completo de un expediente (desde el detalle)
+                  Bandeja de revisión (REVISOR / ADMIN) con criterios vigentes
                 </Typography>
               </Box>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setTraceDialogOpen(true)}
-                sx={{ textTransform: 'none', alignSelf: { xs: 'stretch', sm: 'center' } }}
-              >
-                Cómo consultar
-              </Button>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {permitePdf ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void execExport('/reportes/pendientes-revision.pdf', 'pdf')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    PDF
+                  </Button>
+                ) : null}
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void execExport('/reportes/pendientes-revision.xlsx', 'xlsx')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
+                  </Button>
+                ) : null}
+              </Stack>
             </Stack>
 
             <Stack
@@ -621,17 +655,47 @@ export function ReportesInstitucionalesPage() {
                   Cumplimiento de respaldos
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Estado e integridad de copias (procedimiento institucional)
+                  Evidencia en auditoría: BACKUP_VERIFIED (OK/FAIL) + vista de control
                 </Typography>
               </Box>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => navigate('/admin/respaldos')}
-                sx={{ textTransform: 'none', alignSelf: { xs: 'stretch', sm: 'center' } }}
-              >
-                Abrir
-              </Button>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {permitePdf ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      void execExport('/reportes/auditoria.pdf', 'pdf', {
+                        action: 'BACKUP_VERIFIED',
+                      })
+                    }
+                    sx={{ textTransform: 'none' }}
+                  >
+                    PDF
+                  </Button>
+                ) : null}
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      void execExport('/reportes/auditoria.xlsx', 'xlsx', {
+                        action: 'BACKUP_VERIFIED',
+                      })
+                    }
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
+                  </Button>
+                ) : null}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate('/admin/respaldos')}
+                  sx={{ textTransform: 'none', alignSelf: { xs: 'stretch', sm: 'center' } }}
+                >
+                  Abrir
+                </Button>
+              </Stack>
             </Stack>
 
             <Stack
@@ -649,7 +713,7 @@ export function ReportesInstitucionalesPage() {
                   Documentos por área
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Producción documental con columna de dependencia
+                  Exportación XLSX con columna de dependencia (útil si “Área” = Todas)
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
