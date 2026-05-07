@@ -147,10 +147,12 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 ### 5.1 Gestión de usuarios (crear/editar/desactivar/reset)
 
-La pantalla **Administración de identidades** integra una **tabla de usuarios** (`GET /usuarios`: nombres, correo, dependencia/cargo del catálogo, roles RBAC, estado) y una **matriz de referencia** servida por el servidor (`GET /usuarios/matriz-acceso-referencia`) con el mismo criterio que las rutas NestJS (`@Roles`). La matriz es **solo lectura**: no guarda cambios; la asignación efectiva de capacidades se hace con **Editar** (roles del usuario). Use **Actualizar** (icono de recarga en la cabecera) para volver a cargar listado y matriz.
+La pantalla **Administración de identidades** muestra, en orden vertical y a **ancho completo**, primero el **directorio de usuarios institucionales** y, más abajo, la **matriz RBAC de referencia** (así la tabla no queda tan estrecha como en diseños de dos columnas). Los detalles técnicos (endpoints API, último ingreso `ultimoLoginAt`, alcance efectivo `@Roles`) y las referencias ISO/ASVS están en el apartado **Evidencia técnica y normativa (API, último ingreso)** (panel colapsable bajo la cabecera).
+
+En el fondo la información sigue siendo la misma: tabla (`GET /usuarios`: nombres, correo, dependencia/cargo del catálogo, roles RBAC, estado) y matriz (`GET /usuarios/matriz-acceso-referencia`) alineada con las rutas NestJS. La matriz es **solo lectura**: no guarda cambios; la capacidad efectiva se ajusta con **Editar usuario** desde el menú de acciones. Use **Actualizar** (icono de recarga en la cabecera de página) para volver a cargar listado y matriz.
 
 1. En el menú lateral, entra a **Administración → Usuarios y roles**.
-2. La tabla muestra usuario (nombre preferente o correo), **cargo y dependencia** cuando están asignados en el catálogo, roles, estado (**Activo** / **Suspendido** si la cuenta está deshabilitada) y **Último ingreso** a partir del campo **`ultimoLoginAt`** (se actualiza en cada inicio de sesión **exitoso con credenciales**; no refleja solo renovaciones silenciosas de sesión). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo.
+2. En el directorio, revisa chips **Activos** / **Total** y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
 3. Para crear un usuario:
    - Presiona **Crear usuario**
    - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`; en esta versión, salvo **ADMIN**, el acceso efectivo es el de usuario con JWT; los códigos adicionales sirven para preparar flujos futuros).
@@ -158,12 +160,13 @@ La pantalla **Administración de identidades** integra una **tabla de usuarios**
    - Presiona **Crear**
    - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
 4. Para editar:
-   - En el usuario, usa **Editar** en **Acciones**
-   - Ajusta roles/dependencia/cargo y presiona **Guardar**
+   - En la fila del usuario, pulsa el botón **⋮ / Acciones** (icono junto al final de la fila).
+   - Elige **Editar usuario** (roles, dependencia, cargo).
+   - Ajusta y presiona **Guardar**
 5. Para activar/desactivar:
-   - Pulsa **Desactivar** o **Activar** en **Acciones**
+   - En **Acciones**, elija **Activar cuenta** o **Desactivar cuenta**
 6. Para restablecer contraseña:
-   - Pulsa **Reset pass**
+   - En **Acciones**, elija **Restablecer contraseña**
    - Ingresa nueva contraseña y confirma
 
 **Resultado esperado**

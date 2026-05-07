@@ -1,7 +1,13 @@
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -15,9 +21,10 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
-  Grid,
   InputLabel,
+  ListItemText,
   MenuItem,
+  Menu,
   Paper,
   Select,
   type SelectChangeEvent,
@@ -33,7 +40,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { apiClient } from '../../api/client';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
@@ -151,6 +158,23 @@ function formatRoles(u: Usuario) {
   return u.roles.map((r) => r.nombre || r.codigo).join(', ');
 }
 
+/** Primera celda sticky en matriz RBAC horizontal (solo scroll X). */
+const matrixStickyModuleSx = {
+  position: 'sticky',
+  left: 0,
+  zIndex: 2,
+  bgcolor: '#fff',
+  boxShadow: '4px 0 12px rgba(15, 23, 42, 0.06)',
+  minWidth: { xs: 200, md: 240 },
+  maxWidth: { xs: 280, md: 320 },
+} as const;
+
+const matrixStickyModuleHeadSx = {
+  ...matrixStickyModuleSx,
+  zIndex: 3,
+  bgcolor: 'grey.50',
+} as const;
+
 function MatrixCell({ allowed }: { allowed: boolean }) {
   return (
     <TableCell align="center" sx={{ px: 0.5 }}>
@@ -178,6 +202,8 @@ export function UsuariosPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [selected, setSelected] = useState<Usuario | null>(null);
+  const [actionsAnchor, setActionsAnchor] = useState<null | HTMLElement>(null);
+  const [actionsUsuario, setActionsUsuario] = useState<Usuario | null>(null);
 
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
 
@@ -357,8 +383,20 @@ export function UsuariosPage() {
     setRoles(next.length ? next : ['USUARIO']);
   };
 
+  const openActionsMenu = (e: MouseEvent<HTMLElement>, u: Usuario) => {
+    setActionsAnchor(e.currentTarget);
+    setActionsUsuario(u);
+  };
+
+  const closeActionsMenu = () => {
+    setActionsAnchor(null);
+    setActionsUsuario(null);
+  };
+
+  const usuariosActivos = useMemo(() => items.filter((u) => u.activo).length, [items]);
+
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Administración de identidades"
         description={
@@ -367,7 +405,8 @@ export function UsuariosPage() {
               Usuarios y roles · GADPR-LM · Sistema de Gestión Documental
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Usuarios, roles y permisos aplicados por principio de mínimo privilegio.
+              Ciclo de vida de cuentas y matriz RBAC de referencia, con alcance institucional (ISO/IEC 27001, gestión de
+              registros, OWASP ASVS).
             </Typography>
           </Stack>
         }
@@ -398,60 +437,102 @@ export function UsuariosPage() {
         </Alert>
       )}
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper
-            id="tabla-usuarios-institucionales"
-            elevation={0}
-            sx={{
-              ...paperCardSx,
-              p: { xs: 2, sm: 2.25 },
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 420,
-            }}
+      <Accordion
+        defaultExpanded={false}
+        elevation={0}
+        sx={{
+          mb: { xs: 2, md: 2.5 },
+          ...paperCardSx,
+          '&:before': { display: 'none' },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="tech-usuarios" id="tech-usuarios-header">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <InfoOutlinedIcon color="primary" sx={{ opacity: 0.85 }} fontSize="small" />
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              Evidencia técnica y normativa (API, último ingreso)
+            </Typography>
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.65 }}>
+            El directorio se obtiene desde <strong>GET /usuarios</strong> (ADMIN). Referencia RBAC desde{' '}
+            <strong>GET /usuarios/matriz-acceso-referencia</strong>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
+            <strong>ISO/IEC 27001 A.5.16/A.5.18</strong> — gestión segura del ciclo de vida de identidades.{' '}
+            <strong>ISO 15489</strong> — trazabilidad de decisiones institucionalizadas. La columna{' '}
+            <strong>Último ingreso</strong> muestra el campo servidor <strong>ultimoLoginAt</strong> tras login con
+            credenciales exitoso (no se actualiza sólo por refresh silencioso). Las capacidades efectivas están en las
+            rutas NestJS (<code>@Roles</code>); cambie el alcance mediante asignación de roles en cada usuario.
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
+
+      <Stack spacing={{ xs: 2.25, md: 3 }}>
+        <Paper
+          id="tabla-usuarios-institucionales"
+          elevation={0}
+          sx={{
+            ...paperCardSx,
+            p: { xs: 2.25, sm: 3, md: 3.25 },
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{ mb: { xs: 1.75, md: 2 }, alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
           >
             <SectionLetterHeader
               letter="U"
               title="Usuarios institucionales"
-              subtitle="ISO 27001 A.5.16 · identidades y ciclo de vida de cuentas"
+              subtitle="Identidades institucionales · roles RBAC · estado activo/inactivo"
             />
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+              <Chip
+                label={`Activos · ${usuariosActivos}`}
+                size="small"
+                sx={{ bgcolor: `${INSTITUTIONAL_TEAL}18`, fontWeight: 700, color: INSTITUTIONAL_NAVY }}
+              />
+              <Chip label={`Total · ${items.length}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+            </Stack>
+          </Stack>
 
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-              Listado desde <strong>GET /usuarios</strong>: nombres, correo, dependencia/cargo y roles del RBAC.
-              «Último ingreso» refleja <strong>ultimoLoginAt</strong> (actualizado solo en cada login exitoso con
-              credenciales, no solo por refresco silencioso de sesión).
-            </Typography>
-
-            {loading ? (
-              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
-                <CircularProgress aria-label="Cargando usuarios" />
-              </Box>
-            ) : (
-              <TableContainer
-                sx={{
-                  mt: 2,
-                  flex: 1,
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  maxHeight: 520,
-                  overflow: 'auto',
-                }}
+          {loading ? (
+            <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress aria-label="Cargando usuarios" />
+            </Box>
+          ) : (
+            <TableContainer
+              sx={{
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                maxHeight: { xs: 420, md: 560 },
+                overflow: 'auto',
+              }}
+            >
+              <Table
+                size="medium"
+                stickyHeader
+                sx={{ tableLayout: { md: 'auto' }, minWidth: 720 }}
+                aria-label="Usuarios institucionales"
               >
-                <Table size="small" stickyHeader aria-label="Usuarios institucionales">
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'grey.50' }}>
-                      <TableCell sx={{ fontWeight: 800 }}>Usuario</TableCell>
-                      <TableCell sx={{ fontWeight: 800 }}>Rol</TableCell>
-                      <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
-                      <TableCell sx={{ fontWeight: 800 }}>Último ingreso</TableCell>
-                      <TableCell sx={{ fontWeight: 800 }} align="right">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 220 }}>Usuario</TableCell>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 120 }}>Rol</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 160 }}>Último ingreso</TableCell>
+                    <TableCell sx={{ fontWeight: 800, width: 72, pr: 1 }} align="right">
+                      <Typography component="span" variant="caption" sx={{ fontWeight: 800 }}>
                         Acciones
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
                   <TableBody>
                     {items.length === 0 ? (
                       <TableRow>
@@ -510,18 +591,16 @@ export function UsuariosPage() {
                               );
                             })()}
                           </TableCell>
-                          <TableCell align="right">
-                            <Stack direction="column" spacing={0.25} sx={{ alignItems: 'flex-end' }}>
-                              <Button size="small" variant="text" onClick={() => openEdit(u)} sx={{ textTransform: 'none' }}>
-                                Editar
-                              </Button>
-                              <Button size="small" variant="text" onClick={() => openReset(u)} sx={{ textTransform: 'none' }}>
-                                Reset pass
-                              </Button>
-                              <Button size="small" variant="text" color="warning" onClick={() => void onToggleActivo(u)} sx={{ textTransform: 'none' }}>
-                                {u.activo ? 'Desactivar' : 'Activar'}
-                              </Button>
-                            </Stack>
+                          <TableCell align="right" sx={{ pr: 0.5, whiteSpace: 'nowrap' }}>
+                            <Tooltip title="Acciones del usuario">
+                              <IconButton
+                                size="small"
+                                aria-label={`Acciones para ${displayUsuario(u)}`}
+                                onClick={(e) => openActionsMenu(e, u)}
+                              >
+                                <MoreHorizRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       ))
@@ -531,46 +610,72 @@ export function UsuariosPage() {
               </TableContainer>
             )}
 
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{
-                mt: 2,
-                textTransform: 'none',
-                fontWeight: 800,
-                bgcolor: INSTITUTIONAL_TEAL,
-                '&:hover': { bgcolor: '#257a87' },
-              }}
-              onClick={() => {
-                setInviteNotice(null);
-                setOpen(true);
-              }}
-            >
-              Crear usuario
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2.5 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  bgcolor: INSTITUTIONAL_TEAL,
+                  py: 1.15,
+                  '&:hover': { bgcolor: '#257a87' },
+                }}
+                onClick={() => {
+                  setInviteNotice(null);
+                  setOpen(true);
+                }}
+              >
+                Crear usuario
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                href="#matriz-rbac"
+                sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
+              >
+                Ver matriz RBAC
+              </Button>
+            </Stack>
           </Paper>
-        </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper elevation={0} sx={{ ...paperCardSx, p: { xs: 2, sm: 2.25 }, height: '100%' }}>
+        <Paper
+          id="matriz-rbac"
+          elevation={0}
+          sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            sx={{ mb: 2, alignItems: { md: 'flex-start' }, justifyContent: 'space-between' }}
+          >
             <SectionLetterHeader
               letter="M"
               accent="blue"
-              title="Matriz de permisos"
-              subtitle="Control de acceso por rol · referencia servida por el servidor"
+              title="Matriz de permisos (referencia)"
+              subtitle="Lectura · comparación por rol · desplazamiento horizontal si aplica"
             />
-
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.25, display: 'block', mb: 1 }}>
-              Datos desde <strong>GET /usuarios/matriz-acceso-referencia</strong> (ADMIN). Solo lectura: las capacidades
-              efectivas siguen definidas por el código NestJS (<code>@Roles</code>). Para cambiar el acceso de una persona
-              use <strong>Editar</strong> en la tabla (asignación de roles RBAC).
+            <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 520, lineHeight: 1.55 }}>
+              Para otorgar o quitar acceso a una persona use <strong>Editar</strong> en el directorio. Detalle de fuentes
+              API y normativa en el acordeón superior.
             </Typography>
+          </Stack>
 
-            <TableContainer sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
-              <Table size="small" sx={{ minWidth: 520 }} aria-label="Matriz de permisos por rol">
+            <TableContainer
+              sx={{
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                bgcolor: 'rgba(248, 250, 252, 0.6)',
+                maxWidth: '100%',
+              }}
+            >
+              <Table size="small" sx={{ minWidth: 720 }} aria-label="Matriz de permisos por rol">
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'grey.50' }}>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 200 }}>Módulo</TableCell>
+                    <TableCell sx={{ ...matrixStickyModuleHeadSx, fontWeight: 800 }}>Módulo</TableCell>
                     {matrizReferencia.columnas.map((c) => (
                       <TableCell key={c} align="center" sx={{ fontWeight: 700, px: 0.5 }}>
                         <Tooltip title={`Código rol: ${c}`}>
@@ -594,12 +699,12 @@ export function UsuariosPage() {
                 <TableBody>
                   {matrizReferencia.filas.map((row) => (
                     <TableRow key={row.modulo} hover>
-                      <TableCell>
+                      <TableCell sx={matrixStickyModuleSx}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {row.modulo}
                         </Typography>
                         {row.ayuda ? (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
                             {row.ayuda}
                           </Typography>
                         ) : null}
@@ -613,15 +718,17 @@ export function UsuariosPage() {
               </Table>
             </TableContainer>
 
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-              {matrizReferencia.nota}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              Generado:{' '}
-              <time dateTime={matrizReferencia.generadoEn}>
-                {new Date(matrizReferencia.generadoEn).toLocaleString('es-EC')}
-              </time>
-            </Typography>
+            <Stack spacing={0.75} sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>
+                {matrizReferencia.nota}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Generado:{' '}
+                <time dateTime={matrizReferencia.generadoEn}>
+                  {new Date(matrizReferencia.generadoEn).toLocaleString('es-EC')}
+                </time>
+              </Typography>
+            </Stack>
 
             <Button
               fullWidth
@@ -629,13 +736,68 @@ export function UsuariosPage() {
               href="#tabla-usuarios-institucionales"
               variant="outlined"
               color="primary"
-              sx={{ mt: 2, textTransform: 'none', fontWeight: 700 }}
+              sx={{ mt: 2, textTransform: 'none', fontWeight: 700, py: 1 }}
             >
-              Ir a usuarios para asignar roles
+              Volver al directorio de usuarios
             </Button>
           </Paper>
-        </Grid>
-      </Grid>
+      </Stack>
+
+      <Menu
+        anchorEl={actionsAnchor}
+        open={Boolean(actionsAnchor)}
+        onClose={closeActionsMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{
+          paper: { sx: { minWidth: 200, mt: 0.5 } },
+        }}
+      >
+        <MenuItem
+          dense
+          onClick={() => {
+            if (!actionsUsuario) return;
+            const u = actionsUsuario;
+            closeActionsMenu();
+            openEdit(u);
+          }}
+        >
+          <ListItemText primary="Editar usuario" secondary="Roles, dependencia, cargo" />
+        </MenuItem>
+        <MenuItem
+          dense
+          onClick={() => {
+            if (!actionsUsuario) return;
+            const u = actionsUsuario;
+            closeActionsMenu();
+            openReset(u);
+          }}
+        >
+          <ListItemText primary="Restablecer contraseña" />
+        </MenuItem>
+        <MenuItem
+          dense
+          sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0.5 }}
+          onClick={() => {
+            if (!actionsUsuario) return;
+            const u = actionsUsuario;
+            closeActionsMenu();
+            void onToggleActivo(u);
+          }}
+        >
+          <ListItemText
+            primary={actionsUsuario?.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
+            slotProps={{
+              primary: {
+                sx: {
+                  fontWeight: 600,
+                  ...(actionsUsuario?.activo ? { color: 'warning.main' } : {}),
+                },
+              },
+            }}
+          />
+        </MenuItem>
+      </Menu>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Crear usuario</DialogTitle>
