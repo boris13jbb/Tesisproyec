@@ -8,7 +8,13 @@ import ListOutlinedIcon from '@mui/icons-material/ListOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import BackupOutlinedIcon from '@mui/icons-material/BackupOutlined';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import {
   AppBar,
   Box,
@@ -45,6 +51,16 @@ const navItems: { to: string; label: string; icon: ReactNode }[] = [
     label: 'Documentos',
     icon: <DescriptionOutlinedIcon fontSize="small" />,
   },
+  {
+    to: '/tramites',
+    label: 'Trámites',
+    icon: <AssignmentOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/clasificacion',
+    label: 'Clasificación',
+    icon: <LayersOutlinedIcon fontSize="small" />,
+  },
 ];
 
 const catalogNav: { to: string; label: string; icon: ReactNode }[] = [
@@ -74,13 +90,28 @@ const catalogNav: { to: string; label: string; icon: ReactNode }[] = [
 const adminNav: { to: string; label: string; icon: ReactNode }[] = [
   {
     to: '/admin/usuarios',
-    label: 'Usuarios',
+    label: 'Usuarios y roles',
     icon: <PeopleOutlinedIcon fontSize="small" />,
   },
   {
     to: '/admin/auditoria',
     label: 'Auditoría',
     icon: <FactCheckOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/admin/respaldos',
+    label: 'Respaldos',
+    icon: <BackupOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/admin/reportes',
+    label: 'Reportes',
+    icon: <AssessmentOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/admin/configuracion',
+    label: 'Configuración',
+    icon: <SettingsOutlinedIcon fontSize="small" />,
   },
 ];
 
@@ -155,6 +186,21 @@ export function MainLayout() {
             <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
           </ListItemButton>
         ))}
+        {isAdmin && (
+          <ListItemButton
+            key="/documentos/nuevo"
+            selected={location.pathname === '/documentos/nuevo'}
+            onClick={() => handleNav('/documentos/nuevo')}
+          >
+            <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
+              <AddOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Nuevo documento"
+              slotProps={{ primary: { variant: 'body2' } }}
+            />
+          </ListItemButton>
+        )}
         {isAdmin && (
           <>
             <ListSubheader
@@ -276,6 +322,9 @@ export function MainLayout() {
               <Typography variant="caption" color="text.secondary">
                 Roles: {user?.roles.map((r) => r.codigo).join(', ') || '—'}
               </Typography>
+            </MenuItem>
+            <MenuItem component={RouterLink} to="/perfil" onClick={() => setUserMenuAnchor(null)}>
+              Mi perfil
             </MenuItem>
             <Divider />
             <MenuItem

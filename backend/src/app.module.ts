@@ -16,6 +16,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { ForbiddenAuditFilter } from './common/filters/forbidden-audit.filter';
 import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
     SubseriesModule,
     DocumentosModule,
     ReportesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

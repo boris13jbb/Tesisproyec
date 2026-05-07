@@ -1,24 +1,57 @@
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Alert,
   Box,
   Button,
   Checkbox,
+  Chip,
+  CircularProgress,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
   FormControl,
+  FormControlLabel,
+  Grid,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   type SelectChangeEvent,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  IconButton,
+  TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../api/client';
+import { PageHeader } from '../../components/PageHeader';
+import { EmptyState } from '../../components/EmptyState';
+import {
+  buildLocalAccessMatrixFallback,
+  type AccessMatrixReferencia,
+} from '../../constants/roles-access-matrix';
+import { formatUltimoIngreso } from '../../utils/formatUltimoIngreso';
+
+const INSTITUTIONAL_TEAL = '#2D8A99';
+const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
+const INSTITUTIONAL_NAVY = '#1A2B3C';
+
+const paperCardSx = {
+  borderRadius: 3,
+  border: '1px solid rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+} as const;
 
 type Dependencia = { id: string; codigo: string; nombre: string; activo: boolean };
 type Cargo = { id: string; codigo: string; nombre: string; activo: boolean; dependenciaId: string | null };
@@ -31,6 +64,7 @@ type Usuario = {
   dependenciaId: string | null;
   cargoId: string | null;
   activo: boolean;
+  ultimoLoginAt?: string | null;
   roles: { codigo: string; nombre: string }[];
 };
 
@@ -54,10 +88,88 @@ const ROLE_OPTIONS = [
   'CONSULTA',
 ] as const;
 
+/** Encabezado corto matriz — códigos reales igual que en JWT/RBAC. */
+const ROL_COLUMNA_ETIQUETA: Record<string, string> = {
+  ADMIN: 'Administración',
+  REVISOR: 'Revisor',
+  USUARIO: 'Usuario',
+  AUDITOR: 'Auditor',
+  CONSULTA: 'Consulta',
+};
+
+function SectionLetterHeader({
+  letter,
+  accent = 'teal',
+  title,
+  subtitle,
+}: {
+  letter: string;
+  accent?: 'teal' | 'blue';
+  title: string;
+  subtitle: string;
+}) {
+  const badgeBg =
+    accent === 'blue' ? 'rgba(37, 99, 235, 0.14)' : INSTITUTIONAL_TEAL_SOFT;
+  const badgeFg = accent === 'blue' ? '#1d4ed8' : INSTITUTIONAL_TEAL;
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <Box
+        aria-hidden
+        sx={{
+          width: 34,
+          height: 34,
+          borderRadius: 2,
+          bgcolor: badgeBg,
+          color: badgeFg,
+          display: 'grid',
+          placeItems: 'center',
+          fontWeight: 900,
+          flexShrink: 0,
+        }}
+      >
+        {letter}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.15, color: INSTITUTIONAL_NAVY }}>
+          {title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {subtitle}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function displayUsuario(u: Usuario) {
+  const n = `${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim();
+  return n || u.email;
+}
+
+function formatRoles(u: Usuario) {
+  if (!u.roles.length) return '—';
+  return u.roles.map((r) => r.nombre || r.codigo).join(', ');
+}
+
+function MatrixCell({ allowed }: { allowed: boolean }) {
+  return (
+    <TableCell align="center" sx={{ px: 0.5 }}>
+      {allowed ? (
+        <CheckCircleRoundedIcon sx={{ color: 'success.main', fontSize: 22 }} aria-label="Permitido" />
+      ) : (
+        <CancelRoundedIcon sx={{ color: 'error.main', fontSize: 22 }} aria-label="No permitido" />
+      )}
+    </TableCell>
+  );
+}
+
 export function UsuariosPage() {
   const [items, setItems] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [matrizReferencia, setMatrizReferencia] = useState<AccessMatrixReferencia>(() =>
+    buildLocalAccessMatrixFallback(),
+  );
 
   const [dependencias, setDependencias] = useState<Dependencia[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
@@ -84,7 +196,7 @@ export function UsuariosPage() {
     return email.trim().length > 3 && password.length >= 8;
   }, [email, password]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
@@ -96,42 +208,27 @@ export function UsuariosPage() {
       setItems(usersRes.data);
       setDependencias(depsRes.data.filter((d) => d.activo));
       setCargos(cargosRes.data.filter((c) => c.activo));
+
+      try {
+        const { data } = await apiClient.get<AccessMatrixReferencia>(
+          '/usuarios/matriz-acceso-referencia',
+        );
+        setMatrizReferencia(data);
+      } catch {
+        setMatrizReferencia(buildLocalAccessMatrixFallback());
+      }
     } catch {
       setError('No se pudo cargar el listado de usuarios.');
+      setMatrizReferencia(buildLocalAccessMatrixFallback());
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setError(null);
-      setLoading(true);
-      try {
-        const [usersRes, depsRes, cargosRes] = await Promise.all([
-          apiClient.get<Usuario[]>('/usuarios'),
-          apiClient.get<Dependencia[]>('/dependencias'),
-          apiClient.get<Cargo[]>('/cargos'),
-        ]);
-        if (cancelled) return;
-        setItems(usersRes.data);
-        setDependencias(depsRes.data.filter((d) => d.activo));
-        setCargos(cargosRes.data.filter((c) => c.activo));
-      } catch {
-        if (!cancelled) {
-          setError('No se pudo cargar el listado de usuarios.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza tabla con API
+    void load();
+  }, [load]);
 
   const onCreate = async () => {
     setError(null);
@@ -246,6 +343,12 @@ export function UsuariosPage() {
     return cargos.filter((c) => c.dependenciaId === dependenciaId || c.dependenciaId === null);
   }, [cargos, dependenciaId]);
 
+  const departamentoPorId = useMemo(
+    () => new Map(dependencias.map((d) => [d.id, d.nombre])),
+    [dependencias],
+  );
+  const cargoPorId = useMemo(() => new Map(cargos.map((c) => [c.id, c.nombre])), [cargos]);
+
   const handleRolesChange = (e: SelectChangeEvent<string[]>) => {
     const value = e.target.value as string[];
     const next = value.filter((v): v is (typeof ROLE_OPTIONS)[number] =>
@@ -255,34 +358,33 @@ export function UsuariosPage() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 2 }}>
-      <Box
-        sx={{
-          mb: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography variant="h6" component="h1">
-            Usuarios
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Administración de cuentas (solo ADMIN).
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          onClick={() => {
-            setInviteNotice(null);
-            setOpen(true);
-          }}
-        >
-          Crear usuario
-        </Button>
-      </Box>
+    <Container maxWidth="lg">
+      <PageHeader
+        title="Administración de identidades"
+        description={
+          <Stack spacing={0.75}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Usuarios y roles · GADPR-LM · Sistema de Gestión Documental
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Usuarios, roles y permisos aplicados por principio de mínimo privilegio.
+            </Typography>
+          </Stack>
+        }
+        actions={
+          <Tooltip title="Recargar usuarios y matriz de referencia">
+            <IconButton
+              aria-label="Actualizar administración de identidades"
+              onClick={() => void load()}
+              disabled={loading}
+              color="primary"
+              size="small"
+            >
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        }
+      />
 
       {inviteNotice && (
         <Alert severity="info" sx={{ mb: 2 }} onClose={() => setInviteNotice(null)}>
@@ -291,58 +393,249 @@ export function UsuariosPage() {
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      {loading ? (
-        <Typography variant="body2" color="text.secondary">
-          Cargando…
-        </Typography>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {items.map((u) => (
-            <Box
-              key={u.id}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper
+            id="tabla-usuarios-institucionales"
+            elevation={0}
+            sx={{
+              ...paperCardSx,
+              p: { xs: 2, sm: 2.25 },
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 420,
+            }}
+          >
+            <SectionLetterHeader
+              letter="U"
+              title="Usuarios institucionales"
+              subtitle="ISO 27001 A.5.16 · identidades y ciclo de vida de cuentas"
+            />
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+              Listado desde <strong>GET /usuarios</strong>: nombres, correo, dependencia/cargo y roles del RBAC.
+              «Último ingreso» refleja <strong>ultimoLoginAt</strong> (actualizado solo en cada login exitoso con
+              credenciales, no solo por refresco silencioso de sesión).
+            </Typography>
+
+            {loading ? (
+              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+                <CircularProgress aria-label="Cargando usuarios" />
+              </Box>
+            ) : (
+              <TableContainer
+                sx={{
+                  mt: 2,
+                  flex: 1,
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  maxHeight: 520,
+                  overflow: 'auto',
+                }}
+              >
+                <Table size="small" stickyHeader aria-label="Usuarios institucionales">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 800 }}>Usuario</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>Rol</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>Último ingreso</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }} align="right">
+                        Acciones
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <EmptyState
+                            dense
+                            title="Sin usuarios"
+                            description="Cree cuentas con el botón inferior."
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      items.map((u) => (
+                        <TableRow key={u.id} hover>
+                          <TableCell>
+                            <Typography sx={{ fontWeight: 700 }}>{displayUsuario(u)}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              {u.email}
+                            </Typography>
+                            {(() => {
+                              const dn = u.dependenciaId
+                                ? departamentoPorId.get(u.dependenciaId)
+                                : null;
+                              const cn = u.cargoId ? cargoPorId.get(u.cargoId) : null;
+                              const org = [cn, dn].filter(Boolean).join(' · ');
+                              return org ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  {org}
+                                </Typography>
+                              ) : null;
+                            })()}
+                          </TableCell>
+                          <TableCell sx={{ maxWidth: 140 }}>
+                            <Typography variant="body2">{formatRoles(u)}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={u.activo ? 'Activo' : 'Suspendido'}
+                              color={u.activo ? 'success' : 'error'}
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ maxWidth: 160 }}>
+                            {(() => {
+                              const fmt = formatUltimoIngreso(u.ultimoLoginAt ?? null);
+                              return (
+                                <Stack spacing={0.25}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {fmt.relativo}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                                    {fmt.absoluto}
+                                  </Typography>
+                                </Stack>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="column" spacing={0.25} sx={{ alignItems: 'flex-end' }}>
+                              <Button size="small" variant="text" onClick={() => openEdit(u)} sx={{ textTransform: 'none' }}>
+                                Editar
+                              </Button>
+                              <Button size="small" variant="text" onClick={() => openReset(u)} sx={{ textTransform: 'none' }}>
+                                Reset pass
+                              </Button>
+                              <Button size="small" variant="text" color="warning" onClick={() => void onToggleActivo(u)} sx={{ textTransform: 'none' }}>
+                                {u.activo ? 'Desactivar' : 'Activar'}
+                              </Button>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            <Button
+              variant="contained"
+              fullWidth
               sx={{
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                px: 2,
-                py: 1.5,
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 2,
+                mt: 2,
+                textTransform: 'none',
+                fontWeight: 800,
+                bgcolor: INSTITUTIONAL_TEAL,
+                '&:hover': { bgcolor: '#257a87' },
+              }}
+              onClick={() => {
+                setInviteNotice(null);
+                setOpen(true);
               }}
             >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle2" sx={{ wordBreak: 'break-word' }}>
-                  {u.email}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {`${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim() || '—'} · Roles:{' '}
-                  {u.roles.map((r) => r.codigo).join(', ') || '—'}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="caption" color={u.activo ? 'success.main' : 'text.secondary'}>
-                  {u.activo ? 'Activo' : 'Inactivo'}
-                </Typography>
-                <Button size="small" variant="text" onClick={() => openEdit(u)}>
-                  Editar
-                </Button>
-                <Button size="small" variant="text" onClick={() => openReset(u)}>
-                  Reset pass
-                </Button>
-                <Button size="small" variant="outlined" onClick={() => void onToggleActivo(u)}>
-                  {u.activo ? 'Desactivar' : 'Activar'}
-                </Button>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      )}
+              Crear usuario
+            </Button>
+          </Paper>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper elevation={0} sx={{ ...paperCardSx, p: { xs: 2, sm: 2.25 }, height: '100%' }}>
+            <SectionLetterHeader
+              letter="M"
+              accent="blue"
+              title="Matriz de permisos"
+              subtitle="Control de acceso por rol · referencia servida por el servidor"
+            />
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.25, display: 'block', mb: 1 }}>
+              Datos desde <strong>GET /usuarios/matriz-acceso-referencia</strong> (ADMIN). Solo lectura: las capacidades
+              efectivas siguen definidas por el código NestJS (<code>@Roles</code>). Para cambiar el acceso de una persona
+              use <strong>Editar</strong> en la tabla (asignación de roles RBAC).
+            </Typography>
+
+            <TableContainer sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 520 }} aria-label="Matriz de permisos por rol">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 200 }}>Módulo</TableCell>
+                    {matrizReferencia.columnas.map((c) => (
+                      <TableCell key={c} align="center" sx={{ fontWeight: 700, px: 0.5 }}>
+                        <Tooltip title={`Código rol: ${c}`}>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 800, display: 'block', lineHeight: 1.1 }}>
+                              {ROL_COLUMNA_ETIQUETA[c] ?? c}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: 'block', fontSize: '0.65rem' }}
+                            >
+                              {c}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {matrizReferencia.filas.map((row) => (
+                    <TableRow key={row.modulo} hover>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {row.modulo}
+                        </Typography>
+                        {row.ayuda ? (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {row.ayuda}
+                          </Typography>
+                        ) : null}
+                      </TableCell>
+                      {matrizReferencia.columnas.map((c) => (
+                        <MatrixCell key={c} allowed={Boolean(row.porRol[c])} />
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+              {matrizReferencia.nota}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Generado:{' '}
+              <time dateTime={matrizReferencia.generadoEn}>
+                {new Date(matrizReferencia.generadoEn).toLocaleString('es-EC')}
+              </time>
+            </Typography>
+
+            <Button
+              fullWidth
+              component="a"
+              href="#tabla-usuarios-institucionales"
+              variant="outlined"
+              color="primary"
+              sx={{ mt: 2, textTransform: 'none', fontWeight: 700 }}
+            >
+              Ir a usuarios para asignar roles
+            </Button>
+          </Paper>
+        </Grid>
+      </Grid>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Crear usuario</DialogTitle>
@@ -451,7 +744,7 @@ export function UsuariosPage() {
           <Button onClick={() => setOpen(false)} variant="text">
             Cancelar
           </Button>
-          <Button onClick={onCreate} variant="contained" disabled={!canSubmit}>
+          <Button onClick={() => void onCreate()} variant="contained" disabled={!canSubmit}>
             Crear
           </Button>
         </DialogActions>
@@ -591,4 +884,3 @@ export function UsuariosPage() {
     </Container>
   );
 }
-

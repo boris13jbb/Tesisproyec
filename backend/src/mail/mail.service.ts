@@ -154,6 +154,37 @@ export class MailService {
       throw new Error('SMTP invitation send failed');
     }
   }
+
+  /**
+   * Envío genérico best-effort: si SMTP no está configurado, no hace nada.
+   * Útil para notificaciones (R-44) sin romper flujos de negocio.
+   */
+  async sendIfConfigured(input: {
+    to: string | string[];
+    subject: string;
+    text: string;
+    html?: string;
+  }): Promise<{ sent: boolean }> {
+    if (!this.isConfigured()) {
+      return { sent: false };
+    }
+    const transporter = this.createTransporter();
+    const to = Array.isArray(input.to) ? input.to : [input.to];
+    try {
+      await transporter.sendMail({
+        from: this.fromHeader(),
+        to,
+        subject: input.subject,
+        text: input.text,
+        ...(input.html ? { html: input.html } : {}),
+      });
+      return { sent: true };
+    } catch (err: unknown) {
+      this.logger.warn('Envío SMTP falló (notificación)');
+      this.logger.debug(String(err));
+      return { sent: false };
+    }
+  }
 }
 
 function escapeHtml(s: string): string {

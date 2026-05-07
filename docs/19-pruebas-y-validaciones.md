@@ -13,6 +13,8 @@ Comandos locales, tipos de prueba previstos y evidencias mínimas para tesis.
 - **Backend:** Jest (`npm run test`), e2e Supertest (`npm run test:e2e`), ESLint, Prettier.
 - **Frontend:** ESLint (`npm run lint`), build `tsc -b && vite build` (`npm run build`). Sin tests de UI aún (opcional añadir Vitest en iteración futura).
 
+**Arranque para prueba manual integral:** iniciar **MySQL (XAMPP)** → **`npm run start:dev`** en `backend/` (puerto **3000**) → **`npm run dev`** en `frontend/` (**5173**). Si solo corre Vite, el proxy mostrará `ECONNREFUSED` contra `:3000`.
+
 ## Decisiones técnicas
 
 | Paquete | Comando (cuando exista) | Notas |

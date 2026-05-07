@@ -16,6 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { ResetUsuarioPasswordDto } from './dto/reset-usuario-password.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { buildAccessMatrixReference } from './access-matrix.reference';
 import { UsuariosService } from './usuarios.service';
 
 @Controller('usuarios')
@@ -27,6 +28,12 @@ export class UsuariosController {
   @Get()
   findAll() {
     return this.usuariosService.findAll();
+  }
+
+  /** Matriz efectiva (solo referencia; permisos reales = roles en cada usuario). */
+  @Get('matriz-acceso-referencia')
+  matrizAccesoReferencia() {
+    return buildAccessMatrixReference();
   }
 
   @Get(':id')

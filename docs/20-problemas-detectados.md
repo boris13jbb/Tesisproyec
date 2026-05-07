@@ -10,7 +10,7 @@ Código, entorno, documentación y herramientas del repositorio.
 
 ## Estado actual
 
-Última revisión: **2026-05-06** (cierre **ETAPA 0** documental + saneamiento checklist en repo; ver `docs/29-etapa-0-cierre-y-evidencias.md`).
+Última revisión documental conjunta con el código: **2026-05-06** (alineación de módulos, README snapshot, backlog `00`; cierre ETAPA 0 conserva evidencia en `docs/29-etapa-0-cierre-y-evidencias.md`).
 
 ---
 

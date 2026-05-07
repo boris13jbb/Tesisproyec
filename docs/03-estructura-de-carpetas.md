@@ -18,6 +18,7 @@ Este documento describe la **organización esperada** del repositorio alineada a
 /
 ├── .cursor/rules/             # Reglas del IDE (Prisma/XAMPP, ngrok, seguridad)
 ├── backend/                   # NestJS + Prisma
+│   ├── scripts/               # Utilidades locales (p. ej. limpieza tsbuildinfo)
 │   ├── prisma/
 │   │   ├── schema.prisma
 │   │   └── migrations/
@@ -89,6 +90,7 @@ Si el repositorio usa **otra disposición** (por ejemplo `apps/web` y `apps/api`
 |----------|------------------|--------|
 | Esquema Prisma | `backend/prisma/schema.prisma` | `provider = "mysql"` |
 | Migraciones | `backend/prisma/migrations/` | Versionadas en Git |
+| Scripts auxiliares | `backend/scripts/` | Ej. limpieza de `.tsbuildinfo` para desarrollo |
 | Código NestJS | `backend/src/` | Módulos por dominio |
 | SPA React | `frontend/src/` | Features, componentes, rutas |
 | Binarios documentales | `storage/` | Permisos de escritura solo para el proceso Node |

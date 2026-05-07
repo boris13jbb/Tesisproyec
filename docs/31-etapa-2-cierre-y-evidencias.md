@@ -7,6 +7,8 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** este documento conserva la evidencia de cierre del hito. Para el **estado vivo** del código y brechas institucionales: `docs/README.md` (snapshot), `docs/22-changelog-tecnico.md`, `docs/28-listado-lo-que-deberia-tener-el-sistema.md`.
+
 ## Objetivo
 
 Acreditar que la **capa de datos** declarada para el proyecto (MySQL/MariaDB vía **XAMPP**, **Prisma** como ORM único, migraciones versionadas) está **definida en el repositorio** y documentada para aplicación local.

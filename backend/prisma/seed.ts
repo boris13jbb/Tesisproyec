@@ -7,7 +7,7 @@ async function main() {
   const email =
     process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() ?? 'admin@local.test';
   const password =
-    process.env.SEED_ADMIN_PASSWORD ?? 'AdminSeguro2026!';
+    process.env.SEED_ADMIN_PASSWORD ?? 'Admin123!';
 
   if (password.length < 8) {
     throw new Error('SEED_ADMIN_PASSWORD debe tener al menos 8 caracteres');

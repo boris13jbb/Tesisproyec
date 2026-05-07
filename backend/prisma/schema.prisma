@@ -23,6 +23,8 @@ model User {
   failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
   /// Si está en futuro, el login debe rechazar (además del throttling por IP).
   lockedUntil DateTime? @map("locked_until")
+  /// Último inicio de sesión exitoso con contraseña (no actualiza solo por refresh silencioso).
+  ultimoLoginAt DateTime? @map("ultimo_login_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -243,6 +245,7 @@ model Documento {
   asunto                   String   @db.VarChar(250)
   descripcion              String?  @db.VarChar(1000)
   fechaDocumento           DateTime @map("fecha_documento")
+  /// Ciclo de vida (catálogo y transiciones en `documento-estado.util.ts`).
   estado                   String   @default("REGISTRADO") @db.VarChar(32)
   nivelConfidencialidad    String   @default("INTERNO") @map("nivel_confidencialidad") @db.VarChar(32)
   activo                   Boolean  @default(true)

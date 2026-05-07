@@ -8,6 +8,8 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** la evidencia de **ETAPA 10** permanece válida como hito. Tras este cierre se incorporaron, entre otros: **UI `/admin/auditoria`**, exports de auditoría desde **reportes**, **lockout de cuenta**, estados/transiciones (**R‑27**) y flujo de revisión (**R‑28**) con notificaciones SMTP opcionales (**R‑44**). Consolidado en `docs/22-changelog-tecnico.md` y snapshot `docs/README.md`.
+
 ## Objetivo
 
 Acreditar que el **MVP de tesis** cuenta con una **línea base de hardening** revisable (controles técnicos documentados, límites de abuso en autenticación, bitácora transversal en backend y **cadena documental 0–10**), sin confundir este cierre con una **certificación** ni con el **alcance institucional completo** (`28-listado-lo-que-deberia-tener-el-sistema.md`).
@@ -28,15 +30,16 @@ Acreditar que el **MVP de tesis** cuenta con una **línea base de hardening** re
 | **Auditoría ante 429 por throttler** | `ThrottlerAuditFilter` → `AUTH_RATE_LIMITED` vía `AuditService` (`common/filters/throttler-audit.filter.ts`) | Cumple |
 | **Bitácora transversal** | Tabla `audit_logs`; servicios integrados en flujos críticos (ver `15-modulo-auditoria.md`) | Cumple backend |
 | **Consulta ADMIN de auditoría (API)** | `GET /api/v1/auditoria` paginado + filtros (`auditoria.controller.ts`, `AuditQueryDto`) | Cumple |
+| **Consulta ADMIN de auditoría (UI)** | Pantalla **`/admin/auditoria`** listado/export (evidencia post-cierre; ver nota inicial de este doc) | Cumple (extensión documentada) |
 | **Limpieza y documentación de entrega** | Cierres `29`–`39`; índices `docs/README.md`, `README.md`, `EJECUTAR.txt`, manual `27` | Cumple MVP |
 
 ---
 
 ## Fuera de alcance ETAPA 10 (explicitado para no sobrevender el MVP)
 
-- **UI dedicada** de consulta de `audit_logs` (la consulta existe por **API ADMIN**).
-- Auditoría automática en **todas** las exportaciones de reportes (pendiente recomendado: `38`, `16`).
-- **PermissionsGuard** granular, control por dependencia/confidencialidad del documento, backups operativos, AV en archivos — ver roadmap backlog (`00-roadmap-general.md`, sección backlog) y `21`.
+- **Consulta institucional avanzada** de `audit_logs` (paneles BI, KPIs, retención legal, correlación SIEM): la **consulta ADMIN** existe por **API** y **UI `/admin/auditoria`**; lo anterior sigue siendo backlog (`15`, `21`).
+- Cobertura de **todas** las superficies sensibles no auditadas si el alcance crece (**PermissionsGuard**, ABAC extendido): ver `07`, `21`.
+- Backups **operativos** automatizados, AV sobre binarios — ver `scripts/README-backups-mysql-xampp.md`, `21`.
 
 ---
 

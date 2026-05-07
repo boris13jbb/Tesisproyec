@@ -32,6 +32,27 @@ export function getBreadcrumbsForPath(
     return items;
   }
 
+  if (pathname === '/tramites') {
+    items.push({ label: 'Trámites', to: pathname });
+    return items;
+  }
+
+  if (pathname === '/clasificacion') {
+    items.push({ label: 'Clasificación', to: pathname });
+    return items;
+  }
+
+  if (pathname === '/perfil') {
+    items.push({ label: 'Perfil de usuario', to: pathname });
+    return items;
+  }
+
+  if (pathname === '/documentos/nuevo') {
+    items.push({ label: 'Documentos', to: '/documentos' });
+    items.push({ label: 'Nuevo documento', to: pathname });
+    return items;
+  }
+
   if (pathname.startsWith('/documentos/')) {
     items.push({ label: 'Documentos', to: '/documentos' });
     const detail =
@@ -52,8 +73,11 @@ export function getBreadcrumbsForPath(
     items.push({ label: 'Administración' });
     const segment = pathname.split('/').filter(Boolean)[1];
     const adminLabels: Record<string, string> = {
-      usuarios: 'Usuarios',
+      usuarios: 'Usuarios y roles',
       auditoria: 'Auditoría',
+      respaldos: 'Respaldos y seguridad',
+      reportes: 'Reportes',
+      configuracion: 'Configuración de seguridad',
     };
     const label = segment ? (adminLabels[segment] ?? segment) : 'Admin';
     items.push({ label, to: pathname });

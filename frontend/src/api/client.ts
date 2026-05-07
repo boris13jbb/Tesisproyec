@@ -1,5 +1,6 @@
 import axios, {
-  type AxiosError,
+  AxiosError,
+  isAxiosError,
   type InternalAxiosRequestConfig,
 } from 'axios';
 import type { AuthUser } from '../auth/types';
@@ -25,6 +26,15 @@ export const apiClient = axios.create({
 
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
+/** Abort/cancelación (p. ej. AbortController en vista previa): sin `response` pero no es fallo de red. */
+function esCancelacionCliente(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+  return (
+    error.code === AxiosError.ERR_CANCELED ||
+    error.name === 'CanceledError'
+  );
+}
+
 apiClient.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
@@ -40,7 +50,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    if (!error.response) {
+    if (!error.response && !esCancelacionCliente(error)) {
       notifyGlobalError(
         'No se pudo conectar con la API. Verifica que el backend esté levantado.',
       );

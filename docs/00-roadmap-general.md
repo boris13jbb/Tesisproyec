@@ -28,13 +28,15 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 
 **ETAPA 8 (búsqueda + ordenamiento + criterios por adjuntos):** **cerrada al 100 %** según evidencias (`docs/37-etapa-8-cierre-y-evidencias.md`, 2026-05-06). Índices/búsqueda avanzada institucional: backlog (`14`, `21`).
 
-**ETAPA 9 (reportes Excel/PDF — documentos):** **cerrada al 100 %** según evidencias (`docs/38-etapa-9-cierre-y-evidencias.md`, 2026-05-06). Export usuarios/auditoría asíncronos: backlog (`16`, `21`).
+**ETAPA 9 (reportes Excel/PDF — documentos):** **cerrada al 100 %** según evidencias (`docs/38-etapa-9-cierre-y-evidencias.md`, 2026-05-06). **Post-cierre:** también existen exports de **auditoría** y **pendientes de revisión** (`16`, `22`). Reporte dedicado de **usuarios**: backlog (`16`, `21`).
 
 **ETAPA 10 (hardening y cierre — MVP de tesis):** **cerrada al 100 %** según evidencias (`docs/39-etapa-10-cierre-y-evidencias.md`, **2026-05-07**). Controles línea base, throttling documentado y bitácora transversal (API ADMIN); mejoras institucionales posteriores: backlog (`21`, `28`).
 
 **MVP funcional documentado (ETAPAS 0–10):** **cerradas al 100 %** en evidencias formales **`docs/29-etapa-0-cierre-y-evidencias.md`** … **`docs/39-etapa-10-cierre-y-evidencias.md`**.
 
-**Siguiente foco:** **Post-MVP / institucionalización** según backlog de **`00-roadmap-general.md`** (sección *Backlog de pendientes*) y **`docs/28-listado-lo-que-deberia-tener-el-sistema.md`**; operación productiva (**backups**, **permisos finos**, **auditoría en UI/export**) en `21`.
+**Siguiente foco:** **Post-MVP / institucionalización** según backlog de **`00-roadmap-general.md`** (sección *Backlog de pendientes*) y **`docs/28-listado-lo-que-deberia-tener-el-sistema.md`**.
+
+**Actualización posterior al cierre formal 0–10 (2026-05-06):** el código ya incorpora lockout por cuenta, estados/transiciones documentales con flujo de revisión (**R-27/R-28**), **dependencia/confidencialidad** en consulta de documentos y archivos, **UI `/admin/auditoria`**, exports de auditoría y de **pendientes de revisión** (**ADMIN/REVISOR**), y **notificaciones por correo** opcionales en el flujo de revisión. Detalle: `docs/22-changelog-tecnico.md`, `docs/README.md` (snapshot).
 
 ---
 
@@ -59,7 +61,7 @@ Desde auditoría inicial hasta hardening final; el detalle por módulo vive en `
 En el expediente y en evaluaciones académicas suele aparecer “**6A**” como sub-entregable asociado a **trazabilidad/auditoría mínima** dentro de Gestión Documental.  
 En este proyecto se considera “6A” como **toda evidencia verificable de historial de cambios del documento** (y su atribución a usuario), implementada mediante `documento_eventos` y sus endpoints asociados (ver `12-modulo-documentos.md` y `19-mapeo-iso27001-iso15489-owasp-asvs.md`).
 
-La **auditoría transversal institucional** (bitácora central unificada para seguridad/administración) se gestiona dentro del módulo `15-modulo-auditoria.md`; el cierre MVP de hardening está en **`39-etapa-10-cierre-y-evidencias.md`** (consulta ADMIN por API; UI y retención: backlog).
+La **auditoría transversal institucional** (bitácora central unificada para seguridad/administración) se gestiona dentro del módulo `15-modulo-auditoria.md`; el cierre MVP de hardening está en **`39-etapa-10-cierre-y-evidencias.md`**. **Estado vivo:** consulta **API** + **UI `/admin/auditoria`**; **retención** institucional de `audit_logs`: backlog (`15`, `21`).
 
 ## Decisiones técnicas
 
@@ -85,18 +87,19 @@ Institucionalización, despliegue en intranet, backups operativos — fuera del 
 
 1) **Auditoría transversal (`audit_logs`)**
 - Ver `15-modulo-auditoria.md`; cierre MVP (API consulta ADMIN) en **`39-etapa-10-cierre-y-evidencias.md`**.
-- Pendiente institucional: UI de consulta/exportación y política de retención según política propia.
-- Ampliación de cobertura: más eventos (p. ej. denegaciones 403, todas las exportaciones) según backlog.
+- **Hecho post-cierre:** UI **`/admin/auditoria`** y export Excel/PDF vía `GET /reportes/auditoria.{xlsx,pdf}` (ADMIN); exportaciones registran `REPORT_EXPORTED`.
+- Pendiente institucional: política de retención de bitácora, cobertura exhaustiva de denegaciones y firma/checksum si aplica.
 
 2) **Rate limiting / lockout en autenticación**
-- **MVP (tesis):** `@Throttle` en rutas `auth`; límite global + `AUTH_RATE_LIMITED` en auditoría (`39-etapa-10-cierre-y-evidencias.md`).
-- **Institucional:** endurecer umbrales, lockout cuenta, MFA — ver `05-modulo-auth.md` y `21`.
+- **MVP aplicado:** `@Throttle` global y en rutas `auth`; `AUTH_RATE_LIMITED`; **lockout por cuenta** (`AUTH_LOCKOUT_*`, columnas `users.failed_login_attempts` / `locked_until`) — ver `05-modulo-auth.md`, `04-modelo-base-de-datos.md`.
+- **Institucional:** endurecer umbrales, MFA, CAPTCHA — ver `05-modulo-auth.md` y `21`.
 
 3) **Permisos granulares (PermissionsGuard)**
 - Ver `07-modulo-roles-permisos.md`
 
 4) **Control de acceso por documento (dependencia/confidencialidad)**
-- Ver `12-modulo-documentos.md` y `13-modulo-archivos.md`
+- **Base en código aplicada:** ver `12-modulo-documentos.md` y `13-modulo-archivos.md` (anti‑IDOR en listado, detalle, descarga adjuntos y reportes para no‑ADMIN).
+- Pendiente: reglas institucionales más finas, elevaciones auditadas, `PermissionsGuard`.
 
 5) **Backups + restauración (BD + storage + logs)**
 - Ver `21-riesgos-pendientes.md` (R-016) y módulo `17` (parámetros)

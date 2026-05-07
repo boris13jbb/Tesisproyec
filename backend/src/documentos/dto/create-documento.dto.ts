@@ -9,6 +9,11 @@ import {
   MinLength,
 } from 'class-validator';
 
+import type { DocumentoEstado } from '../documento-estado.util';
+
+/** Solo estos estados se permiten al crear (captura borrador institucional). */
+const ESTADOS_INICIALES: DocumentoEstado[] = ['BORRADOR', 'REGISTRADO'];
+
 export const NIVELES_CONFIDENCIALIDAD = [
   'PUBLICO',
   'INTERNO',
@@ -52,4 +57,10 @@ export class CreateDocumentoDto {
   @IsOptional()
   @IsIn(NIVELES_CONFIDENCIALIDAD as unknown as string[])
   nivelConfidencialidad?: (typeof NIVELES_CONFIDENCIALIDAD)[number];
+
+  /** Por defecto en BD: REGISTRADO. */
+  @IsOptional()
+  @IsString()
+  @IsIn(ESTADOS_INICIALES as unknown as string[])
+  estado?: DocumentoEstado;
 }

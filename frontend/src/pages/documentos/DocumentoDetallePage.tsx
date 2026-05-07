@@ -1,5 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -12,18 +15,26 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  Grid,
   InputLabel,
   MenuItem,
   Paper,
   Select,
+  Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { z } from 'zod';
+import {
+  DOCUMENTO_ESTADOS,
+  documentoEstadoSchema,
+  labelDocumentoEstado,
+} from '../../constants/documento-estado';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
@@ -101,7 +112,7 @@ const editSchema = z.object({
   asunto: z.string().min(3).max(250),
   descripcion: z.string().max(1000).optional(),
   fechaDocumento: z.string().min(10, 'Fecha requerida'),
-  estado: z.string().min(1).max(32),
+  estado: documentoEstadoSchema,
   activo: z.boolean(),
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Subserie requerida'),
@@ -114,9 +125,12 @@ function formatDateOnly(isoOrDate: string) {
   return new Date(isoOrDate).toISOString().slice(0, 10);
 }
 
-function formatValue(v: unknown): string {
+function formatValue(field: string | undefined, v: unknown): string {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'string') {
+    if (field === 'estado') {
+      return labelDocumentoEstado(v);
+    }
     // ISO date-ish → solo fecha
     if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return v.slice(0, 10);
     return v;
@@ -167,6 +181,161 @@ function fieldLabel(field: string): string {
   return map[field] ?? field;
 }
 
+/** Límite alineado con `FileInterceptor` del backend (~50 MiB). */
+const MAX_FILE_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/** Vista previa embutida: no descargar a blob completo por encima de esto (RAM / estabilidad del navegador). La descarga sigue permitida hasta el tope de subida. */
+const MAX_PREVIEW_BYTES = 20 * 1024 * 1024;
+
+function formatDateTime(isoOrDate: string) {
+  return new Intl.DateTimeFormat('es-EC', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(isoOrDate));
+}
+
+/** Vista integrada en el navegador (PDF / imágenes); Office y otros solo descarga. */
+function tipoVistaPreviaMime(mime: string): 'pdf' | 'image' | null {
+  const m = mime.toLowerCase().trim();
+  if (m === 'application/pdf') return 'pdf';
+  if (m === 'image/jpeg' || m === 'image/png' || m === 'image/webp') return 'image';
+  return null;
+}
+
+function labelConfidencialidad(raw: string): string {
+  const map: Record<string, string> = {
+    PUBLICO: 'Público',
+    INTERNO: 'Interno',
+    RESERVADO: 'Reservado',
+    CONFIDENCIAL: 'Confidencial',
+  };
+  return map[raw] ?? raw;
+}
+
+function estadoVisualizationColor(estado: string):
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'info'
+  | 'default' {
+  switch (estado) {
+    case 'APROBADO':
+      return 'success';
+    case 'EN_REVISION':
+      return 'warning';
+    case 'RECHAZADO':
+      return 'error';
+    case 'ARCHIVADO':
+      return 'info';
+    default:
+      return 'default';
+  }
+}
+
+const INSTITUTIONAL_TEAL = '#2D8A99';
+const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
+const INSTITUTIONAL_NAVY = '#1A2B3C';
+
+const paperCardSx = {
+  borderRadius: 3,
+  border: '1px solid rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+} as const;
+
+function SectionHeader({
+  letter,
+  title,
+  subtitle,
+}: {
+  letter: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <Box
+        aria-hidden
+        sx={{
+          width: 34,
+          height: 34,
+          borderRadius: 2,
+          bgcolor: INSTITUTIONAL_TEAL_SOFT,
+          color: INSTITUTIONAL_TEAL,
+          display: 'grid',
+          placeItems: 'center',
+          fontWeight: 900,
+          flexShrink: 0,
+        }}
+      >
+        {letter}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.15 }}>
+          {title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {subtitle}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ py: 1, borderBottom: 1, borderColor: 'divider' }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontWeight: 700, wordBreak: 'break-word' }}>{value}</Typography>
+    </Box>
+  );
+}
+
+type TimelineLine = {
+  primary: string;
+  secondary: string;
+  expanded?: DiffEntry[] | null;
+};
+
+function buildTimelineLine(ev: DocumentoEventoRow): TimelineLine {
+  const secondary = `${formatDateTime(ev.createdAt)} · ${ev.createdBy.email}`;
+  if (ev.tipo === 'CREADO') {
+    return { primary: 'Documento registrado', secondary };
+  }
+  if (ev.tipo !== 'ACTUALIZADO' || !ev.cambiosJson) {
+    return { primary: ev.tipo, secondary };
+  }
+  try {
+    const entries = parseCambiosJson(ev.cambiosJson);
+    if (!entries.length) {
+      return { primary: ev.tipo, secondary };
+    }
+    if (entries.length === 1 && entries[0].field === 'estado') {
+      const e = entries[0];
+      return {
+        primary: `Estado: ${formatValue('estado', e.from)} → ${formatValue('estado', e.to)}`,
+        secondary,
+      };
+    }
+    if (entries.length === 1) {
+      const e = entries[0];
+      return {
+        primary: `${fieldLabel(e.field)} modificado`,
+        secondary,
+        expanded: entries,
+      };
+    }
+    return {
+      primary: `Actualización registrada (${entries.length} campos)`,
+      secondary,
+      expanded: entries,
+    };
+  } catch {
+    return { primary: ev.tipo, secondary };
+  }
+}
+
 export function DocumentoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -185,10 +354,26 @@ export function DocumentoDetallePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [rejectMotivoOpen, setRejectMotivoOpen] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState('');
+  const [rejectMotivoError, setRejectMotivoError] = useState<string | null>(
+    null,
+  );
+  const [workflowLoading, setWorkflowLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [archivoEventosOpen, setArchivoEventosOpen] = useState(false);
   const [archivoEventosTitle, setArchivoEventosTitle] = useState<string>('');
   const [archivoEventos, setArchivoEventos] = useState<DocumentoArchivoEventoRow[]>([]);
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<'pdf' | 'image' | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  /** Mensaje informativo (p. ej. archivo demasiado grande); no es fallo de red. */
+  const [previewSkipInfo, setPreviewSkipInfo] = useState<string | null>(null);
+  const previewObjectUrlRef = useRef<string | null>(null);
+
+  const historiaRef = useRef<HTMLDivElement | null>(null);
 
   useRegisterBreadcrumbDetail(doc?.codigo);
 
@@ -199,6 +384,39 @@ export function DocumentoDetallePage() {
     }
     return map;
   }, [subseries]);
+
+  const docArchivado = doc?.estado === 'ARCHIVADO';
+
+  /** Mayor versión numérica (coherente con orden del API tras `orderBy version desc`). */
+  const archivoUltimaVersion = useMemo(() => {
+    if (!archivos.length) return null;
+    return archivos.reduce((best, cur) => (cur.version > best.version ? cur : best));
+  }, [archivos]);
+
+  /** Solo campos usados en la descarga de vista previa — el async interno cierra sobre esto y `exhaustive-deps` queda alineado. */
+  const previewFetchKey = useMemo(() => {
+    if (!archivoUltimaVersion) return null;
+    return {
+      archivoId: archivoUltimaVersion.id,
+      sizeBytes:
+        typeof archivoUltimaVersion.sizeBytes === 'number'
+          ? archivoUltimaVersion.sizeBytes
+          : 0,
+      mimeType: archivoUltimaVersion.mimeType ?? '',
+    };
+  }, [archivoUltimaVersion]);
+
+  const esRevisorOAdmin =
+    user?.roles.some((r) => r.codigo === 'ADMIN' || r.codigo === 'REVISOR') ??
+    false;
+  const puedeEnviarRevision = Boolean(
+    doc &&
+      doc.estado === 'REGISTRADO' &&
+      (isAdmin || user?.id === doc.createdBy.id),
+  );
+  const puedeResolverRevision = Boolean(
+    doc && doc.estado === 'EN_REVISION' && esRevisorOAdmin,
+  );
 
   const editForm = useForm<EditForm>({
     resolver: zodResolver(editSchema),
@@ -288,13 +506,111 @@ export function DocumentoDetallePage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- blobs y revocations se sincronizan con archivo visible */
+    const ac = new AbortController();
+
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current);
+      previewObjectUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+    setPreviewKind(null);
+    setPreviewError(null);
+    setPreviewSkipInfo(null);
+
+    if (!id || !previewFetchKey) {
+      setPreviewLoading(false);
+      return () => {
+        ac.abort();
+      };
+    }
+
+    const bytes = previewFetchKey.sizeBytes;
+    if (bytes > MAX_PREVIEW_BYTES) {
+      const mbArch = (bytes / (1024 * 1024)).toFixed(1);
+      const mbMax = (MAX_PREVIEW_BYTES / (1024 * 1024)).toFixed(0);
+      setPreviewSkipInfo(
+        `El archivo (${mbArch} MB) supera el límite de ${mbMax} MB para vista previa en el navegador (reduce uso de memoria).`,
+      );
+      setPreviewLoading(false);
+      return () => {
+        ac.abort();
+      };
+    }
+
+    const kind = tipoVistaPreviaMime(previewFetchKey.mimeType);
+    if (!kind) {
+      setPreviewLoading(false);
+      return () => {
+        ac.abort();
+      };
+    }
+
+    let cancelled = false;
+    setPreviewLoading(true);
+
+    void (async () => {
+      try {
+        const res = await apiClient.get(
+          `/documentos/${id}/archivos/${previewFetchKey.archivoId}/download`,
+          { responseType: 'blob', signal: ac.signal },
+        );
+        if (cancelled) return;
+
+        const headerRaw =
+          typeof res.headers['content-type'] === 'string'
+            ? res.headers['content-type'].split(';')[0]?.trim()
+            : '';
+        const metaType = previewFetchKey.mimeType.trim();
+        const blobMime =
+          headerRaw &&
+          headerRaw !== 'application/octet-stream' &&
+          tipoVistaPreviaMime(headerRaw) === kind
+            ? headerRaw
+            : metaType ||
+              (kind === 'pdf'
+                ? 'application/pdf'
+                : kind === 'image'
+                  ? 'image/jpeg'
+                  : 'application/octet-stream');
+
+        const blob = new Blob([res.data], {
+          type: blobMime || 'application/octet-stream',
+        });
+        const url = URL.createObjectURL(blob);
+        previewObjectUrlRef.current = url;
+        setPreviewUrl(url);
+        setPreviewKind(kind);
+      } catch (e: unknown) {
+        if (cancelled || (isAxiosError(e) && e.code === 'ERR_CANCELED')) return;
+        setPreviewError('No se pudo cargar la vista previa del archivo. Use Descargar si el problema continúa.');
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current);
+        previewObjectUrlRef.current = null;
+      }
+    };
+  }, [id, previewFetchKey]);
+
   const openEdit = () => {
     if (!doc) return;
+    const parsedEstado = documentoEstadoSchema.safeParse(doc.estado);
+    const estadoForm = parsedEstado.success
+      ? parsedEstado.data
+      : ('REGISTRADO' as const);
     editForm.reset({
       asunto: doc.asunto,
       descripcion: doc.descripcion ?? '',
       fechaDocumento: formatDateOnly(doc.fechaDocumento),
-      estado: doc.estado,
+      estado: estadoForm,
       activo: doc.activo,
       tipoDocumentalId: doc.tipoDocumental.id,
       subserieId: doc.subserie.id,
@@ -333,6 +649,75 @@ export function DocumentoDetallePage() {
       }
     }
   });
+
+  const onEnviarRevision = async () => {
+    if (!id) return;
+    setError(null);
+    setWorkflowLoading(true);
+    try {
+      await apiClient.post(`/documentos/${id}/enviar-revision`);
+      await load();
+    } catch (err: unknown) {
+      if (isAxiosError(err) && err.response?.data) {
+        const d = err.response.data as { message?: string | string[] };
+        const m = d.message;
+        setError(Array.isArray(m) ? m.join(' ') : (m ?? 'No se pudo enviar a revisión.'));
+      } else {
+        setError('No se pudo enviar a revisión.');
+      }
+    } finally {
+      setWorkflowLoading(false);
+    }
+  };
+
+  const onResolverRevision = async (
+    decision: 'APROBADO' | 'RECHAZADO',
+    motivo?: string,
+  ) => {
+    if (!id) return;
+    setError(null);
+    setWorkflowLoading(true);
+    try {
+      const body =
+        decision === 'RECHAZADO'
+          ? { decision, motivo: motivo?.trim() ?? '' }
+          : { decision };
+      await apiClient.post(`/documentos/${id}/resolver-revision`, body);
+      await load();
+    } catch (err: unknown) {
+      if (isAxiosError(err) && err.response?.data) {
+        const d = err.response.data as { message?: string | string[] };
+        const m = d.message;
+        setError(
+          Array.isArray(m) ? m.join(' ') : (m ?? 'No se pudo resolver la revisión.'),
+        );
+      } else {
+        setError('No se pudo resolver la revisión.');
+      }
+    } finally {
+      setWorkflowLoading(false);
+    }
+  };
+
+  const openRejectMotivoDialog = () => {
+    setRejectMotivo('');
+    setRejectMotivoError(null);
+    setRejectMotivoOpen(true);
+  };
+
+  const confirmRejectConMotivo = async () => {
+    const t = rejectMotivo.trim();
+    if (t.length < 3) {
+      setRejectMotivoError('Indique el motivo (mínimo 3 caracteres).');
+      return;
+    }
+    if (t.length > 2000) {
+      setRejectMotivoError('Máximo 2000 caracteres.');
+      return;
+    }
+    setRejectMotivoOpen(false);
+    await onResolverRevision('RECHAZADO', t);
+  };
 
   const onUpload = async (file: File) => {
     if (!id) return;
@@ -427,24 +812,37 @@ export function DocumentoDetallePage() {
     <>
       <Container maxWidth="lg">
         <PageHeader
-          title="Documento"
+          title={doc ? `Documento ${doc.codigo}` : 'Documento'}
           description={
             doc ? (
-              <>
-                <strong>{doc.codigo}</strong>
-                {' — '}
-                {doc.asunto}
-              </>
-            ) : undefined
+              <Stack spacing={0.75}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Detalle documental · GADPR-LM · Sistema de Gestión Documental
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Consulta integral, historial de versiones y trazabilidad del documento.
+                </Typography>
+              </Stack>
+            ) : (
+              'Consulta integral, historial de versiones y trazabilidad del documento.'
+            )
           }
           backTo={{ to: '/documentos', label: 'Volver al listado' }}
           actions={
             doc ? (
-              <Chip
-                size="small"
-                color={doc.activo ? 'success' : 'default'}
-                label={doc.activo ? 'Activo' : 'Inactivo'}
-              />
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <Chip
+                  size="small"
+                  color={estadoVisualizationColor(doc.estado)}
+                  label={labelDocumentoEstado(doc.estado)}
+                />
+                <Chip
+                  size="small"
+                  color={doc.activo ? 'success' : 'default'}
+                  label={doc.activo ? 'Activo' : 'Inactivo'}
+                  variant={doc.activo ? 'filled' : 'outlined'}
+                />
+              </Stack>
             ) : null
           }
         />
@@ -472,298 +870,616 @@ export function DocumentoDetallePage() {
 
         {!loading && doc && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                gap: 2,
-                justifyContent: 'space-between',
-                alignItems: { xs: 'stretch', sm: 'center' },
-              }}
-            >
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Código
-                </Typography>
-                <Typography variant="h6">{doc.codigo}</Typography>
-              </Box>
-              {isAdmin && (
-                <Button variant="contained" onClick={openEdit}>
-                  Editar
-                </Button>
-              )}
-            </Box>
+            <Paper elevation={0} sx={{ ...paperCardSx, p: { xs: 1.5, sm: 2 } }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={{ xs: 1.5, sm: 2 }}
+                sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                    Flujo documental
+                  </Typography>
+                  <Typography sx={{ fontWeight: 700 }}>{doc.asunto}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Fecha doc. {formatDateOnly(doc.fechaDocumento)} · Registrado por{' '}
+                    {doc.createdBy.email}
+                  </Typography>
+                </Box>
+                <Stack
+                  direction="row"
+                  sx={{
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                  }}
+                >
+                  {puedeEnviarRevision && (
+                    <Button
+                      variant="outlined"
+                      disabled={workflowLoading}
+                      onClick={() => void onEnviarRevision()}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Enviar a revisión
+                    </Button>
+                  )}
+                  {puedeResolverRevision && (
+                    <>
+                      <Button
+                        color="success"
+                        variant="outlined"
+                        disabled={workflowLoading}
+                        onClick={() => void onResolverRevision('APROBADO')}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Aprobar
+                      </Button>
+                      <Button
+                        color="warning"
+                        variant="outlined"
+                        disabled={workflowLoading}
+                        onClick={() => openRejectMotivoDialog()}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Rechazar
+                      </Button>
+                    </>
+                  )}
+                </Stack>
+              </Stack>
+            </Paper>
 
-            <Divider sx={{ my: 2 }} />
-
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: 2,
-                '& > *': { flex: 1 },
-              }}
-            >
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Asunto
-                </Typography>
-                <Typography>{doc.asunto}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Fecha del documento
-                </Typography>
-                <Typography>{formatDateOnly(doc.fechaDocumento)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Estado
-                </Typography>
-                <Typography>{doc.estado}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Confidencialidad
-                </Typography>
-                <Typography>{doc.nivelConfidencialidad}</Typography>
-              </Box>
-            </Box>
-
-            <Box
-              sx={{
-                mt: 2,
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: 2,
-                '& > *': { flex: 1 },
-              }}
-            >
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Tipo documental
-                </Typography>
-                <Typography>
-                  {doc.tipoDocumental.codigo} — {doc.tipoDocumental.nombre}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Clasificación
-                </Typography>
-                <Typography>
-                  {doc.subserie.serie.codigo} / {doc.subserie.codigo} —{' '}
-                  {doc.subserie.nombre}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Registrado por
-                </Typography>
-                <Typography>{doc.createdBy.email}</Typography>
-              </Box>
-            </Box>
-
-            <Box
-              sx={{
-                mt: 2,
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: 2,
-              }}
-            >
-              <Box>
-                <Typography variant="overline" color="text.secondary">
-                  Dependencia propietaria
-                </Typography>
-                <Typography>
-                  {doc.dependencia ? `${doc.dependencia.codigo} — ${doc.dependencia.nombre}` : '—'}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="overline" color="text.secondary">
-                Descripción
-              </Typography>
-              <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                {doc.descripcion || '—'}
-              </Typography>
-            </Box>
-          </Paper>
-
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Archivos
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Adjuntos almacenados en <code>storage/</code>.
-            </Typography>
-
-            {isAdmin && (
-              <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Button variant="contained" component="label" disabled={uploading}>
-                  {uploading ? 'Subiendo…' : 'Subir archivo'}
-                  <input
-                    type="file"
-                    hidden
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void onUpload(f);
-                      e.currentTarget.value = '';
-                    }}
-                  />
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  Permitidos: PDF, JPG/PNG/WEBP, DOCX, XLSX. Máx 10MB.
-                </Typography>
-              </Box>
-            )}
-
-            {archivos.length === 0 ? (
-              <EmptyState
-                title="Sin archivos adjuntos"
-                description="Aún no se ha cargado ningún documento digital asociado a este registro."
-              />
-            ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {archivos.map((a) => (
-                  <Paper key={a.id} variant="outlined" sx={{ p: 1.5 }}>
+            <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+              <Grid size={{ xs: 12, md: 7 }}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    ...paperCardSx,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <Box sx={{ px: 2.5, pt: 2.25 }}>
+                    <SectionHeader
+                      letter="D"
+                      title="Vista previa"
+                      subtitle={
+                        archivoUltimaVersion
+                          ? `Última versión v${archivoUltimaVersion.version} · ${archivoUltimaVersion.originalName}`
+                          : doc.asunto.trim()
+                            ? doc.asunto
+                            : doc.tipoDocumental.nombre
+                      }
+                    />
+                  </Box>
+                  <Box sx={{ px: 2.5, pb: 2, pt: 0.5, flex: 1 }}>
                     <Box
                       sx={{
+                        borderRadius: 2,
+                        border: '1px solid rgba(15,23,42,0.08)',
+                        bgcolor: '#f1f5f9',
+                        minHeight: { xs: 260, sm: 400 },
+                        maxHeight: '72vh',
+                        overflow: 'hidden',
                         display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        gap: 1,
-                        justifyContent: 'space-between',
-                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        flexDirection: 'column',
                       }}
                     >
-                      <Box>
-                        <Typography sx={{ fontWeight: 600 }}>
-                          v{a.version} — {a.originalName}
+                      {previewLoading ? (
+                        <Box
+                          sx={{
+                            flex: 1,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            py: 8,
+                          }}
+                        >
+                          <CircularProgress size={36} aria-label="Cargando vista previa del archivo" />
+                        </Box>
+                      ) : null}
+
+                      {!previewLoading && previewError ? (
+                        <Alert severity="warning" sx={{ m: 2 }}>
+                          {previewError}
+                        </Alert>
+                      ) : null}
+
+                      {!previewLoading && previewSkipInfo ? (
+                        <Alert severity="info" sx={{ m: 2 }}>
+                          {previewSkipInfo}{' '}
+                          Use la acción <strong>Descargar</strong> en la lista de versiones para abrir el archivo
+                          completo.
+                        </Alert>
+                      ) : null}
+
+                      {!previewLoading &&
+                      !previewError &&
+                      !previewSkipInfo &&
+                      archivoUltimaVersion &&
+                      tipoVistaPreviaMime(archivoUltimaVersion.mimeType) === null ? (
+                        <Alert severity="info" sx={{ m: 2 }}>
+                          Vista previa embebida no disponible para{' '}
+                          <strong>{archivoUltimaVersion.mimeType}</strong>. Use <strong>Descargar</strong> para abrir el
+                          archivo localmente (p. ej. documentos Office).
+                        </Alert>
+                      ) : null}
+
+                      {!previewLoading && !previewError && previewUrl && previewKind === 'pdf' ? (
+                        <Box
+                          component="iframe"
+                          title={`Vista previa PDF · ${doc.codigo}`}
+                          src={previewUrl}
+                          sx={{ flex: 1, width: '100%', minHeight: 360, border: 0, bgcolor: '#fff' }}
+                        />
+                      ) : null}
+
+                      {!previewLoading && !previewError && previewUrl && previewKind === 'image' ? (
+                        <Box
+                          sx={{
+                            flex: 1,
+                            overflow: 'auto',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            p: 1,
+                            bgcolor: '#fff',
+                          }}
+                        >
+                          <Box
+                            component="img"
+                            src={previewUrl}
+                            alt={archivoUltimaVersion?.originalName ?? `Adjunto · ${doc.codigo}`}
+                            sx={{ maxWidth: '100%', maxHeight: 'min(62vh, 620px)', objectFit: 'contain' }}
+                          />
+                        </Box>
+                      ) : null}
+
+                      {!previewLoading && !previewError && !previewUrl && !archivoUltimaVersion ? (
+                        <Box sx={{ p: 2.5 }}>
+                          <EmptyState
+                            dense
+                            title="Sin archivos digitales"
+                            description="Los adjuntos se listan más abajo. Al subir PDF o imagen (JPG/PNG/WebP), la vista previa mostrará el contenido real del último archivo."
+                          />
+                        </Box>
+                      ) : null}
+
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{
+                          px: 1.5,
+                          py: 1,
+                          alignItems: 'center',
+                          borderTop: '1px solid rgba(15,23,42,0.06)',
+                          bgcolor: 'rgba(255,255,255,0.96)',
+                          flexShrink: 0,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ mr: 'auto', fontFamily: 'monospace', fontWeight: 700 }}>
+                          {doc.codigo}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {formatDateOnly(a.createdAt)} — {a.createdBy.email} —{' '}
-                          {(a.sizeBytes / 1024).toFixed(1)} KB
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Button onClick={() => void openArchivoEventos(a)}>
-                          Historial
+                        <Chip
+                          size="small"
+                          color={estadoVisualizationColor(doc.estado)}
+                          label={labelDocumentoEstado(doc.estado)}
+                          sx={{ fontWeight: 800 }}
+                        />
+                      </Stack>
+                    </Box>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                      Fecha del documento: {formatDateOnly(doc.fechaDocumento)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
+                      {doc.descripcion?.trim()
+                        ? doc.descripcion
+                        : 'Sin descripción registrada para este ítem documental.'}
+                    </Typography>
+                  </Box>
+
+                  <Divider />
+
+                  <Box sx={{ px: 2.5, py: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5 }}>
+                      Archivos digitales
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Versiones activas registradas en el servidor; la vista previa usa la de mayor versión.
+                    </Typography>
+
+                    {isAdmin && (
+                      <Box
+                        sx={{
+                          mb: 2,
+                          display: 'flex',
+                          gap: 2,
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Button
+                          variant="contained"
+                          component="label"
+                          disabled={uploading || docArchivado}
+                          sx={{
+                            textTransform: 'none',
+                            bgcolor: INSTITUTIONAL_TEAL,
+                            '&:hover': { bgcolor: '#257a87' },
+                          }}
+                        >
+                          {uploading ? 'Subiendo…' : 'Subir archivo'}
+                          <input
+                            type="file"
+                            hidden
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,application/pdf,image/*"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.currentTarget.value = '';
+                              if (!f) return;
+                              if (f.size <= 0) {
+                                setError('El archivo está vacío o no es válido.');
+                                return;
+                              }
+                              if (f.size > MAX_FILE_UPLOAD_BYTES) {
+                                setError(
+                                  `El archivo excede el tamaño permitido (máx ${Math.round(MAX_FILE_UPLOAD_BYTES / (1024 * 1024))} MB).`,
+                                );
+                                return;
+                              }
+                              void onUpload(f);
+                            }}
+                          />
                         </Button>
-                        <Button onClick={() => void onDownload(a)}>Descargar</Button>
-                        {isAdmin && (
-                          <Button
-                            color="error"
-                            onClick={() => void onDeleteArchivo(a)}
-                          >
-                            Eliminar
-                          </Button>
-                        )}
-                      </Box>
-                    </Box>
-                  </Paper>
-                ))}
-              </Box>
-            )}
-          </Paper>
-
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Historial
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Trazabilidad por creación y actualizaciones.
-            </Typography>
-
-            {eventos.length === 0 ? (
-              <EmptyState
-                dense
-                title="Sin eventos de auditoría en el documento."
-                description="Los cambios futuros aparecerán aquí."
-              />
-            ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {eventos.map((ev) => (
-                  <Paper key={ev.id} variant="outlined" sx={{ p: 1.5 }}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        gap: 1,
-                        justifyContent: 'space-between',
-                        alignItems: { xs: 'flex-start', sm: 'center' },
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Chip size="small" label={ev.tipo} />
-                        <Typography variant="body2" color="text.secondary">
-                          {formatDateOnly(ev.createdAt)} — {ev.createdBy.email}
+                        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
+                          Permitidos: PDF, JPG/PNG/WEBP, DOCX, XLSX · Máx{' '}
+                          {Math.round(MAX_FILE_UPLOAD_BYTES / (1024 * 1024))} MB
+                          {docArchivado &&
+                            ' · Archivado: no cargas ni eliminaciones.'}
                         </Typography>
-                      </Box>
-                    </Box>
-                    {ev.cambiosJson && (
-                      <Box sx={{ mt: 1 }}>
-                        {(() => {
-                          try {
-                            const entries = parseCambiosJson(ev.cambiosJson);
-                            if (!entries.length) return null;
-                            return (
-                              <Box
-                                sx={{
-                                  border: 1,
-                                  borderColor: 'divider',
-                                  borderRadius: 1,
-                                  overflow: 'hidden',
-                                }}
-                              >
-                                {entries.map((e, idx) => (
-                                  <Box
-                                    key={`${e.field}-${idx}`}
-                                    sx={{
-                                      display: 'grid',
-                                      gridTemplateColumns: {
-                                        xs: '1fr',
-                                        sm: '200px 1fr 1fr',
-                                      },
-                                      gap: 1,
-                                      px: 1.5,
-                                      py: 1,
-                                      bgcolor: idx % 2 === 0 ? 'grey.50' : 'background.paper',
-                                    }}
-                                  >
-                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                      {fieldLabel(e.field)}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Antes: {formatValue(e.from)}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Después: {formatValue(e.to)}
-                                    </Typography>
-                                  </Box>
-                                ))}
-                              </Box>
-                            );
-                          } catch {
-                            return (
-                              <Typography variant="caption" color="text.secondary">
-                                Cambios no disponibles para mostrar.
-                              </Typography>
-                            );
-                          }
-                        })()}
                       </Box>
                     )}
+
+                    {archivos.length === 0 ? (
+                      <EmptyState
+                        dense
+                        title="Sin archivos adjuntos"
+                        description="Aún no se ha cargado un documento digital asociado a este registro."
+                      />
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {archivos.map((a) => (
+                          <Paper key={a.id} variant="outlined" sx={{ p: 1.5 }}>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexDirection: { xs: 'column', sm: 'row' },
+                                gap: 1,
+                                justifyContent: 'space-between',
+                                alignItems: { xs: 'flex-start', sm: 'center' },
+                              }}
+                            >
+                              <Box>
+                                <Typography sx={{ fontWeight: 600 }}>
+                                  v{a.version} — {a.originalName}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatDateOnly(a.createdAt)} — {a.createdBy.email} —{' '}
+                                  {(a.sizeBytes / 1024).toFixed(1)} KB
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                <Button
+                                  sx={{ textTransform: 'none' }}
+                                  onClick={() => void openArchivoEventos(a)}
+                                >
+                                  Historial
+                                </Button>
+                                <Button
+                                  sx={{ textTransform: 'none' }}
+                                  onClick={() => void onDownload(a)}
+                                >
+                                  Descargar
+                                </Button>
+                                {isAdmin && (
+                                  <Button
+                                    sx={{ textTransform: 'none' }}
+                                    color="error"
+                                    disabled={docArchivado}
+                                    onClick={() => void onDeleteArchivo(a)}
+                                  >
+                                    Eliminar
+                                  </Button>
+                                )}
+                              </Box>
+                            </Box>
+                          </Paper>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 5 }}>
+                <Stack spacing={2} sx={{ height: '100%' }}>
+                  <Paper elevation={0} sx={{ ...paperCardSx, p: 2.5 }}>
+                    <SectionHeader
+                      letter="C"
+                      title="Metadatos"
+                      subtitle="Datos del registro en el SGD y del catálogo documental."
+                    />
+                    <Stack sx={{ mt: 2 }}>
+                      <MetaRow
+                        label="Tipo documental"
+                        value={`${doc.tipoDocumental.codigo} — ${doc.tipoDocumental.nombre}`}
+                      />
+                      <MetaRow
+                        label="Serie"
+                        value={`${doc.subserie.serie.codigo} — ${doc.subserie.serie.nombre}`}
+                      />
+                      <MetaRow
+                        label="Subserie"
+                        value={`${doc.subserie.codigo} — ${doc.subserie.nombre}`}
+                      />
+                      <MetaRow
+                        label="Confidencialidad"
+                        value={labelConfidencialidad(doc.nivelConfidencialidad)}
+                      />
+                      <MetaRow
+                        label="Responsable (dependencia)"
+                        value={
+                          doc.dependencia ? `${doc.dependencia.codigo} — ${doc.dependencia.nombre}` : '—'
+                        }
+                      />
+                      <MetaRow
+                        label="Conservación"
+                        value="—"
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: -0.5, mb: 1 }}>
+                        Plazo formal no modelado en el sistema.
+                      </Typography>
+                      <MetaRow label="Registrado por" value={doc.createdBy.email} />
+                    </Stack>
+
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      sx={{ mt: 2.25, flexWrap: 'wrap', gap: 1 }}
+                    >
+                      <Button
+                        variant="contained"
+                        disabled={!archivoUltimaVersion}
+                        onClick={() => archivoUltimaVersion && void onDownload(archivoUltimaVersion)}
+                        sx={{
+                          textTransform: 'none',
+                          bgcolor: INSTITUTIONAL_TEAL,
+                          '&:hover': { bgcolor: '#257a87' },
+                        }}
+                      >
+                        Descargar
+                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="contained"
+                          onClick={openEdit}
+                          sx={{
+                            textTransform: 'none',
+                            bgcolor: INSTITUTIONAL_NAVY,
+                            '&:hover': { bgcolor: '#142030' },
+                          }}
+                        >
+                          Editar
+                        </Button>
+                      )}
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={() =>
+                          historiaRef.current?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                          })
+                        }
+                        sx={{ textTransform: 'none', borderColor: 'rgba(15,23,42,0.15)' }}
+                      >
+                        Ver historial
+                      </Button>
+                    </Stack>
                   </Paper>
-                ))}
-              </Box>
-            )}
-          </Paper>
-        </Box>
+
+                  <Paper ref={historiaRef} elevation={0} sx={{ ...paperCardSx, p: 2.5 }}>
+                    <SectionHeader
+                      letter="A"
+                      title="Historial y trazabilidad"
+                      subtitle="Últimos movimientos"
+                    />
+
+                    {eventos.length === 0 ? (
+                      <Box sx={{ py: 2 }}>
+                        <EmptyState
+                          dense
+                          title="Sin eventos en el documento"
+                          description="Los cambios quedarán listados cuando existan cargas u actualizaciones."
+                        />
+                      </Box>
+                    ) : (
+                      <Stack spacing={0} sx={{ mt: 2 }}>
+                        {eventos.map((ev, idx) => {
+                          const line = buildTimelineLine(ev);
+                          const isLast = idx === eventos.length - 1;
+                          return (
+                            <Stack
+                              key={ev.id}
+                              direction="row"
+                              spacing={1.25}
+                              sx={{
+                                alignItems: 'flex-start',
+                                pb: isLast ? 0 : 2.25,
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  position: 'relative',
+                                  width: 14,
+                                  flexShrink: 0,
+                                  display: 'flex',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {!isLast && (
+                                  <Box
+                                    aria-hidden
+                                    sx={{
+                                      position: 'absolute',
+                                      top: 14,
+                                      bottom: -18,
+                                      left: '50%',
+                                      width: 2,
+                                      transform: 'translateX(-50%)',
+                                      bgcolor: 'rgba(45, 138, 153, 0.42)',
+                                      borderRadius: 1,
+                                    }}
+                                  />
+                                )}
+                                <Box
+                                  sx={{
+                                    mt: '6px',
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: '50%',
+                                    bgcolor: INSTITUTIONAL_TEAL,
+                                    flexShrink: 0,
+                                    zIndex: 1,
+                                    boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
+                                  }}
+                                />
+                              </Box>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography sx={{ fontWeight: 800, lineHeight: 1.3 }}>
+                                  {line.primary}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {line.secondary}
+                                </Typography>
+                                {line.expanded && line.expanded.length > 0 && (
+                                  <Accordion
+                                    disableGutters
+                                    elevation={0}
+                                    sx={{
+                                      '&:before': { display: 'none' },
+                                      boxShadow: 'none',
+                                      mt: 1,
+                                      border: '1px solid',
+                                      borderColor: 'divider',
+                                      borderRadius: 1,
+                                    }}
+                                  >
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                      <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                        Detalle técnico de cambios
+                                      </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ pt: 0 }}>
+                                      <Box
+                                        sx={{
+                                          border: 1,
+                                          borderColor: 'divider',
+                                          borderRadius: 1,
+                                          overflow: 'hidden',
+                                        }}
+                                      >
+                                        {line.expanded.map((e, rowIdx) => (
+                                          <Box
+                                            key={`${e.field}-${rowIdx}`}
+                                            sx={{
+                                              display: 'grid',
+                                              gridTemplateColumns: {
+                                                xs: '1fr',
+                                                sm: '160px 1fr 1fr',
+                                              },
+                                              gap: 1,
+                                              px: 1.5,
+                                              py: 1,
+                                              bgcolor:
+                                                rowIdx % 2 === 0 ? 'grey.50' : 'background.paper',
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                              {fieldLabel(e.field)}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                              Antes: {formatValue(e.field, e.from)}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                              Después: {formatValue(e.field, e.to)}
+                                            </Typography>
+                                          </Box>
+                                        ))}
+                                      </Box>
+                                    </AccordionDetails>
+                                  </Accordion>
+                                )}
+                              </Box>
+                            </Stack>
+                          );
+                        })}
+                      </Stack>
+                    )}
+                  </Paper>
+                </Stack>
+              </Grid>
+            </Grid>
+          </Box>
         )}
       </Container>
+
+      <Dialog
+        open={rejectMotivoOpen}
+        onClose={() => !workflowLoading && setRejectMotivoOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Rechazar documento</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            El motivo es obligatorio y quedará registrado en auditoría.
+          </Typography>
+          <TextField
+            label="Motivo del rechazo"
+            fullWidth
+            required
+            multiline
+            minRows={3}
+            value={rejectMotivo}
+            onChange={(e) => {
+              setRejectMotivo(e.target.value);
+              setRejectMotivoError(null);
+            }}
+            error={!!rejectMotivoError}
+            helperText={rejectMotivoError ?? `${rejectMotivo.trim().length}/2000`}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setRejectMotivoOpen(false)}
+            disabled={workflowLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            color="warning"
+            variant="contained"
+            disabled={workflowLoading}
+            onClick={() => void confirmRejectConMotivo()}
+          >
+            Confirmar rechazo
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Editar documento</DialogTitle>
@@ -799,13 +1515,35 @@ export function DocumentoDetallePage() {
               {...editForm.register('fechaDocumento')}
             />
 
-            <TextField
-              label="Estado"
-              fullWidth
-              required
-              error={!!editForm.formState.errors.estado}
-              helperText={editForm.formState.errors.estado?.message}
-              {...editForm.register('estado')}
+            <Controller
+              name="estado"
+              control={editForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth required error={!!editForm.formState.errors.estado}>
+                  <InputLabel id="edit-estado-label">Estado</InputLabel>
+                  <Select
+                    labelId="edit-estado-label"
+                    label="Estado"
+                    value={field.value}
+                    onChange={field.onChange}
+                  >
+                    {DOCUMENTO_ESTADOS.map((cod) => (
+                      <MenuItem key={cod} value={cod}>
+                        {labelDocumentoEstado(cod)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {editForm.formState.errors.estado?.message ? (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                      {String(editForm.formState.errors.estado.message)}
+                    </Typography>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>
+                      Solo transiciones válidas entre estados (el servidor rechaza saltos ilegales).
+                    </Typography>
+                  )}
+                </FormControl>
+              )}
             />
 
             <Controller

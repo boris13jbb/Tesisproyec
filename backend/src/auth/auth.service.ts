@@ -8,9 +8,42 @@ import { AuditService } from '../auditoria/audit.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import type { JwtRequestUser } from './request-user';
+
+export type AdminSecuritySummary = {
+  schemaVersion: 1;
+  passwordPolicy: {
+    minLength: number;
+    enforcedOnUserCreate: boolean;
+  };
+  accountLockout: {
+    enabled: boolean;
+    maxFailedAttempts: number;
+    lockoutMinutes: number;
+  };
+  /** Caducidad del access token JWT (p. ej. `15m`, `1h`). No sustituye política de idle en servidor stateless. */
+  jwtAccessExpiresIn: string;
+  refreshSessionDays: number;
+  passwordReuseHistory: {
+    implemented: boolean;
+    /** Placeholder si existiera política de reuso. */
+    lastPasswordsRemembered: number;
+  };
+  adminStepUpAuth: { implemented: boolean };
+  applicationControls: {
+    helmetEnabled: boolean;
+    globalValidationPipe: boolean;
+    corsWithCredentials: boolean;
+    loginThrottle: { limitPerIp: number; windowMinutes: number };
+    fileUpload: { maxMegabytes: number; mimeAllowlistEnforced: boolean };
+  };
+};
 
 @Injectable()
 export class AuthService {
+  /** Coincide con `CreateUsuarioDto` / `PasswordResetConfirmDto` (MinLength). */
+  private static readonly USER_PASSWORD_MIN_LENGTH = 8 as const;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -154,7 +187,11 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { failedLoginAttempts: 0, lockedUntil: null },
+      data: {
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        ultimoLoginAt: new Date(),
+      },
     });
 
     const accessToken = await this.jwtService.signAsync(
@@ -573,5 +610,244 @@ export class AuthService {
     });
 
     return { ok: true };
+  }
+
+  private static parseAuditMetaJson(
+    metaJson: string | null,
+  ): Record<string, unknown> {
+    if (!metaJson) {
+      return {};
+    }
+    try {
+      const v = JSON.parse(metaJson) as unknown;
+      return v !== null && typeof v === 'object'
+        ? (v as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private profileDocumentoIdFromRow(meta: Record<string, unknown>): string | null {
+    const raw = meta.documentoId;
+    return typeof raw === 'string' && raw.length > 0 ? raw : null;
+  }
+
+  private profileReportKindLabel(kind: unknown): string {
+    if (kind === 'documentos') return 'documentos';
+    if (kind === 'auditoria') return 'auditoría';
+    if (kind === 'pendientes_revision') return 'pendientes de revisión';
+    return 'informe';
+  }
+
+  private profileActivityLabel(
+    row: {
+      action: string;
+      resourceType: string | null;
+      resourceId: string | null;
+      metaJson: string | null;
+    },
+    codigoById: Map<string, string>,
+  ): string {
+    const meta = AuthService.parseAuditMetaJson(row.metaJson);
+    const docIdDirect =
+      this.profileDocumentoIdFromRow(meta) ??
+      (row.resourceType === 'Documento' && row.resourceId
+        ? row.resourceId
+        : null);
+    const codigo = docIdDirect ? codigoById.get(docIdDirect) : undefined;
+
+    switch (row.action) {
+      case 'AUTH_LOGIN_OK':
+        return 'Inició sesión correctamente';
+      case 'AUTH_LOGOUT':
+        return 'Cerró sesión';
+      case 'DOC_FILE_UPLOADED':
+        return codigo
+          ? `Cargó documento ${codigo}`
+          : 'Cargó un archivo en un documento';
+      case 'DOC_FILE_DOWNLOADED':
+        return codigo
+          ? `Consultó documento ${codigo}`
+          : 'Consultó un documento (descarga/visualización)';
+      case 'DOC_FILE_DELETED':
+        return codigo
+          ? `Eliminó un archivo del documento ${codigo}`
+          : 'Eliminó un archivo documental';
+      case 'DOC_STATE_CHANGED':
+        return codigo ? `Actualizó documento ${codigo}` : 'Actualizó un documento';
+      case 'DOC_SUBMITTED_FOR_REVIEW':
+        return codigo ? `Envió a revisión el documento ${codigo}` : 'Envió un documento a revisión';
+      case 'DOC_REVIEW_RESOLVED':
+        return codigo ? `Resolvió la revisión del documento ${codigo}` : 'Resolvió una revisión documental';
+      case 'REPORT_EXPORTED':
+        return `Exportó reporte (${this.profileReportKindLabel(meta.kind)})`;
+      case 'USER_UPDATED':
+        return 'Su cuenta fue actualizada por un administrador';
+      case 'USER_PASSWORD_RESET':
+        return 'Contraseña restablecida por administración';
+      case 'AUTH_PASSWORD_RESET_CONFIRM_OK':
+        return 'Restableció su contraseña';
+      case 'AUTH_PASSWORD_RESET_REQUEST':
+        return 'Solicitó restablecer contraseña';
+      case 'BACKUP_VERIFIED':
+        return 'Registró verificación de respaldo institucional';
+      default:
+        return row.action;
+    }
+  }
+
+  /**
+   * Perfil enriquecido del usuario autenticado + actividad reciente desde auditoría
+   * (solo lecturas propias, sin exponer IPs ni metadatos sensibles más allá del necesario para la etiqueta).
+   */
+  async getMyProfile(viewer: JwtRequestUser) {
+    const PROFILE_AUDIT_SKIP = [
+      'AUTH_REFRESH_OK',
+      'AUTH_REFRESH_FAIL',
+      'AUTH_RATE_LIMITED',
+    ] as const;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: viewer.id },
+      select: {
+        id: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        activo: true,
+        ultimoLoginAt: true,
+        dependencia: { select: { codigo: true, nombre: true } },
+        cargo: { select: { nombre: true } },
+        roles: { include: { role: { select: { codigo: true, nombre: true } } } },
+      },
+    });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const lastLogin = await this.prisma.auditLog.findFirst({
+      where: {
+        actorUserId: viewer.id,
+        action: 'AUTH_LOGIN_OK',
+        result: 'OK',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
+    const rawLogs = await this.prisma.auditLog.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { actorUserId: viewer.id },
+              { actorEmail: viewer.email },
+            ],
+          },
+          { result: 'OK' },
+          { action: { notIn: [...PROFILE_AUDIT_SKIP] } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 16,
+      select: {
+        id: true,
+        createdAt: true,
+        action: true,
+        result: true,
+        resourceType: true,
+        resourceId: true,
+        metaJson: true,
+      },
+    });
+
+    const docIds = new Set<string>();
+    for (const row of rawLogs) {
+      const meta = AuthService.parseAuditMetaJson(row.metaJson);
+      const fromMeta = this.profileDocumentoIdFromRow(meta);
+      if (fromMeta) {
+        docIds.add(fromMeta);
+      }
+      if (row.resourceType === 'Documento' && row.resourceId) {
+        docIds.add(row.resourceId);
+      }
+    }
+
+    const docs =
+      docIds.size > 0
+        ? await this.prisma.documento.findMany({
+            where: { id: { in: [...docIds] } },
+            select: { id: true, codigo: true },
+          })
+        : [];
+    const codigoById = new Map(docs.map((d) => [d.id, d.codigo]));
+
+    const activity = rawLogs.slice(0, 8).map((row) => ({
+      id: row.id,
+      at: row.createdAt.toISOString(),
+      action: row.action,
+      label: this.profileActivityLabel(row, codigoById),
+    }));
+
+    return {
+      schemaVersion: 1 as const,
+      usuario: {
+        id: user.id,
+        email: user.email,
+        nombres: user.nombres,
+        apellidos: user.apellidos,
+        activo: user.activo,
+        dependencia: user.dependencia,
+        cargoNombre: user.cargo?.nombre ?? null,
+        roles: user.roles.map((ur) => ({
+          codigo: ur.role.codigo,
+          nombre: ur.role.nombre,
+        })),
+      },
+      lastLoginAt:
+        user.ultimoLoginAt?.toISOString() ??
+        lastLogin?.createdAt.toISOString() ??
+        null,
+      activity,
+    };
+  }
+
+  /**
+   * Lectura de políticas operativas efectivas (sin secretos). Solo consumo UI ADMIN.
+   */
+  getAdminSecuritySummary(): AdminSecuritySummary {
+    const refreshDaysRaw = Number(this.config.get('JWT_REFRESH_DAYS', 7));
+    const refreshSessionDays = Number.isFinite(refreshDaysRaw)
+      ? Math.min(365, Math.max(1, Math.floor(refreshDaysRaw)))
+      : 7;
+
+    return {
+      schemaVersion: 1,
+      passwordPolicy: {
+        minLength: AuthService.USER_PASSWORD_MIN_LENGTH,
+        enforcedOnUserCreate: true,
+      },
+      accountLockout: {
+        enabled: true,
+        maxFailedAttempts: this.loginLockoutMaxAttempts(),
+        lockoutMinutes: this.loginLockoutMinutes(),
+      },
+      jwtAccessExpiresIn:
+        this.config.get<string>('JWT_ACCESS_EXPIRES') ?? '15m',
+      refreshSessionDays,
+      passwordReuseHistory: {
+        implemented: false,
+        lastPasswordsRemembered: 0,
+      },
+      adminStepUpAuth: { implemented: false },
+      applicationControls: {
+        helmetEnabled: true,
+        globalValidationPipe: true,
+        corsWithCredentials: true,
+        loginThrottle: { limitPerIp: 8, windowMinutes: 10 },
+        fileUpload: { maxMegabytes: 50, mimeAllowlistEnforced: true },
+      },
+    };
   }
 }

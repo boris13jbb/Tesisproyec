@@ -23,6 +23,8 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
   - `DELETE /api/v1/documentos/:id/archivos/:archivoId` (JWT + `ADMIN`, borrado lógico)
 - **Frontend:** en `/documentos/:id` sección **Archivos** para listar, subir (ADMIN) y descargar.
 
+**Visibilidad y anti‑IDOR:** las rutas anteriores aplican las **mismas reglas de acceso por documento** que el listado/detalle (`dependencia_id` propietaria + `nivel_confidencialidad` en relación al usuario JWT), además del rol (**ADMIN**, **JWT** usuario).
+
 ## Decisiones técnicas
 
 - Rutas físicas no expuestas; streaming desde NestJS; registrar cada descarga.

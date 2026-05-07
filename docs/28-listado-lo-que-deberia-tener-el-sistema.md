@@ -1,7 +1,7 @@
 # Listado de lo que debería tener el sistema (Gap vs implementación actual)
 
 **Proyecto:** SGD-GADPR-LM  
-**Fecha:** 2026-05-08  
+**Fecha de última revisión:** 2026-05-06  
 **Propósito:** comparar los requisitos (1–45) propuestos vs el sistema implementado y listar lo que falta para un cierre institucional alineado con **ISO/IEC 27001**, **ISO 15489** y **OWASP ASVS**.
 
 > Leyenda de estado:
@@ -20,10 +20,12 @@ Constatación explícita: **no** se puede “cerrar” el listado 1–45 solo co
 | **R-6 / R-38** | Columnas `dependencia_id` y `nivel_confidencialidad` en `documentos`; filtro de visibilidad en listado/detalle/descarga/export (no‑ADMIN). |
 | **R-30 / R-31 / R-40 (base)** | UI **ADMIN** `/admin/auditoria` + export `GET /api/v1/reportes/auditoria.{xlsx,pdf}`; bitácora `audit_logs` con eventos de auth; **`AUTHZ_FORBIDDEN`** al responder **403** con usuario JWT. |
 | **R-9 (base ASVS)** | Throttling global y por ruta `auth` + **`AUTH_LOCKOUT_*`**: bloqueo **por cuenta** tras N contraseñas incorrectas (`users.failed_login_attempts` / `locked_until`); se limpia en login OK o restablecimiento de contraseña. |
-| **R-4 (parcial)** | Roles **REVISOR**, **AUDITOR**, **CONSULTA** sembrados en seed; **mismo alcance funcional** que **USUARIO** hasta definir flujos; asignación en UI de administración. |
+| **R-4 (parcial)** | Roles **REVISOR**, **AUDITOR**, **CONSULTA** en seed y UI; **REVISOR** ejecuta **resolver revisión** (`POST .../resolver-revision`); **AUDITOR**/**CONSULTA** siguen como **USUARIO** en alcance hasta flujos propios. |
 | **R-36 / R-37** | Procedimiento documentado: `scripts/README-backups-mysql-xampp.md` (backup/restauración **manual**). |
+| **R-27 / R-34 (MVP)** | Catálogo **`BORRADOR`…`ARCHIVADO`**, transiciones controladas en servidor, migración SQL de normalización; **`ARCHIVADO`** bloquea subir/eliminar adjuntos y cambios de metadatos (salvo `activo`); **`DOC_STATE_CHANGED`** en `audit_logs`. |
+| **R-28 / R-29 (MVP)** | **`POST /api/v1/documentos/:id/enviar-revision`** (REGISTRADO→EN_REVISION, creador o ADMIN); **`POST .../resolver-revision`** (EN_REVISION→APROBADO/RECHAZADO, **ADMIN** o **REVISOR**); **rechazo** con **`motivo` obligatorio** (3–2000 caracteres) registrado en **`audit_logs.meta.motivoRechazo`**; eventos **`DOC_SUBMITTED_FOR_REVIEW`** y **`DOC_REVIEW_RESOLVED`**; bandeja mínima = filtro listado estado **En revisión**. |
 
-Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (R-28), máquina de estados formal (R-27), retención/legal hold operativos (R-32–35), notificaciones (R-44), HTTPS productivo (R-19), MFA/WAF (backlog), permisos granulares `Permission` (R-5), políticas jurídicas firmadas (R-43).
+Queda **pendiente de gobierno / producto** (entre otros): bandeja dedicada / SLA, **notificaciones por vencimiento** (depende de retención R-32–35), retención/legal hold operativos (R-32–35), HTTPS productivo (R-19), MFA/WAF (backlog), permisos granulares `Permission` (R-5), políticas jurídicas firmadas (R-43). **R-44 (correo)** para revisión ya está en MVP best-effort vía SMTP.
 
 ---
 
@@ -43,8 +45,8 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
    - **Evidencia**: `users.email` único.
 
 4. **Roles y perfiles (admin, usuario, revisor, auditor, consulta)** — **Parcial**  
-   - **Hoy**: `ADMIN`, `USUARIO`, y en seed **REVISOR**, **AUDITOR**, **CONSULTA** (sin flujos específicos aún).  
-   - **Falta**: diferenciar responsabilidades (aprobación, revisión, auditoría de campo) con reglas de negocio y UI.
+   - **Hoy**: `ADMIN`, `USUARIO`, **REVISOR**, **AUDITOR**, **CONSULTA**; **REVISOR** resuelve revisión documental vía API/UI (R-28 MVP).  
+   - **Falta**: flujos para **AUDITOR** / **CONSULTA** y matriz de permisos fina.
 
 5. **Permisos por rol (ver/subir/editar/eliminar/descargar)** — **Parcial**  
    - **Hoy**: mutaciones sensibles con `ADMIN`; lectura con JWT; **filtrado por dependencia + confidencialidad** en consulta/descarga/export documentos (no‑ADMIN).  
@@ -129,16 +131,17 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
    - **Hoy**: versionado de archivos + historial de documento (eventos).  
    - **Falta**: versión del “documento” como estado formal (p. ej. v1/v2 con snapshot) si la institución lo exige.
 
-27. **Estados del documento (borrador/enviado/revisado/aprobado/…/archivado)** — **Parcial**  
-   - **Hoy**: estado como string (ej. `REGISTRADO`), sin catálogo formal ni transición controlada.  
-   - **Falta**: máquina de estados y restricciones de transición.
+27. **Estados del documento (borrador/enviado/revisado/aprobado/…/archivado)** — **Parcial (MVP código)**  
+   - **Hoy**: catálogo fijo y transiciones validadas en **`DocumentosService`** (`documento-estado.util.ts`); alta **BORRADOR**/**REGISTRADO**; **ADMIN** puede seguir ajustando estado por **PATCH**; acciones de flujo **enviar / resolver revisión** con reglas por actor.  
+   - **Falta**: catálogo parametrizable institucional; transiciones **solo** vía workflow (sin bypass ADMIN) si la política lo exige.
 
-28. **Flujo de aprobación** — **Pendiente**  
-   - **Falta**: roles revisor/aprobador, bandeja de pendientes, transiciones y evidencias.
+28. **Flujo de aprobación** — **Parcial (MVP código)**  
+   - **Hoy**: envío a revisión (**REGISTRADO**→**EN_REVISION**) por **creador o ADMIN**; resolución (**APROBADO**/**RECHAZADO**) por **ADMIN** o **REVISOR**; **rechazo con motivo obligatorio** persistido en auditoría (`motivoRechazo`); filtro de listado para “En revisión”.  
+   - **Falta**: bandeja propia, notificaciones, SLA, múltiples niveles de aprobación, firma electrónica institucional.
 
 29. **Trazabilidad documental (quién creó/modificó/revisó/aprobó/descargó/eliminó)** — **Parcial**  
-   - **Hoy**: eventos de documento (CREADO/ACTUALIZADO) y eventos de archivo (SUBIDO/DESCARGADO/ELIMINADO); `audit_logs` con consulta/export ADMIN para acciones de sistema (ej. login, límites, reportes).  
-   - **Falta**: trazabilidad del flujo formal (revisión/aprobación) y cobertura exhaustiva de auditoría por operación.
+   - **Hoy**: eventos de documento/archivo; **`DOC_STATE_CHANGED`**, **`DOC_SUBMITTED_FOR_REVIEW`**, **`DOC_REVIEW_RESOLVED`** en `audit_logs` cuando aplica el flujo.  
+   - **Falta**: informes de cohorte institucional, cobertura exhaustiva por operación y retención de bitácora acordada.
 
 30. **Bitácora de auditoría (acciones del sistema con IP)** — **Implementado (MVP+)**  
    - **Hoy**: tabla `audit_logs` + API `GET /api/v1/auditoria` (ADMIN) + UI `/admin/auditoria` + export Excel/PDF desde reportes; **`AUTHZ_FORBIDDEN`** ante **403** autenticado.  
@@ -152,8 +155,9 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
 
 33. **Políticas de retención** — **Pendiente**
 
-34. **Archivo digital (estado archivado sin perder)** — **Parcial**  
-   - **Hoy**: `activo` + `estado` (string) permiten simular, pero sin política ni restricciones.
+34. **Archivo digital (estado archivado sin perder)** — **Parcial (MVP)**  
+   - **Hoy**: estado **ARCHIVADO** con bloqueo de carga/eliminación de adjuntos y de edición de metadatos (solo `activo` en catálogo).  
+   - **Falta**: política de conservación, ubicación lógica “fondo archivístico” y disposición institucional.
 
 35. **Eliminación controlada (sin autorización/registro)** — **Parcial**  
    - **Hoy**: documentos/archivos se restringen por ADMIN y los archivos usan borrado lógico.  
@@ -173,8 +177,8 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
    - **Falta**: gobierno institucional del catálogo de niveles y excepciones auditadas.
 
 39. **Reportes administrativos** — **Implementado (parcial)**  
-   - **Hoy**: reportes de documentos a Excel/PDF con filtros.  
-   - **Falta**: reportes de aprobación, archivado/eliminado, pendientes.
+   - **Hoy**: reportes de documentos a Excel/PDF con filtros; plantilla dedicada **pendientes de revisión** (`/reportes/pendientes-revision.{xlsx,pdf}`) para **ADMIN/REVISOR**; filtro por **estado** incluye revisión/aprobación vía datos.  
+   - **Falta**: export combinado de eventos `DOC_SUBMITTED_FOR_REVIEW` y `DOC_REVIEW_RESOLVED` si lo exige archivo.
 
 40. **Reportes de seguridad (accesos, intentos fallidos, acciones)** — **Parcial (MVP)**  
    - **Hoy**: export filtrable de `audit_logs` (Excel/PDF) + consulta en pantalla ADMIN.  
@@ -191,7 +195,12 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
    - **Hoy**: lineamientos en docs + reglas `.cursor/rules`.  
    - **Falta**: documento formal de políticas institucionales (acceso/retención/seguridad) y su aterrizaje en configuración.
 
-44. **Notificaciones (pendiente/aprobado/rechazado/vencimiento)** — **Pendiente**
+44. **Notificaciones (pendiente/aprobado/rechazado/vencimiento)** — **Parcial (MVP)**
+
+- **Hoy**: notificación por **email** (best-effort, depende de SMTP):
+  - al **enviar a revisión**: se notifica a usuarios **ADMIN/REVISOR** activos;
+  - al **resolver revisión**: se notifica al **creador** del documento (incluye motivo si fue rechazado).
+- **Falta**: notificaciones por vencimiento (retención), bandeja/cola dedicada con SLA, plantillas institucionales, canal alterno (in-app) y configuración de destinatarios por política.
 
 45. **Integridad del documento (evitar alteraciones y registrar cambios)** — **Parcial**  
    - **Hoy**: trazabilidad de cambios (eventos) + hash de archivos + RBAC.  
@@ -201,19 +210,20 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
 
 ## 2) Módulos mínimos recomendados — estado actual
 
-1) **Autenticación** — **Implementado (MVP)**  
-   - Login, logout, refresh, recuperación, `/me`.  
-   - Falta: lockout por cuenta / MFA; sesión por inactividad avanzada.
+1) **Autenticación** — **Implementado (MVP+)**  
+   - Login, logout, refresh, recuperación, `/me`; lockout por cuenta (env) + throttling.  
+   - Falta: MFA; sesión por inactividad avanzada más allá del refresh.
 
 2) **Usuarios** — **Implementado (MVP)**  
-   - Crear/editar/activar/desactivar/reset pass; asignación de roles **ADMIN**, **USUARIO**, **REVISOR**, **AUDITOR**, **CONSULTA** (últimos tres con mismo alcance funcional que usuario hasta nuevos flujos).  
-   - Falta: permisos granulares (`Permission`) y flujos por rol.
+   - Crear/editar/activar/desactivar/reset pass; roles **ADMIN**, **USUARIO**, **REVISOR**, **AUDITOR**, **CONSULTA**.  
+   - **REVISOR:** resolución de revisión documental (además del alcance de lectura JWT como **USUARIO**).  
+   - Falta: permisos granulares (`Permission`) y flujos para **AUDITOR**/**CONSULTA**.
 
-3) **Documentos** — **Implementado (MVP)**  
-   - Registro, metadatos base, clasificación, búsqueda, detalle.
+3) **Documentos** — **Implementado (MVP+)**  
+   - Registro, metadatos base, clasificación, búsqueda, detalle; **estados**, **workflow enviar/resolver revisión** en UI y API.
 
 4) **Trazabilidad** — **Parcial**  
-   - Eventos por documento/archivo implementados; `audit_logs` + UI/export seguridad.  
+   - Eventos por documento/archivo; `audit_logs` (estado + envío/resolución de revisión) + UI/export seguridad.  
    - Falta: retención legal e integridad avanzada de bitácora.
 
 5) **Conservación** — **Pendiente (gobierno)**  
@@ -238,7 +248,7 @@ Queda **pendiente de gobierno / producto** (entre otros): flujo de aprobación (
 - **R-36/R-37**: automatizar backups y **pruebas de restauración** con bitácora.
 
 ### Prioridad Media (mejora ISO 15489 “completo”)
-- **R-27/R-28**: estados con máquina de transiciones + flujo de aprobación.
+- **R-27/R-28**: profundizar (bandeja, notificaciones, transiciones solo por workflow, aprobaciones multinivel).
 - **R-32/R-33**: retención y conservación.
 - **R-44**: notificaciones (pendientes/vencimientos).
 

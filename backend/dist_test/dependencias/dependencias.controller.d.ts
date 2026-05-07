@@ -1,0 +1,43 @@
+import { DependenciasService } from './dependencias.service';
+import { CreateDependenciaDto } from './dto/create-dependencia.dto';
+import { UpdateDependenciaDto } from './dto/update-dependencia.dto';
+export declare class DependenciasController {
+    private readonly dependenciasService;
+    constructor(dependenciasService: DependenciasService);
+    findAll(incluirInactivos?: string): Promise<{
+        id: string;
+        createdAt: Date;
+        activo: boolean;
+        updatedAt: Date;
+        codigo: string;
+        nombre: string;
+        descripcion: string | null;
+    }[]>;
+    findOne(id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        activo: boolean;
+        updatedAt: Date;
+        codigo: string;
+        nombre: string;
+        descripcion: string | null;
+    }>;
+    create(dto: CreateDependenciaDto): Promise<{
+        id: string;
+        createdAt: Date;
+        activo: boolean;
+        updatedAt: Date;
+        codigo: string;
+        nombre: string;
+        descripcion: string | null;
+    }>;
+    update(id: string, dto: UpdateDependenciaDto): Promise<{
+        id: string;
+        createdAt: Date;
+        activo: boolean;
+        updatedAt: Date;
+        codigo: string;
+        nombre: string;
+        descripcion: string | null;
+    }>;
+}

@@ -1,3 +1,13 @@
+# SGD-GADPR-LM — frontend (Vite + React)
+
+## Desarrollo: proxy, LAN y hosts del servidor Vite
+
+- **API:** con `npm run dev`, por defecto se usa **`/api/v1`** relativo + proxy hacia **`http://127.0.0.1:3000`** (véase `vite.config.ts`). No configures `VITE_API_URL=http://localhost:…` si abris la UI desde otro equipo por **IP LAN** (`localhost` sería ese equipo cliente).
+- **Hosts permitidos:** en este repo **no** se fija `server.allowedHosts` en código con una lista corta sólo localhost/ngrok, para no romper **`http://192.168.*.*:5173`**. Para un **túnel** (ngrok, etc.), usá la variable oficial de Vite: `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` (véase [`docs/02-stack-y-convenciones.md`](../docs/02-stack-y-convenciones.md) y [.env.example](.env.example)).
+- Para el template ESLint/React Compiler del boilerplate original, véase más abajo en inglés.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

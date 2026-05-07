@@ -11,11 +11,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { Roles } from './decorators/roles.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import type { JwtRequestUser } from './request-user';
 
 @Controller('auth')
 export class AuthController {
@@ -145,6 +148,21 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@Req() req: Request & { user: unknown }) {
     return req.user;
+  }
+
+  /** Perfil institucional del usuario autenticado (datos de cuenta + actividad auditada reciente). */
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  profile(@Req() req: Request & { user: JwtRequestUser }) {
+    return this.authService.getMyProfile(req.user);
+  }
+
+  /** Transparencia de políticas para UI “Configuración de seguridad” (ADMIN, sin secretos). */
+  @Get('admin/security-summary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  adminSecuritySummary() {
+    return this.authService.getAdminSecuritySummary();
   }
 
   @Post('password-reset/request')

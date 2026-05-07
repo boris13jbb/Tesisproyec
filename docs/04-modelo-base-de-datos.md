@@ -6,12 +6,12 @@
 
 ---
 
-## Estado actual del repositorio (2026-05-07)
+## Estado actual del repositorio (2026-05-06)
 
 | Elemento | Situación |
 |----------|-----------|
 | `backend/prisma/schema.prisma` | **Existe** — `provider = "mysql"`. Prisma **5.22.0** fijado en `backend/package.json` (la línea base del proyecto no asume Prisma 7). |
-| `backend/prisma/migrations/` | **16** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
+| `backend/prisma/migrations/` | **18** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
 | `DATABASE_URL` | Definir en `backend/.env` (plantilla en `.env.example`). Crear la base vacía en phpMyAdmin antes de migrar. |
 | Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). En Windows ante **EPERM**: `npm run prisma:generate:clean`. |
 | Cierre ETAPA 2 | Evidencias formales en **`docs/31-etapa-2-cierre-y-evidencias.md`**. |
@@ -34,8 +34,10 @@
 | 12 | `20260505021000_add_user_dependencia_cargo` | Usuario institucional: `users.dependencia_id`, `users.cargo_id` (FK opcionales). |
 | 13 | `20260505123600_add_audit_logs` | Bitácora transversal `audit_logs`. |
 | 14 | `20260505125800_refresh_tokens_last_used_at` | `refresh_tokens.last_used_at` (inactividad / ASVS sesión). |
-| 15 | `20260507153000_documento_dependencia_confidencialidad` | Documento: `dependencia_id` (propietaria) + `nivel_confidencialidad` (+ backfill desde creador). |
-| 16 | `20260508120000_user_login_lockout` | Usuario: `failed_login_attempts`, `locked_until` (bloqueo temporal tras N fallos). |
+| 15 | `20260506143000_user_ultimo_login` | Usuario: `users.ultimo_login_at` (último login OK con credenciales). |
+| 16 | `20260507153000_documento_dependencia_confidencialidad` | Documento: `dependencia_id` (propietaria) + `nivel_confidencialidad` (+ backfill desde creador). |
+| 17 | `20260508120000_user_login_lockout` | Usuario: `failed_login_attempts`, `locked_until` (bloqueo temporal tras N fallos). |
+| 18 | `20260509153000_normalize_documento_estados` | Normaliza `documentos.estado` a catálogo formal (R‑27). |
 
 ### Tablas resumen por dominio
 
@@ -43,7 +45,7 @@
 
 | Tabla | Propósito |
 |-------|-----------|
-| `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`; contador de intentos fallidos y `locked_until` (R-9 MVP). |
+| `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`; contador de intentos fallidos y `locked_until` (R-9 MVP); `ultimo_login_at` (login exitoso con contraseña). |
 | `roles` / `permissions` | Catálogo de roles y permisos granulares. |
 | `user_roles` / `role_permissions` | N:M usuario↔rol y rol↔permiso. |
 
@@ -151,7 +153,7 @@ Si la base ya existía con tablas creadas fuera de Prisma, usar con cuidado `pri
 
 | Fecha | Migración aplicada | Observación |
 |-------|---------------------|---------------|
-| 2026-05-06 | Todas hasta `20260505125800_*` | Cierre ETAPA 2 documentado — `docs/31-etapa-2-cierre-y-evidencias.md`. |
+| 2026-05-06 | Hasta **`20260509153000_normalize_documento_estados`** incl. | Inventario cronológico en §“Inventario ordenado…”; cierre ETAPA 2: `docs/31-etapa-2-cierre-y-evidencias.md`. |
 
 ---
 

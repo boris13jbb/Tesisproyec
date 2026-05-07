@@ -7,6 +7,8 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** este documento conserva la evidencia de cierre del hito. Para el **estado vivo** del código y brechas institucionales: `docs/README.md` (snapshot), `docs/22-changelog-tecnico.md`, `docs/28-listado-lo-que-deberia-tener-el-sistema.md`.
+
 ## Objetivo
 
 Declarar **cerrada la ETAPA 0** cuando los entregables del roadmap están **presentes en el monorepo** y la **deuda** queda registrada en los documentos oficiales de seguimiento, sin obligar a que cada máquina de desarrollo tenga MySQL configurado (eso es onboarding local, ETAPA 2 / operación).

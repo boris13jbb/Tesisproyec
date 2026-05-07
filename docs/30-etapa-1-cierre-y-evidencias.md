@@ -6,6 +6,8 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** este documento conserva la evidencia de cierre del hito. Para el **estado vivo** del código y brechas institucionales: `docs/README.md` (snapshot), `docs/22-changelog-tecnico.md`, `docs/28-listado-lo-que-deberia-tener-el-sistema.md`.
+
 ## Objetivo
 
 Acreditar que la **capa técnica transversal** acordada en el roadmap está implantada antes de adjudicar trabajo solo a ETAPAs de dominio (catálogos, documentos, etc.).

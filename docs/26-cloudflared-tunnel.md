@@ -19,7 +19,7 @@ Dejar un **manual operativo** para exponer de forma **temporal** el frontend loc
 
 ## Requisitos previos
 
-1. El frontend debe estar levantado y accesible localmente:
+1. El frontend debe estar levantado y accesible localmente (y, para flujos reales de login/datos, el **backend Nest en :3000** + **MySQL** según `docs/23-entorno-local-xampp-ngrok.md`).
 
 ```bash
 http://localhost:5173

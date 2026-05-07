@@ -15,6 +15,8 @@ MySQL/MariaDB, phpMyAdmin, puertos, variables de entorno y riesgos de túnel HTT
 - **Backend:** `http://localhost:3000` (NestJS).
 - **Frontend:** `http://localhost:5173` (Vite) cuando exista `frontend/`.
 
+Orden práctico: **mysql (XAMPP)** → **Nest :3000** → **Vite :5173**. Si aparece **`http proxy error` / `ECONNREFUSED 127.0.0.1:3000`** en la consola de Vite, el backend no está en marcha.
+
 ## Decisiones técnicas
 
 1. **Base de datos:** crear manualmente la base (p. ej. `gestion_documental_gadpr_lm`) antes de `prisma migrate`, cotejamiento `utf8mb4`.

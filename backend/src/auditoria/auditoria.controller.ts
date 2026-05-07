@@ -3,6 +3,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildAuditWhere,
+  enrichAuditLogsWithDocumentoCodigo,
+} from './audit-list.util';
 import { AuditQueryDto } from './dto/audit-query.dto';
 
 @Controller('auditoria')
@@ -20,25 +24,18 @@ export class AuditoriaController {
     const from = q.from ? new Date(q.from) : undefined;
     const to = q.to ? new Date(q.to) : undefined;
 
-    const where = {
-      ...(q.action ? { action: { contains: q.action.trim() } } : {}),
-      ...(q.result ? { result: q.result } : {}),
-      ...(q.actorEmail
-        ? { actorEmail: { contains: q.actorEmail.trim() } }
-        : {}),
-      ...(q.resourceType ? { resourceType: q.resourceType.trim() } : {}),
-      ...(q.resourceId ? { resourceId: q.resourceId.trim() } : {}),
-      ...(from || to
-        ? {
-            createdAt: {
-              ...(from ? { gte: from } : {}),
-              ...(to ? { lte: to } : {}),
-            },
-          }
-        : {}),
-    } as const;
+    const where = buildAuditWhere({
+      action: q.action,
+      result: q.result,
+      actorUserId: q.actorUserId,
+      actorEmail: q.actorEmail,
+      resourceType: q.resourceType,
+      resourceId: q.resourceId,
+      from,
+      to,
+    });
 
-    const [total, items] = await this.prisma.$transaction([
+    const [total, rawItems] = await this.prisma.$transaction([
       this.prisma.auditLog.count({ where }),
       this.prisma.auditLog.findMany({
         where,
@@ -47,6 +44,11 @@ export class AuditoriaController {
         take: pageSize,
       }),
     ]);
+
+    const items = await enrichAuditLogsWithDocumentoCodigo(
+      this.prisma,
+      rawItems,
+    );
 
     return { page, pageSize, total, items };
   }

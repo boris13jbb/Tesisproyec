@@ -12,6 +12,8 @@ CRUD de cargos; relación opcional con usuarios.
 
 **Parcial (prototipo).** Tabla `cargos` con FK opcional a `dependencias`; API `GET /api/v1/cargos` (JWT), `POST` y `PATCH /api/v1/cargos/:id` (ADMIN). Pantalla `/catalogos/cargos` (listado; alta/edición ADMIN). Seed: `DIR-GEN`, `ASIST`.
 
+**Snapshot:** alineado a **`docs/README.md` (2026-05-06)**.
+
 ## Endpoints
 
 - `GET /api/v1/cargos` — listado con `dependencia` anidada; query `incluirInactivos`.

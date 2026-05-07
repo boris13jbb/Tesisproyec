@@ -19,7 +19,8 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 
 ## Decisiones técnicas
 
-- Transacciones al crear documento + metadatos; estados documentales como catálogo o enum según modelo.
+- Transacciones al crear documento + metadatos.
+- **Estados documentales:** catálogo y transiciones en `backend/src/documentos/documento-estado.util.ts` (NORMALIZACIÓN SQL `20260509153000_normalize_documento_estados`); evento de dominio `ACTUALIZADO` + **`DOC_STATE_CHANGED`** en `audit_logs`.
 
 ## Pantallas
 
@@ -40,47 +41,42 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 
 ### 1) Control de acceso por documento (por dependencia/confidencialidad)
 
-**Objetivo:** restringir lectura/descarga/edición según:
-- dependencia/área propietaria,
-- nivel de confidencialidad,
-- rol/permisos.
+**Estado:** **MVP aplicado en backend** (listado, detalle, eventos, exportes y archivos usan la misma política de visibilidad).
 
-**Cambios propuestos (modelo)**
-- `documentos.dependencia_id` (propietaria) o “área responsable”.
-- `documentos.confidencialidad` (`PUBLICO`/`INTERNO`/`RESERVADO`/`CONFIDENCIAL`).
-
-**Cambios propuestos (backend)**
-- En `GET /documentos` y `GET /documentos/:id`: filtrar por política (no traer y luego ocultar).
-- En descarga de archivos: verificar permiso por documento (anti‑IDOR real).
-- Guard/policy de autorización por recurso:
-  - `canReadDocumento(user, doc)`
-  - `canDownloadArchivo(user, doc)`
-  - `canUpdateDocumento(user, doc)`
-
-**Evidencia**
-- Pruebas: usuario de otra dependencia no puede ver/buscar/descargar.
+- **Modelo:** `documentos.dependencia_id` (propietaria) + `documentos.nivel_confidencialidad` (`PUBLICO` / `INTERNO` / `RESERVADO` / `CONFIDENCIAL`), migración `20260507153000_*`.
+- **Backend:** filtrado en consulta (no “ocultar en UI”); descarga de adjuntos y reportes alineados; JWT incluye `dependenciaId` del usuario.
+- **Pendiente institucional:** reglas más finas (clasificación por serie, excepciones, elevación auditada), y **`PermissionsGuard`** si se exige matriz por permiso (`07`).
 
 ### 2) Estados formales + transiciones (máquina de estados)
 
-**Objetivo:** evitar estados “libres” y definir un ciclo documental institucional.
+**Estado:** **MVP aplicado en código** (transiciones válidas en backend; UI con select de estados; **ADMIN** ejecuta cualquier salto permitido por la tabla de transiciones).
 
-Propuesta mínima:
-- `BORRADOR` → `REGISTRADO` → `EN_REVISION` → `APROBADO`/`RECHAZADO` → `ARCHIVADO`
+**Implementado:**
+- Alta: **BORRADOR** o **REGISTRADO**.
+- Ciclo ejemplo: `BORRADOR → REGISTRADO | ARCHIVADO`, `REGISTRADO → EN_REVISION | ARCHIVADO`, `EN_REVISION → APROBADO | RECHAZADO`, `RECHAZADO → EN_REVISION | ARCHIVADO`, `APROBADO → ARCHIVADO`, **`ARCHIVADO` terminal**.
+- **`ARCHIVADO`:** no permite subir/eliminar adjuntos ni cambiar metadatos salvo campo **activo** en BD.
 
-Reglas:
-- Solo roles/permiso de revisión pueden pasar a `APROBADO/RECHAZADO`.
-- `ARCHIVADO` restringe edición (solo metadatos limitados).
+**Pendiente institucional:**
+- Opcional: prohibir que **ADMIN** cambie `estado` vía **PATCH** y forzar solo workflow.
+- Notificaciones y bandeja dedicada (ver §3).
 
 ### 3) Flujo de aprobación (bandeja de trabajo)
 
-**Objetivo:** implementar revisión/aprobación (ISO 15489) con evidencia.
+**Estado:** **MVP en código (R-28).**
 
-Entregables:
-- tabla `documento_aprobaciones` o eventos extendidos (`DOC_SUBMITTED`, `DOC_APPROVED`, `DOC_REJECTED`).
-- UI:
-  - “Enviar a revisión”
-  - “Aprobar/Rechazar” (con motivo)
-  - Bandeja “Pendientes de revisión” (rol REVISOR).
+- **API**
+  - `POST /api/v1/documentos/:id/enviar-revision` — **REGISTRADO** → **EN_REVISION**; actor: **creador del documento** o **ADMIN**; requiere visibilidad del documento (misma regla que lectura).
+  - `POST /api/v1/documentos/:id/resolver-revision` — cuerpo `{ "decision": "APROBADO" | "RECHAZADO", "motivo"?: string }`; si **RECHAZADO**, **`motivo` obligatorio** (3–2000 caracteres, `trim`), almacenado en auditoría como `meta.motivoRechazo`; actor: **ADMIN** o **REVISOR**; solo si **EN_REVISION**.
+- **Auditoría:** `DOC_SUBMITTED_FOR_REVIEW`, `DOC_REVIEW_RESOLVED` (además de `DOC_STATE_CHANGED`).
+- **UI:** botones en detalle; “bandeja” mínima = filtro de listado **Estado → En revisión** (texto guía para rol **REVISOR**).
+- **Reportes:** `GET /api/v1/reportes/pendientes-revision.{xlsx,pdf}` (ADMIN/REVISOR) para export rápido de lo que está en **EN_REVISION**.
+
+**Pendiente:** varias rondas de revisión, cola propia, SLA dedicado, canal in-app.
+
+**Notificaciones (R-44, MVP):**
+- Si el backend tiene **SMTP configurado**, se envía correo (best-effort):
+  - a **ADMIN/REVISOR** cuando un documento se envía a revisión;
+  - al **creador** cuando la revisión se aprueba o rechaza (incluye motivo si hay).
 
 ### 4) Metadatos avanzados por tipo documental
 

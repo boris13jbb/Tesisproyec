@@ -78,7 +78,17 @@ Flujo típico: **navegador** → **axios** → **NestJS (Controllers → Guards 
 
 ---
 
-## 7. Limitaciones conscientes (tesis)
+## 7. Estado actual del código (referencia rápida — 2026-05-06)
+
+SPA **React/Vite** → API **NestJS** (`/api/v1`) → **MySQL/MariaDB** vía Prisma y carpeta **`storage/`** para binarios; autenticación JWT + cookie de refresh HttpOnly.
+
+Extensiones pertinentes para arquitectura de confianza: **throttling** y **lockout por cuenta**, **auditoría transversal** con consulta ADMIN + UI, **reportes servidor** con permisos por rol (**ADMIN**; **ADMIN+REVISOR** en “pendientes de revisión”), y **filtrado de visibilidad** de documentos/archivos/reportes por **dependencia del JWT** + **confidencialidad**.
+
+Índice y snapshot consolidado: `docs/README.md` y `docs/28-listado-lo-que-deberia-tener-el-sistema.md`.
+
+---
+
+## 8. Limitaciones conscientes (tesis)
 
 - Dimensionamiento para **producción** no es objetivo; el hardware local acota rendimiento y concurrencia.
 - **Certificación ISO** u **ASVS** no se pretenden; el diseño se alinea como referencia académica.

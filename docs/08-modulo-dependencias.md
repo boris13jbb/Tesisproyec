@@ -12,6 +12,8 @@ CRUD de dependencias; integridad referencial con usuarios y documentos.
 
 **Parcial (prototipo).** Tabla `dependencias` en Prisma; API `GET /api/v1/dependencias` (JWT), `POST` y `PATCH /api/v1/dependencias/:id` (JWT + rol `ADMIN`); código único normalizado a mayúsculas. Pantalla en frontend: `/catalogos/dependencias` (listado; alta/edición solo ADMIN).
 
+**Snapshot documental:** coherentes con **`docs/README.md` (2026-05-06)**; esta dependencia es también **propiedad lógica** de documentos y **ámbito** del JWT en anti‑IDOR (`12`, `04`).
+
 ## Estructura prevista
 
 - Entidad catálogo; validación de unicidad de código/nombre según reglas de negocio.

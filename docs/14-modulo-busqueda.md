@@ -19,6 +19,8 @@ Listados paginados, ordenamiento, visor de documento/archivo según permisos.
 - **Paginación:** `page`, `pageSize` → respuesta `{ page, pageSize, total, items }`.
 - **Frontend:** `/documentos` con barra de búsqueda, filtros y paginación.
 
+**Visibilidad:** el servidor **filtra resultados** según **`dependencia` + confidencialidad** del JWT para usuarios que no son **ADMIN** (coincidente con `GET /documentos/:id` y reportes).
+
 ## Decisiones técnicas
 
 - Consultas optimizadas en Prisma; índices en columnas de filtro frecuente (definir en migraciones).

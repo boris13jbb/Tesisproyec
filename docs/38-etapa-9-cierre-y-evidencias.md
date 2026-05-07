@@ -8,11 +8,13 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** este archivo conserva la **evidencia de cierre** de la etapa 9. El código posterior añadió **`AuditService`** en exportes (`REPORT_EXPORTED`), reportes **`/reportes/auditoria.{xlsx,pdf}`** y **`/reportes/pendientes-revision.{xlsx,pdf}`** (**ADMIN**/**REVISOR** en el segundo). Detalle en `docs/16-modulo-reportes.md`, `docs/22-changelog-tecnico.md` y `docs/README.md` (snapshot).
+
 ## Objetivo
 
 Acreditar **exportaciones institucionales** del registro documental en **Excel** y **PDF** generadas en **servidor**, con los **mismos criterios de filtro** que la búsqueda (ETAPA 8), **control de rol ADMIN** en API, y disparo desde la UI **`/documentos`** (bloque filtros/exportación).
 
-> **Auditoría de exportación:** en el código actual el módulo `reportes` **no** invoca `AuditService` al generar `.xlsx` / `.pdf`. La trazabilidad transversal sigue disponible donde esté cableada (`15-modulo-auditoria.md`); registrar descargas de reportes como evento dedicado es **mejora** para ETAPA 10 / backlog (`21`).
+> **Nota histórica (contenido al cierre ETAPA 9):** inicialmente las exportaciones de esta etapa no registraban bitácora unificada. **Estado vigente:** ver texto de actualización anterior y `reportes.controller.ts` (`logReportExport`).
 
 ---
 
@@ -38,11 +40,12 @@ Acreditar **exportaciones institucionales** del registro documental en **Excel**
 
 ---
 
-## Fuera de alcance ETAPA 9 (backlog)
+## Fuera de alcance ETAPA 9 (backlog original)
 
-- Export de **usuarios** y **auditoría** desde este módulo (prioridad declarada en `16`, no implementada en código actual).
+- Export de **usuarios** desde este módulo (sigue pendiente).
 - Plantillas PDF institucionales, branding GADPR, firma electrónica, jobs asíncronos.
-- Registro explícito en bitácora de cada exportación (recomendado en hardening).
+
+**Hecho después del cierre formal:** exports de **auditoría**, **pendientes de revisión** y **`REPORT_EXPORTED`** en `audit_logs` (ver `16`, `22`).
 
 ---
 

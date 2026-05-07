@@ -10,6 +10,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+import { ESTADOS_DOCUMENTO } from '../documento-estado.util';
 import { NIVELES_CONFIDENCIALIDAD } from './create-documento.dto';
 
 export class UpdateDocumentoDto {
@@ -38,7 +39,7 @@ export class UpdateDocumentoDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(32)
+  @IsIn(ESTADOS_DOCUMENTO as unknown as string[])
   estado?: string;
 
   @IsOptional()

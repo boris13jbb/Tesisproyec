@@ -2,6 +2,22 @@
 
 Índice de la carpeta `docs/`. Los documentos se actualizan **en cada iteración** que toque el área correspondiente.
 
+## Estado del sistema (snapshot — 2026-05-06)
+
+Vista rápida del **código** frente a estos documentos. Lista de brechas y matriz 1–45: **`28-listado-lo-que-deberia-tener-el-sistema.md`**. Línea temporal de cambios: **`22-changelog-tecnico.md`**.
+
+| Área | Implementado hoy (resumen) |
+|------|----------------------------|
+| **Autenticación** | JWT + refresh HttpOnly, rotación, inactividad (`last_used_at`), throttling global y en `/auth`, lockout por cuenta (`AUTH_LOCKOUT_*`), recuperación de contraseña. |
+| **RBAC** | Roles en seed: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`. Autorización principal con `@Roles`; tablas `permissions` / `role_permissions` sin `PermissionsGuard` (backlog `07`). |
+| **Documentos** | Estados normalizados y transiciones (`documento-estado.util`); flujo **enviar a revisión** / **resolver** (R-28); `dependencia_id` + `nivel_confidencialidad` en consulta/descarga/export. |
+| **Notificaciones** | Correo SMTP opcional (nodemailer) en envío a revisión y al resolver (ver `12`, `28` R-44); sin SMTP el flujo sigue. |
+| **Auditoría** | `audit_logs`; API `GET /auditoria` (ADMIN); UI **`/admin/auditoria`**; `AUTHZ_FORBIDDEN` en 403 autenticados; export Excel/PDF de auditoría. |
+| **Reportes** | Documentos y auditoría → Excel/PDF (**ADMIN**); **pendientes de revisión** → Excel/PDF (**ADMIN** + **REVISOR**); cada export genera `REPORT_EXPORTED`. |
+| **Arranque dev** | En `backend/`, `npm run start:dev` ejecuta `tsbuildinfo:clean` antes de `nest start --watch` para evitar salida `dist` inconsistente en Windows. |
+
+Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden incorporar una nota que remite a este snapshot y a `22`/`28` para cambios posteriores al cierre formal.
+
 ## General y arquitectura
 
 | Archivo | Contenido |

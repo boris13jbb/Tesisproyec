@@ -43,11 +43,22 @@ export function PageHeader({ title, description, actions, backTo }: PageHeaderPr
           <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
             {title}
           </Typography>
-          {description ? (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {description}
-            </Typography>
-          ) : null}
+          {description != null &&
+            (typeof description === 'string' ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {description}
+              </Typography>
+            ) : (
+              <Box
+                sx={{
+                  mt: 0.5,
+                  color: 'text.secondary',
+                  typography: 'body2',
+                }}
+              >
+                {description}
+              </Box>
+            ))}
         </Box>
         {actions ? (
           <Box

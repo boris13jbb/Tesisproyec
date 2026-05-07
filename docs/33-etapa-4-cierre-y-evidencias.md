@@ -7,6 +7,8 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** este documento conserva la evidencia de cierre del hito. Para el **estado vivo** del código y brechas institucionales: `docs/README.md` (snapshot), `docs/22-changelog-tecnico.md`, `docs/28-listado-lo-que-deberia-tener-el-sistema.md`.
+
 ## Objetivo
 
 Acreditar una **envoltura de aplicación coherente** (layout, rutas, estados HTTP accesibles, feedback de red/sesión) sobre la que se montan los módulos de negocio (catálogos, documentos, etc.).

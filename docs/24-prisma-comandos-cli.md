@@ -4,7 +4,7 @@
 
 - **ORM:** Prisma 5.x con **MySQL/MariaDB** (XAMPP).
 - **Esquema:** `backend/prisma/schema.prisma`.
-- **Migraciones:** `backend/prisma/migrations/`.
+- **Migraciones:** `backend/prisma/migrations/` (**17** carpetas versionadas al 2026-05-06; inventario en `docs/04-modelo-base-de-datos.md`).
 - Ejecutar los comandos desde la carpeta **`backend/`** (donde está el `schema.prisma`), usando:
 
 ```bash

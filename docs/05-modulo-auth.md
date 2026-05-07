@@ -177,12 +177,14 @@ Consulta administrativa y retención: `15-modulo-auditoria.md`.
 
 ## Mejoras futuras
 
-MFA, **lockout por cuenta** tras N fallos consecutivos (complemento a throttle por IP), CAPTCHA en recuperación si la institución lo exige.
+MFA institucional, CAPTCHA en recuperación si la política lo exige, límite adicional combinado por **IP + email** en login.
+
+> **Estado vigente:** el **lockout por cuenta** (además del throttling) ya está aplicado (`AUTH_LOCKOUT_*`; columnas `failed_login_attempts`, `locked_until` en `users`).
 
 ## Plan de pruebas (paso a paso)
 
 1) **Login OK**
-- Acción: iniciar sesión en `/login` con `admin@local.test`.
+- Acción: iniciar sesión en `/login` con `admin@local.test` (contraseña definida por seed, ver `backend/.env.example` → `SEED_ADMIN_PASSWORD`).
 - Esperado: respuesta `200` con `accessToken` y cookie `sgd_refresh`; redirección a `/`.
 - Fallos a revisar: `500` (migraciones pendientes), CORS, usuario inactivo.
 

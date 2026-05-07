@@ -9,34 +9,25 @@ const apiProxy = {
   },
 } as const
 
+/**
+ * política repo (seguridad operativa LAN / ISO 27001 en dev):
+ * - NO definir `server.allowedHosts` como lista fija solo ngrok/localhost: en Vite eso suele sobreescribir
+ *   el comportamiento por defecto y bloquear `Host` con IPs privadas (`http://192.168.*.*:5173`),
+ *   provocando fallos de proxy y avisos “sin conexión” en cliente.
+ * - Túneles (ngrok, cloudflared, etc.): variable oficial que Vite **fusiona** con lo permitido por defecto:
+ *   https://vite.dev/config/server-options.html#server-allowedhosts
+ *   __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=subdominio.ngrok-free.app
+ */
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    // Dev: acceso por túnel (Host ≠ localhost). Lista explícita ante fallos con `true` (Vite 6–8).
-    // `.ngrok-free.app` permite cualquier subdominio (ej. xxx.ngrok-free.app).
     host: true,
-    // `.trycloudflare.com` permite subdominios temporales de Cloudflare (ej. *.trycloudflare.com)
-    allowedHosts: [
-      '.ngrok-free.app',
-      '.ngrok.io',
-      '.ngrok.app',
-      '.trycloudflare.com',
-      'localhost',
-      '127.0.0.1',
-    ],
     proxy: { ...apiProxy },
   },
   preview: {
     host: true,
-    allowedHosts: [
-      '.ngrok-free.app',
-      '.ngrok.io',
-      '.ngrok.app',
-      '.trycloudflare.com',
-      'localhost',
-      '127.0.0.1',
-    ],
     proxy: { ...apiProxy },
   },
 })

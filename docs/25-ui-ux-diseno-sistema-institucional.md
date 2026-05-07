@@ -1,6 +1,6 @@
 # Diseño UI/UX — Sistema web institucional de gestión documental (SGD-GADPR-LM)
 
-**Versión:** 1.0  
+**Versión:** 1.0 (**coherencia con implementación revisada:** 2026-05-06; detalle funcional en `27`, `28`, snapshot `docs/README.md`)  
 **Ámbito:** Interfaz y experiencia de usuario alineadas con **ISO/IEC 27001:2022**, **ISO 15489** y **OWASP ASVS**.  
 **Uso:** Referencia para implementación en frontend (MUI + React), pruebas con usuarios y sustento de tesis.
 

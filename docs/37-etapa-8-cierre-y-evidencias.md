@@ -8,11 +8,13 @@
 
 ---
 
+> **Actualización documental (2026-05-06):** este documento conserva la evidencia de cierre del hito. Estado vivo y brechas: `docs/README.md`, `docs/22-changelog-tecnico.md`, `docs/28-listado-lo-que-deberia-tener-el-sistema.md`. **Nota técnica:** el listado `GET /documentos` aplica **filtrado por dependencia/confidencialidad** para no‑ADMIN — el párrafo “Permisos” siguiente refleja el **alcance en el momento del cierre**; el comportamiento vigente está en `12`/`14`.
+
 ## Objetivo
 
 Acreditar **consulta y refinamiento** del registro documental: texto libre, filtros por metadatos, **ordenamiento**, **paginación**, y criterios sobre **adjuntos** (nombre/MIME/SHA-256), con **JWT** en el API y experiencia coherente en **`/documentos`**.
 
-> **Permisos:** el listado usa el mismo modelo que el resto de documentos (**lectura para usuario autenticado**; no hay aún filtrado por dependencia/confidencialidad — backlog `12`, `28`). La **autorización por rol** sigue aplicando a **mutaciones** (ETAPA 6), no a esta fase de solo consulta.
+> **Permisos (texto histórico al cierre ETAPA 8):** el listado se consideraba **solo consulta** con JWT autenticado; el refinamiento institucional de **anti‑IDOR por documento** se formalizó después (migración **`20260507153000_*`**, backlog actual en `28`). **Estado vigente:** ver `docs/14-modulo-busqueda.md`.
 
 ---
 

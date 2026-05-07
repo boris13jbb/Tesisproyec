@@ -18,6 +18,8 @@ y mostrar **paso a paso**:
 
 > Importante: en este proyecto se usan ISO/IEC 27001:2022 e ISO 15489 como **referencia** (no certificación), y OWASP ASVS como guía práctica de controles técnicos verificables.
 
+> **Revisión de coherencia con el código:** 2026-05-06 — índice y snapshot **`docs/README.md`**; lista de controles instalados vs brechas institucionales **`docs/28-listado-lo-que-deberia-tener-el-sistema.md`**.
+
 ---
 
 ## 1) ¿Qué es cada estándar? (explicación corta y clara)

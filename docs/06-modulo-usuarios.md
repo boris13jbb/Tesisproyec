@@ -14,12 +14,13 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 **Implementado (prototipo, completo para el alcance MVP).**
 
 - **Backend:** módulo `UsuariosModule` con endpoints administrativos bajo JWT + rol `ADMIN`.
-  - `GET /api/v1/usuarios` (ADMIN)
+  - `GET /api/v1/usuarios` (ADMIN; incluye `ultimoLoginAt` cuando exista en BD)
+  - `GET /api/v1/usuarios/matriz-acceso-referencia` (ADMIN) — misma política efectiva que el código NestJS (`access-matrix.reference.ts`; respaldo en cliente en `frontend/src/constants/roles-access-matrix.ts`).
   - `GET /api/v1/usuarios/:id` (ADMIN)
   - `POST /api/v1/usuarios` (ADMIN)
   - `PATCH /api/v1/usuarios/:id` (ADMIN)
   - `POST /api/v1/usuarios/:id/reset-password` (ADMIN)
-- **Frontend:** pantalla `/admin/usuarios` (ADMIN) con:
+- **Frontend:** pantalla `/admin/usuarios` (ADMIN) — «Administración de identidades»: tabla de usuarios (cargo/dependencia/último ingreso desde API), **matriz solo informativa** cargada desde `GET …/matriz-acceso-referencia` (respaldo local si falla la red), enlace para **asignar roles desde la tabla** (sin persistencia ficticia desde la matriz), y mismo flujo de:
   - listado,
   - creación,
   - edición (roles/dependencia/cargo),
@@ -73,7 +74,7 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 - **Nombres / Apellidos**
 - **Dependencia** (opcional)
 - **Cargo** (opcional)
-- **Roles** (`ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA` — los tres últimos aparecen en el selector de administración con el mismo comportamiento efectivo que `USUARIO` hasta implementar flujos específicos)
+- **Roles** (`ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`). **`REVISOR`:** además del alcance de consulta JWT, puede **`POST /documentos/:id/resolver-revision`** (junto con **ADMIN**). **`AUDITOR`**/**`CONSULTA`:** mismo alcance funcional base que **`USUARIO`** hasta flujos propios.
 - **Activo** (habilitado / inhabilitado)
 
 ## Validaciones

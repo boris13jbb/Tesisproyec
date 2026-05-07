@@ -22,6 +22,7 @@ type UsuarioResponse = {
   dependenciaId: string | null;
   cargoId: string | null;
   activo: boolean;
+  ultimoLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   roles: { codigo: string; nombre: string }[];
@@ -76,6 +77,7 @@ export class UsuariosService {
     dependenciaId: string | null;
     cargoId: string | null;
     activo: boolean;
+    ultimoLoginAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
     roles: { role: { codigo: string; nombre: string } }[];
@@ -88,6 +90,7 @@ export class UsuariosService {
       dependenciaId: u.dependenciaId,
       cargoId: u.cargoId,
       activo: u.activo,
+      ultimoLoginAt: u.ultimoLoginAt ?? null,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
       roles: u.roles.map((r) => ({
@@ -108,6 +111,7 @@ export class UsuariosService {
         dependenciaId: true,
         cargoId: true,
         activo: true,
+        ultimoLoginAt: true,
         createdAt: true,
         updatedAt: true,
         roles: { include: { role: true } },
@@ -127,6 +131,7 @@ export class UsuariosService {
         dependenciaId: true,
         cargoId: true,
         activo: true,
+        ultimoLoginAt: true,
         createdAt: true,
         updatedAt: true,
         roles: { include: { role: true } },
@@ -195,6 +200,7 @@ export class UsuariosService {
             dependenciaId: true,
             cargoId: true,
             activo: true,
+            ultimoLoginAt: true,
             createdAt: true,
             updatedAt: true,
             roles: { include: { role: true } },
@@ -421,6 +427,7 @@ export class UsuariosService {
             dependenciaId: true,
             cargoId: true,
             activo: true,
+            ultimoLoginAt: true,
             createdAt: true,
             updatedAt: true,
             roles: { include: { role: true } },

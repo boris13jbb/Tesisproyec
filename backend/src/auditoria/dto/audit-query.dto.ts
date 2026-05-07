@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class AuditQueryDto {
   @IsOptional()
@@ -9,6 +9,11 @@ export class AuditQueryDto {
   @IsOptional()
   @IsIn(['OK', 'FAIL'])
   result?: 'OK' | 'FAIL';
+
+  /** Filtro exacto por actor (prioridad sobre `actorEmail`). */
+  @IsOptional()
+  @IsUUID('4')
+  actorUserId?: string;
 
   @IsOptional()
   @IsString()

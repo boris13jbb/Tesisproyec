@@ -37,7 +37,7 @@ Parámetros recomendados para un SGD institucional:
 - `JWT_ACCESS_EXPIRES` (ya existe como env)
 - `JWT_REFRESH_DAYS` (ya existe como env)
 - `PASSWORD_RESET_MINUTES` (ya existe como env o definir)
-- `LOGIN_RATE_LIMIT_*` (pendiente si se implementa throttling)
+- Throttling (**implementado:** `ThrottlerModule` + `@Throttle` en `/auth`; ver `18-seguridad-y-hardening.md`). Umbrales “institucionales” parametrizados en BD serían una evolución de este módulo.
 
 **Auditoría**
 - `AUDIT_RETENTION_DAYS`

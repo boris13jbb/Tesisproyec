@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,14 +12,40 @@ import type { Prisma } from '@prisma/client';
 import type { AuditContext } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { isPrismaCode } from '../common/prisma-util';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtRequestUser } from '../auth/request-user';
+import {
+  JwtRequestUser,
+  jwtUserIsAdmin,
+  jwtUserIsRevisor,
+} from '../auth/request-user';
 import {
   assertUsuarioPuedeVerDocumento,
   documentoVisibilityWhere,
 } from './documento-scope.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
+import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
+import {
+  assertEstadoCreacionPermitido,
+  assertTransicionEstado,
+  normalizeDocumentoEstado,
+  type DocumentoEstado,
+} from './documento-estado.util';
+import { documentoWhereLibre } from './documento-q-filter.util';
+
+function escapeRegExpSegment(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** `_count._all` en `documento.groupBy` con `_count: { _all: true }` (tipificación Prisma estricta). */
+function documentoGroupByAll(row: {
+  _count?: true | { _all?: number };
+}): number {
+  const c = row._count;
+  if (c === undefined || c === true) return 0;
+  return typeof c._all === 'number' ? c._all : 0;
+}
 
 const includeCatalogos = {
   tipoDocumental: { select: { id: true, codigo: true, nombre: true } },
@@ -31,7 +58,9 @@ const includeCatalogos = {
     },
   },
   dependencia: { select: { id: true, codigo: true, nombre: true } },
-  createdBy: { select: { id: true, email: true } },
+  createdBy: {
+    select: { id: true, email: true, nombres: true, apellidos: true },
+  },
 } as const;
 
 type DocumentoSnapshot = {
@@ -53,7 +82,44 @@ export class DocumentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
+
+  private async notifyRevisionSubmitted(input: {
+    documentoId: string;
+    codigo: string;
+    asunto: string;
+  }) {
+    if (!this.mail.isConfigured()) return;
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        activo: true,
+        roles: {
+          some: { role: { codigo: { in: ['ADMIN', 'REVISOR'] } } },
+        },
+      },
+      select: { email: true },
+      take: 200,
+    });
+    const to = recipients
+      .map((r) => r.email)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    if (!to.length) return;
+    await this.mail.sendIfConfigured({
+      to,
+      subject: `SGD-GADPR-LM — Pendiente de revisión: ${input.codigo}`,
+      text: [
+        'Se ha enviado un documento a revisión.',
+        '',
+        `Código: ${input.codigo}`,
+        `Asunto: ${input.asunto}`,
+        `ID: ${input.documentoId}`,
+        '',
+        'Acción: ingrese al sistema → Documentos → filtre “Estado → En revisión”, o use el reporte “Pendientes de revisión”.',
+      ].join('\n'),
+    });
+  }
 
   private async loadDocumentoById(id: string) {
     const row = await this.prisma.documento.findUnique({
@@ -64,6 +130,62 @@ export class DocumentosService {
       throw new NotFoundException('Documento no encontrado');
     }
     return row;
+  }
+
+  private codigoPrefijoDesdeEnv(): string {
+    const raw = process.env.DOCUMENTO_CODIGO_PREFIX?.trim();
+    const norm = (raw && raw.length > 0 ? raw : 'DOC').replace(/\s+/g, '');
+    return norm.toUpperCase();
+  }
+
+  /**
+   * Correlativo `{PREFIJO}-{YYYY}-{NNNNN}` (5 dígitos, sin espacios).
+   * `DOCUMENTO_CODIGO_PREFIX` (opcional); por defecto `DOC`. El año es el indicado o el calendario del servidor.
+   */
+  async sugerirSiguienteCodigo(anioParam?: number): Promise<{
+    codigo: string;
+    prefijo: string;
+    anio: number;
+    secuencia: number;
+  }> {
+    const prefijo = this.codigoPrefijoDesdeEnv();
+    const y =
+      typeof anioParam === 'number' && Number.isFinite(anioParam)
+        ? Math.trunc(anioParam)
+        : new Date().getFullYear();
+
+    if (y < 2000 || y > 2100) {
+      throw new BadRequestException('El año debe estar entre 2000 y 2100');
+    }
+
+    const start = `${prefijo}-${y}-`;
+    const matcher = new RegExp(
+      `^${escapeRegExpSegment(start)}(\\d{5})$`,
+      'i',
+    );
+
+    const rows = await this.prisma.documento.findMany({
+      where: { codigo: { startsWith: start } },
+      select: { codigo: true },
+    });
+
+    let maxSeq = 0;
+    for (const row of rows) {
+      const m = matcher.exec(row.codigo.trim());
+      if (!m) continue;
+      maxSeq = Math.max(maxSeq, Number.parseInt(m[1], 10));
+    }
+
+    const next = maxSeq + 1;
+    if (next > 99999) {
+      throw new BadRequestException(
+        'Correlativo anual agotado (máximo 99999 con esta convención).',
+      );
+    }
+
+    const secStr = String(next).padStart(5, '0');
+    const codigo = `${start}${secStr}`;
+    return { codigo, prefijo, anio: y, secuencia: next };
   }
 
   async findAll(
@@ -92,7 +214,7 @@ export class DocumentosService {
     const archivoSha256 = filters?.archivoSha256?.trim();
     const estado = filters?.estado?.trim();
     const page = Math.max(1, filters?.page ?? 1);
-    const pageSize = Math.min(100, Math.max(5, filters?.pageSize ?? 20));
+    const pageSize = Math.min(200, Math.max(5, filters?.pageSize ?? 20));
     const skip = (page - 1) * pageSize;
 
     const sortBy = filters?.sortBy ?? 'fechaDocumento';
@@ -144,15 +266,7 @@ export class DocumentosService {
             },
           }
         : {}),
-      ...(q
-        ? {
-            OR: [
-              { codigo: { contains: q } },
-              { asunto: { contains: q } },
-              { descripcion: { contains: q } },
-            ],
-          }
-        : {}),
+      ...documentoWhereLibre(q),
     } satisfies Prisma.DocumentoWhereInput;
 
     const scope = documentoVisibilityWhere(viewer);
@@ -172,6 +286,275 @@ export class DocumentosService {
     ]);
 
     return { page, pageSize, total, items };
+  }
+
+  /**
+   * Tablero Kanban (tramites): misma visibilidad y reglas que `findAll`, en una sola respuesta HTTP
+   * para evitar inconsistencias y reducir ruido en cliente.
+   */
+  async findTablonTramites(viewer: JwtRequestUser) {
+    const boardPageSize = 150;
+
+    const [reg, rev, apr, arc, borrador, rechazado] = await Promise.all([
+      this.findAll(viewer, false, {
+        estado: 'REGISTRADO',
+        page: 1,
+        pageSize: boardPageSize,
+        sortBy: 'fechaDocumento',
+        sortDir: 'desc',
+      }),
+      this.findAll(viewer, false, {
+        estado: 'EN_REVISION',
+        page: 1,
+        pageSize: boardPageSize,
+        sortBy: 'fechaDocumento',
+        sortDir: 'desc',
+      }),
+      this.findAll(viewer, false, {
+        estado: 'APROBADO',
+        page: 1,
+        pageSize: boardPageSize,
+        sortBy: 'fechaDocumento',
+        sortDir: 'desc',
+      }),
+      this.findAll(viewer, false, {
+        estado: 'ARCHIVADO',
+        page: 1,
+        pageSize: boardPageSize,
+        sortBy: 'fechaDocumento',
+        sortDir: 'desc',
+      }),
+      this.findAll(viewer, false, {
+        estado: 'BORRADOR',
+        page: 1,
+        pageSize: 1,
+      }),
+      this.findAll(viewer, false, {
+        estado: 'RECHAZADO',
+        page: 1,
+        pageSize: 1,
+      }),
+    ]);
+
+    return {
+      kanban: {
+        REGISTRADO: reg,
+        EN_REVISION: rev,
+        APROBADO: apr,
+        ARCHIVADO: arc,
+      },
+      otrosTotales: {
+        BORRADOR: borrador.total,
+        RECHAZADO: rechazado.total,
+      },
+    };
+  }
+
+  /**
+   * Agregados para «Clasificación documental»: conteos por subserie y serie con la misma
+   * visibilidad que los listados; dependencia / confidencialidad predominantes por mayoría entre
+   * expedientes visibles (sin inventar políticas ISO no modeladas).
+   */
+  async getClasificacionAgregados(viewer: JwtRequestUser) {
+    type Agg = {
+      expedientes: number;
+      dependenciaId: string | null;
+      dependenciaNombre: string | null;
+      nivelConfidencialidad: string | null;
+    };
+
+    const baseWhere: Prisma.DocumentoWhereInput = { activo: true };
+    const scope = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = scope
+      ? { AND: [baseWhere, scope] }
+      : baseWhere;
+
+    const [seriesRows, subs, todasSubseriePadres, countBySub, depRows, confRows] =
+      await this.prisma.$transaction([
+        this.prisma.serie.findMany({
+          where: { activo: true },
+          select: { id: true },
+        }),
+        this.prisma.subserie.findMany({
+          where: { activo: true },
+          select: { id: true, serieId: true },
+        }),
+        /** Todas las subseries (árbol agregados): para mapear documentos al padre Serie aunque la subserie esté inactiva. */
+        this.prisma.subserie.findMany({
+          select: { id: true, serieId: true },
+        }),
+        this.prisma.documento.groupBy({
+          by: ['subserieId'],
+          where,
+          _count: { _all: true },
+          orderBy: { subserieId: 'asc' },
+        }),
+        this.prisma.documento.groupBy({
+          by: ['subserieId', 'dependenciaId'],
+          where,
+          _count: { _all: true },
+          orderBy: [{ subserieId: 'asc' }, { dependenciaId: 'asc' }],
+        }),
+        this.prisma.documento.groupBy({
+          by: ['subserieId', 'nivelConfidencialidad'],
+          where,
+          _count: { _all: true },
+          orderBy: [
+            { subserieId: 'asc' },
+            { nivelConfidencialidad: 'asc' },
+          ],
+        }),
+      ]);
+
+    /** Mapa global subserie → serie (incluye inactivas en catálogo). */
+    const subToSerieFull = new Map(
+      todasSubseriePadres.map((s) => [s.id, s.serieId]),
+    );
+
+    const exBySub = new Map(
+      countBySub.map((r) => [r.subserieId, documentoGroupByAll(r)]),
+    );
+
+    const depBySub = new Map<string, Map<string | null, number>>();
+    for (const r of depRows) {
+      const m = depBySub.get(r.subserieId) ?? new Map();
+      m.set(
+        r.dependenciaId,
+        (m.get(r.dependenciaId) ?? 0) + documentoGroupByAll(r),
+      );
+      depBySub.set(r.subserieId, m);
+    }
+    const confBySub = new Map<string, Map<string, number>>();
+    for (const r of confRows) {
+      const m = confBySub.get(r.subserieId) ?? new Map();
+      m.set(
+        r.nivelConfidencialidad,
+        (m.get(r.nivelConfidencialidad) ?? 0) + documentoGroupByAll(r),
+      );
+      confBySub.set(r.subserieId, m);
+    }
+
+    function pickTopNullableBucket(m: Map<string | null, number>): string | null {
+      let bestK: string | null = null;
+      let bestN = -1;
+      const sorted = [...m.entries()].sort(([a], [b]) =>
+        String(a ?? '').localeCompare(String(b ?? '')),
+      );
+      for (const [k, n] of sorted) {
+        if (n > bestN) {
+          bestN = n;
+          bestK = k;
+        }
+      }
+      return bestN <= 0 ? null : bestK;
+    }
+
+    function pickTopConf(m: Map<string, number>): string | null {
+      let bestK = '';
+      let bestN = -1;
+      const sorted = [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
+      for (const [k, n] of sorted) {
+        if (n > bestN) {
+          bestN = n;
+          bestK = k;
+        }
+      }
+      return bestN <= 0 ? null : bestK;
+    }
+
+    const serieEx = new Map<string, number>();
+    const serieDep = new Map<string, Map<string | null, number>>();
+    const serieConf = new Map<string, Map<string, number>>();
+    const serieIds = new Set(seriesRows.map((x) => x.id));
+
+    for (const sid of serieIds) {
+      serieEx.set(sid, 0);
+      serieDep.set(sid, new Map());
+      serieConf.set(sid, new Map());
+    }
+
+    for (const row of countBySub) {
+      const serId = subToSerieFull.get(row.subserieId);
+      if (!serId || !serieEx.has(serId)) continue;
+      serieEx.set(serId, (serieEx.get(serId) ?? 0) + documentoGroupByAll(row));
+    }
+    for (const row of depRows) {
+      const serId = subToSerieFull.get(row.subserieId);
+      if (!serId || !serieDep.has(serId)) continue;
+      const m = serieDep.get(serId)!;
+      m.set(
+        row.dependenciaId,
+        (m.get(row.dependenciaId) ?? 0) + documentoGroupByAll(row),
+      );
+    }
+    for (const row of confRows) {
+      const serId = subToSerieFull.get(row.subserieId);
+      if (!serId || !serieConf.has(serId)) continue;
+      const m = serieConf.get(serId)!;
+      m.set(
+        row.nivelConfidencialidad,
+        (m.get(row.nivelConfidencialidad) ?? 0) + documentoGroupByAll(row),
+      );
+    }
+
+    const subseries: Record<string, Agg> = {};
+    const depIdsNeeded = new Set<string>();
+
+    for (const sub of subs) {
+      const expedientes = exBySub.get(sub.id) ?? 0;
+      let dependenciaId: string | null = null;
+      let nivelConfidencialidad: string | null = null;
+      if (expedientes > 0) {
+        dependenciaId = pickTopNullableBucket(depBySub.get(sub.id) ?? new Map());
+        nivelConfidencialidad = pickTopConf(confBySub.get(sub.id) ?? new Map());
+        if (dependenciaId) depIdsNeeded.add(dependenciaId);
+      }
+      subseries[sub.id] = {
+        expedientes,
+        dependenciaId,
+        dependenciaNombre: null,
+        nivelConfidencialidad,
+      };
+    }
+
+    const seriesAgg: Record<string, Agg> = {};
+    for (const sid of serieIds) {
+      const expedientes = serieEx.get(sid) ?? 0;
+      let dependenciaId: string | null = null;
+      let nivelConfidencialidad: string | null = null;
+      if (expedientes > 0) {
+        dependenciaId = pickTopNullableBucket(serieDep.get(sid) ?? new Map());
+        nivelConfidencialidad = pickTopConf(serieConf.get(sid) ?? new Map());
+        if (dependenciaId) depIdsNeeded.add(dependenciaId);
+      }
+      seriesAgg[sid] = {
+        expedientes,
+        dependenciaId,
+        dependenciaNombre: null,
+        nivelConfidencialidad,
+      };
+    }
+
+    if (depIdsNeeded.size > 0) {
+      const deps = await this.prisma.dependencia.findMany({
+        where: { id: { in: [...depIdsNeeded] } },
+        select: { id: true, nombre: true },
+      });
+      const nameByDep = new Map(deps.map((d) => [d.id, d.nombre]));
+
+      for (const v of Object.values(subseries)) {
+        if (v.dependenciaId) {
+          v.dependenciaNombre = nameByDep.get(v.dependenciaId) ?? null;
+        }
+      }
+      for (const v of Object.values(seriesAgg)) {
+        if (v.dependenciaId) {
+          v.dependenciaNombre = nameByDep.get(v.dependenciaId) ?? null;
+        }
+      }
+    }
+
+    return { series: seriesAgg, subseries };
   }
 
   async findOne(id: string, viewer: JwtRequestUser) {
@@ -219,6 +602,8 @@ export class DocumentosService {
       dto.dependenciaId ?? creator?.dependenciaId ?? null;
 
     const nivelConfidencialidad = dto.nivelConfidencialidad ?? 'INTERNO';
+    const estadoInicial = normalizeDocumentoEstado(dto.estado ?? 'REGISTRADO');
+    assertEstadoCreacionPermitido(estadoInicial);
 
     const codigo = dto.codigo.trim().toUpperCase();
     const fechaDocumento = new Date(dto.fechaDocumento);
@@ -235,6 +620,7 @@ export class DocumentosService {
             subserieId: dto.subserieId,
             dependenciaId,
             nivelConfidencialidad,
+            estado: estadoInicial,
             createdById,
           },
           include: includeCatalogos,
@@ -292,7 +678,7 @@ export class DocumentosService {
     assertUsuarioPuedeVerDocumento(doc, viewer);
     return this.prisma.documentoArchivo.findMany({
       where: { documentoId, activo: true },
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
       select: {
         id: true,
         version: true,
@@ -334,7 +720,12 @@ export class DocumentosService {
     createdById: string,
     ctx?: AuditContext,
   ) {
-    await this.loadDocumentoById(documentoId);
+    const docBase = await this.loadDocumentoById(documentoId);
+    if (normalizeDocumentoEstado(docBase.estado) === 'ARCHIVADO') {
+      throw new BadRequestException(
+        'No se pueden cargar archivos en un documento archivado',
+      );
+    }
     if (!file) {
       throw new BadRequestException(
         'Archivo requerido (campo multipart: file)',
@@ -518,7 +909,12 @@ export class DocumentosService {
     deletedById: string,
     ctx?: AuditContext,
   ) {
-    await this.loadDocumentoById(documentoId);
+    const docBase = await this.loadDocumentoById(documentoId);
+    if (normalizeDocumentoEstado(docBase.estado) === 'ARCHIVADO') {
+      throw new BadRequestException(
+        'No se pueden eliminar archivos en un documento archivado',
+      );
+    }
     const row = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId, activo: true },
       select: { id: true, originalName: true, version: true },
@@ -583,6 +979,200 @@ export class DocumentosService {
     });
   }
 
+  /**
+   * Actualiza únicamente `estado`, deja evento ACTUALIZADO y bitácoras (incl. workflow opcional).
+   */
+  private async aplicarCambioEstadoSoloEstado(
+    beforeFull: Awaited<ReturnType<DocumentosService['loadDocumentoById']>>,
+    nuevoEstado: DocumentoEstado,
+    actorId: string,
+    ctx?: AuditContext,
+    workflowAudit?: { action: string; extraMeta?: Record<string, unknown> },
+  ) {
+    const id = beforeFull.id;
+    assertTransicionEstado(beforeFull.estado, nuevoEstado);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const documento = await tx.documento.update({
+        where: { id },
+        data: { estado: nuevoEstado },
+        include: includeCatalogos,
+      });
+
+      const before: DocumentoSnapshot = {
+        codigo: beforeFull.codigo,
+        asunto: beforeFull.asunto,
+        descripcion: beforeFull.descripcion,
+        fechaDocumento: beforeFull.fechaDocumento,
+        estado: beforeFull.estado,
+        nivelConfidencialidad: beforeFull.nivelConfidencialidad,
+        activo: beforeFull.activo,
+        tipoDocumentalId: beforeFull.tipoDocumentalId,
+        subserieId: beforeFull.subserieId,
+        dependenciaId: beforeFull.dependenciaId,
+        createdById: beforeFull.createdById,
+      };
+      const after: DocumentoSnapshot = {
+        codigo: documento.codigo,
+        asunto: documento.asunto,
+        descripcion: documento.descripcion,
+        fechaDocumento: documento.fechaDocumento,
+        estado: documento.estado,
+        nivelConfidencialidad: documento.nivelConfidencialidad,
+        activo: documento.activo,
+        tipoDocumentalId: documento.tipoDocumentalId,
+        subserieId: documento.subserieId,
+        dependenciaId: documento.dependenciaId,
+        createdById: documento.createdById,
+      };
+      const diff = this.diffDocumento(before, after);
+
+      await tx.documentoEvento.create({
+        data: {
+          documentoId: documento.id,
+          tipo: 'ACTUALIZADO',
+          cambiosJson: JSON.stringify({ diff }),
+          createdById: actorId,
+        },
+      });
+
+      return documento;
+    });
+
+    const desde = normalizeDocumentoEstado(beforeFull.estado);
+    await this.audit.log({
+      action: 'DOC_STATE_CHANGED',
+      result: 'OK',
+      resource: { type: 'Documento', id },
+      context: {
+        actorUserId: ctx?.actorUserId ?? actorId,
+        actorEmail: ctx?.actorEmail ?? null,
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
+        correlationId: ctx?.correlationId ?? null,
+      },
+      meta: { from: desde, to: nuevoEstado },
+    });
+
+    if (workflowAudit) {
+      await this.audit.log({
+        action: workflowAudit.action,
+        result: 'OK',
+        resource: { type: 'Documento', id },
+        context: {
+          actorUserId: ctx?.actorUserId ?? actorId,
+          actorEmail: ctx?.actorEmail ?? null,
+          ip: ctx?.ip ?? null,
+          userAgent: ctx?.userAgent ?? null,
+          correlationId: ctx?.correlationId ?? null,
+        },
+        meta: {
+          documentoId: id,
+          from: desde,
+          to: nuevoEstado,
+          ...workflowAudit.extraMeta,
+        },
+      });
+    }
+
+    return updated;
+  }
+
+  /** R-28: REGISTRADO → EN_REVISION (creador o ADMIN, con visibilidad). */
+  async enviarRevision(id: string, viewer: JwtRequestUser, ctx?: AuditContext) {
+    const doc = await this.loadDocumentoById(id);
+    assertUsuarioPuedeVerDocumento(doc, viewer);
+
+    const puedeEnviar = jwtUserIsAdmin(viewer) || doc.createdById === viewer.id;
+    if (!puedeEnviar) {
+      throw new ForbiddenException(
+        'Solo el administrador o quien registró el documento puede enviarlo a revisión',
+      );
+    }
+
+    if (normalizeDocumentoEstado(doc.estado) !== 'REGISTRADO') {
+      throw new BadRequestException(
+        'Solo documentos en estado REGISTRADO pueden enviarse a revisión',
+      );
+    }
+
+    const updated = await this.aplicarCambioEstadoSoloEstado(
+      doc,
+      'EN_REVISION',
+      viewer.id,
+      ctx,
+      { action: 'DOC_SUBMITTED_FOR_REVIEW' },
+    );
+
+    // R-44 (MVP): notificación por correo (best-effort) a ADMIN/REVISOR si SMTP está configurado.
+    await this.notifyRevisionSubmitted({
+      documentoId: updated.id,
+      codigo: updated.codigo,
+      asunto: updated.asunto,
+    });
+
+    return updated;
+  }
+
+  /** R-28: EN_REVISION → APROBADO | RECHAZADO (ADMIN o REVISOR). Rechazo con motivo auditable. */
+  async resolverRevision(
+    id: string,
+    dto: ResolverRevisionDto,
+    viewer: JwtRequestUser,
+    ctx?: AuditContext,
+  ) {
+    if (!jwtUserIsAdmin(viewer) && !jwtUserIsRevisor(viewer)) {
+      throw new ForbiddenException(
+        'Solo un revisor o administrador puede resolver la revisión',
+      );
+    }
+
+    const doc = await this.loadDocumentoById(id);
+    assertUsuarioPuedeVerDocumento(doc, viewer);
+
+    if (normalizeDocumentoEstado(doc.estado) !== 'EN_REVISION') {
+      throw new BadRequestException(
+        'Solo documentos EN_REVISION pueden resolverse',
+      );
+    }
+
+    const extraMeta: Record<string, unknown> = { decision: dto.decision };
+    if (dto.decision === 'RECHAZADO' && dto.motivo) {
+      extraMeta.motivoRechazo = dto.motivo;
+    }
+
+    const updated = await this.aplicarCambioEstadoSoloEstado(
+      doc,
+      dto.decision,
+      viewer.id,
+      ctx,
+      {
+        action: 'DOC_REVIEW_RESOLVED',
+        extraMeta,
+      },
+    );
+
+    // R-44 (MVP): notificación al creador del documento (best-effort) si SMTP está configurado.
+    await this.mail.sendIfConfigured({
+      to: doc.createdBy.email,
+      subject: `SGD-GADPR-LM — Revisión resuelta: ${doc.codigo} (${dto.decision})`,
+      text: [
+        'Se resolvió la revisión de su documento.',
+        '',
+        `Código: ${doc.codigo}`,
+        `Asunto: ${doc.asunto}`,
+        `Decisión: ${dto.decision}`,
+        ...(dto.decision === 'RECHAZADO' && dto.motivo
+          ? ['', `Motivo: ${dto.motivo}`]
+          : []),
+        '',
+        `ID: ${doc.id}`,
+      ].join('\n'),
+    });
+
+    return updated;
+  }
+
   private diffDocumento(before: DocumentoSnapshot, after: DocumentoSnapshot) {
     const diff: Record<string, { from: unknown; to: unknown }> = {};
     const keys = Object.keys(before) as (keyof DocumentoSnapshot)[];
@@ -603,8 +1193,38 @@ export class DocumentosService {
     return diff;
   }
 
-  async update(id: string, dto: UpdateDocumentoDto, updatedById: string) {
+  async update(
+    id: string,
+    dto: UpdateDocumentoDto,
+    updatedById: string,
+    ctx?: AuditContext,
+  ) {
     const beforeFull = await this.loadDocumentoById(id);
+
+    const estadoPrevio = normalizeDocumentoEstado(beforeFull.estado);
+    if (estadoPrevio === 'ARCHIVADO') {
+      const intentaCambiarMetadatosOEstado =
+        dto.asunto !== undefined ||
+        dto.descripcion !== undefined ||
+        dto.fechaDocumento !== undefined ||
+        dto.tipoDocumentalId !== undefined ||
+        dto.subserieId !== undefined ||
+        dto.estado !== undefined ||
+        dto.dependenciaId !== undefined ||
+        dto.nivelConfidencialidad !== undefined;
+      if (intentaCambiarMetadatosOEstado) {
+        throw new BadRequestException(
+          'Documento archivado: solo puede modificarse el indicador de registro activo.',
+        );
+      }
+    }
+
+    if (dto.estado !== undefined) {
+      assertTransicionEstado(
+        beforeFull.estado,
+        normalizeDocumentoEstado(dto.estado.trim()),
+      );
+    }
     if (dto.tipoDocumentalId !== undefined) {
       await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
     }
@@ -650,7 +1270,9 @@ export class DocumentosService {
               tipoDocumentalId: dto.tipoDocumentalId,
             }),
             ...(dto.subserieId !== undefined && { subserieId: dto.subserieId }),
-            ...(dto.estado !== undefined && { estado: dto.estado.trim() }),
+            ...(dto.estado !== undefined && {
+              estado: normalizeDocumentoEstado(dto.estado.trim()),
+            }),
             ...(dto.activo !== undefined && { activo: dto.activo }),
             ...(dto.dependenciaId !== undefined && {
               dependenciaId: dto.dependenciaId,
@@ -701,6 +1323,26 @@ export class DocumentosService {
 
         return documento;
       });
+
+      if (dto.estado !== undefined) {
+        const desde = estadoPrevio;
+        const hasta = normalizeDocumentoEstado(dto.estado.trim());
+        if (desde !== hasta) {
+          await this.audit.log({
+            action: 'DOC_STATE_CHANGED',
+            result: 'OK',
+            resource: { type: 'Documento', id },
+            context: {
+              actorUserId: ctx?.actorUserId ?? updatedById,
+              actorEmail: ctx?.actorEmail ?? null,
+              ip: ctx?.ip ?? null,
+              userAgent: ctx?.userAgent ?? null,
+              correlationId: ctx?.correlationId ?? null,
+            },
+            meta: { from: desde, to: hasta },
+          });
+        }
+      }
 
       return updated;
     } catch (e: unknown) {

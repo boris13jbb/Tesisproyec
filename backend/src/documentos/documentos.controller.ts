@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   Header,
+  HttpCode,
   InternalServerErrorException,
   Param,
   ParseUUIDPipe,
@@ -24,6 +26,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { JwtRequestUser } from '../auth/request-user';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
+import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import { DocumentosService } from './documentos.service';
 
@@ -68,6 +71,30 @@ export class DocumentosController {
       page: page ? Number(page) : undefined,
       pageSize: pageSize ? Number(pageSize) : undefined,
     });
+  }
+
+  @Get('next-codigo')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  getSiguienteCodigo(@Query('anio') anio?: string) {
+    let y: number | undefined;
+    if (anio !== undefined && String(anio).trim() !== '') {
+      y = Number(String(anio).trim());
+      if (!Number.isInteger(y)) {
+        throw new BadRequestException('Query «anio» debe ser un entero (ej. 2026).');
+      }
+    }
+    return this.service.sugerirSiguienteCodigo(y);
+  }
+
+  @Get('tablon-tramites')
+  tablonTramites(@Req() req: Request & { user: JwtRequestUser }) {
+    return this.service.findTablonTramites(req.user);
+  }
+
+  @Get('clasificacion-agregados')
+  clasificacionAgregados(@Req() req: Request & { user: JwtRequestUser }) {
+    return this.service.getClasificacionAgregados(req.user);
   }
 
   @Get(':id')
@@ -116,7 +143,7 @@ export class DocumentosController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
     }),
   )
   uploadArchivo(
@@ -178,6 +205,39 @@ export class DocumentosController {
     return this.service.findArchivoEventos(id, archivoId, req.user);
   }
 
+  @Post(':id/enviar-revision')
+  @HttpCode(200)
+  enviarRevision(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const ua = req.headers['user-agent'];
+    return this.service.enviarRevision(id, req.user, {
+      actorUserId: req.user.id,
+      actorEmail: req.user.email,
+      ip: req.ip ?? null,
+      userAgent: typeof ua === 'string' ? ua : null,
+    });
+  }
+
+  @Post(':id/resolver-revision')
+  @HttpCode(200)
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'REVISOR')
+  resolverRevision(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResolverRevisionDto,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const ua = req.headers['user-agent'];
+    return this.service.resolverRevision(id, dto, req.user, {
+      actorUserId: req.user.id,
+      actorEmail: req.user.email,
+      ip: req.ip ?? null,
+      userAgent: typeof ua === 'string' ? ua : null,
+    });
+  }
+
   @Delete(':id/archivos/:archivoId')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
@@ -206,7 +266,7 @@ export class DocumentosController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateDocumentoDto,
-    @Req() req: { user?: { id?: string } },
+    @Req() req: Request & { user?: { id?: string; email?: string } },
   ) {
     const updatedById = req.user?.id;
     if (!updatedById) {
@@ -214,6 +274,12 @@ export class DocumentosController {
         'Usuario no disponible en request',
       );
     }
-    return this.service.update(id, dto, updatedById);
+    const ua = req.headers['user-agent'];
+    return this.service.update(id, dto, updatedById, {
+      actorUserId: updatedById,
+      actorEmail: req.user?.email ?? null,
+      ip: req.ip ?? null,
+      userAgent: typeof ua === 'string' ? ua : null,
+    });
   }
 }

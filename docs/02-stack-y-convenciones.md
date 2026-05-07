@@ -34,6 +34,16 @@
 
 Si `vite.config` o `main.ts` usan otros puertos, **documentar el valor real** en este archivo y en `.env.example`.
 
+### 2.1 Desarrollo local — backend (NestJS)
+
+Desde **`backend/`** (scripts en `package.json`):
+
+- **`npm run start:dev`** — ejecuta antes **`npm run tsbuildinfo:clean`** (borra `.tsbuildinfo` que en Windows pueden dejar **`dist/`** incoherente con `nest start --watch`), luego `nest start --watch`.
+- **`npm run start:dev:free`** — libera el puerto **3000** (`kill-port`) y arranca igual que `start:dev` (útil ante `EADDRINUSE`).
+- **`npm run start:prod`** — sirve **`node dist/main`** tras **`npm run build`**.
+
+Convención: levantar **MySQL (XAMPP)** → **backend :3000** → **frontend :5173** para evitar errores de proxy `ECONNREFUSED` hacia la API.
+
 ---
 
 ## 3. Variables de entorno (referencia)
@@ -53,9 +63,15 @@ Definir en `.env` en la raíz del backend (o según estructura del repo):
 
 | Variable | Propósito |
 |----------|-----------|
-| `VITE_API_URL` | Base URL del API (p. ej. `http://localhost:3000/api/v1`) |
+| `VITE_API_URL` | Base URL del API (**en desarrollo con proxy:** dejar sin definir → `/api/v1` en el mismo origen que la UI). Solo fijar en build o si el navegador llama API en otro host. **Si accedés por IP de LAN desde otro equipo, no uses `localhost` aquí.** |
+| `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` | (Solo servidor de desarrollo Vite) Host permitido extra para **túneles** (ngrok, etc.). Variable **oficial** de Vite: se fusiona sin quitar IPs/LAN permitidas por defecto. Ver [allowedHosts](https://vite.dev/config/server-options.html#server-allowedhosts). |
 
 Los prefijos `VITE_` son expuestos al cliente; **no** poner secretos de servidor en variables `VITE_*`.
+
+#### Política `server.allowedHosts` en `vite.config.ts` (este repositorio)
+
+- **Convención:** no listar aquí dominios sólo como “whitelist” cerrada (`ngrok` + `localhost`) sin IPs: rompe navegación por **`http://<IP-LAN>:5173`** y el proxy `/api`.
+- **Alternativa admitida:** dejar **`allowedHosts` omitido** (comportamiento por defecto de Vite) y, si corresponde, variables de **`__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS`** por sesión de túnel.
 
 ### Ejemplo de `DATABASE_URL` (desarrollo local)
 

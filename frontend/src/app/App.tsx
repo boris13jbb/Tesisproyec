@@ -10,14 +10,22 @@ import { SubseriesPage } from '../pages/catalogos/SubseriesPage';
 import { TiposDocumentalesPage } from '../pages/catalogos/TiposDocumentalesPage';
 import { DocumentoDetallePage } from '../pages/documentos/DocumentoDetallePage';
 import { DocumentosPage } from '../pages/documentos/DocumentosPage';
+import { NuevoDocumentoPage } from '../pages/documentos/NuevoDocumentoPage';
+import { ClasificacionDocumentalPage } from '../pages/clasificacion/ClasificacionDocumentalPage';
+import { FlujoTramitePage } from '../pages/tramites/FlujoTramitePage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { AuditoriaPage } from '../pages/admin/AuditoriaPage';
+import { RespaldosSeguridadPage } from '../pages/admin/RespaldosSeguridadPage';
+import { ReportesInstitucionalesPage } from '../pages/admin/ReportesInstitucionalesPage';
+import { ConfiguracionSeguridadPage } from '../pages/admin/ConfiguracionSeguridadPage';
+import { PerfilUsuarioPage } from '../pages/PerfilUsuarioPage';
 import { UsuariosPage } from '../pages/admin/UsuariosPage';
 import { ForbiddenPage } from '../pages/ForbiddenPage';
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
+import { SplashInicioPage } from '../pages/SplashInicioPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { RoleRoute } from '../routes/RoleRoute';
 
@@ -46,6 +54,7 @@ export function App() {
   return (
     <SessionGate>
       <Routes>
+        <Route path="/inicio" element={<SplashInicioPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/recuperar" element={<ForgotPasswordPage />} />
         <Route path="/restablecer" element={<ResetPasswordPage />} />
@@ -53,10 +62,17 @@ export function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/perfil" element={<PerfilUsuarioPage />} />
             <Route path="/documentos" element={<DocumentosPage />} />
+            <Route path="/tramites" element={<FlujoTramitePage />} />
+            <Route path="/clasificacion" element={<ClasificacionDocumentalPage />} />
             <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
             <Route element={<RoleRoute roles={['ADMIN']} />}>
+              <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
               <Route path="/admin/auditoria" element={<AuditoriaPage />} />
+              <Route path="/admin/respaldos" element={<RespaldosSeguridadPage />} />
+              <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
+              <Route path="/admin/configuracion" element={<ConfiguracionSeguridadPage />} />
               <Route path="/admin/usuarios" element={<UsuariosPage />} />
               <Route
                 path="/catalogos/dependencias"

@@ -12,6 +12,8 @@ Definición de roles, matriz permiso ↔ rol, enforcement en backend y UI.
 
 **Completado (roles).** En backend: decorador `@Roles(...)` y `RolesGuard` sobre rutas (p. ej. `GET /api/v1/admin/ping` restringido a rol `ADMIN`; mutaciones de catálogos y documentos restringidas a `ADMIN`). En frontend: rutas y menú condicionados por rol (p. ej. catálogos solo `ADMIN`).
 
+**Ejemplos de granularidad por ruta (sin `PermissionsGuard`):** resolución de revisión documental (`POST /api/v1/documentos/:id/resolver-revision`) permite **`ADMIN`** o **`REVISOR`**; export **pendientes de revisión** (`GET /api/v1/reportes/pendientes-revision.{xlsx,pdf}`) idem — ver `12` y `16`.
+
 **Pendiente (permiso granular).** La parte de permisos granulares en BD (`Permission`, `role_permissions`) queda como base de datos preparada, pero aún no se usa como fuente de autorización en guards.
 
 ## Decisiones técnicas

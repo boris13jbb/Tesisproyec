@@ -12,6 +12,8 @@ Jerarquía, códigos únicos, relación con tipos documentales y documentos regi
 
 **Parcial (prototipo).** Tablas `series` y `subseries` (jerarquía 1:N). API `GET /api/v1/series` y `GET /api/v1/subseries` (JWT); `POST/PATCH` para ambos (ADMIN). Frontend: `/catalogos/series` y `/catalogos/subseries`. Seed: serie `ADM` y subserie `ADM-CORR`.
 
+**Snapshot:** alineado a **`docs/README.md` (2026-05-06)**.
+
 ## Decisiones técnicas
 
 - Integridad: no eliminar series con documentos asociados (o baja lógica controlada).

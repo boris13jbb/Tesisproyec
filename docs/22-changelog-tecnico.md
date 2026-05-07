@@ -24,6 +24,86 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-05-06 — Respaldos (ADMIN): KPI + historial real desde auditoría `BACKUP_VERIFIED`
+
+- **API:** `GET /api/v1/dashboard/admin/backup-overview` — hasta 50 filas recientes de `BACKUP_VERIFIED`, conteos OK/FAIL en 90 días, último OK y texto opcional `BACKUP_EXPECTED_SCHEDULE_HINT` desde entorno (sin cron en la app).
+- **API:** `POST .../dashboard/admin/backup-verification` — meta ampliada (`tipoRespaldo`, `tamanoLabel`, `tamanoBytes`, `notes`) persistida en `meta` del log de auditoría.
+- **Frontend:** `/admin/respaldos` consume el overview; elimina datos ilustrativos ficticios; formulario de registro con campos opcionales.
+- **Docs:** `27-manual-usuario-sgd-gadpr-lm.md` § 11, `backend/.env.example`.
+
+### 2026-05-06 — Auditoría (ADMIN): expediente por código real y filtros coherentes con BD
+
+- **API/UI:** respuesta `GET /api/v1/auditoria` y exports `reportes/auditoria.{xlsx,pdf}` enriquecidos con `resourceCodigo` (lookup `documentos.codigo` por `Documento.resourceId` o `meta.documentoId`).
+- **Filtros:** `action` pasa de `contains` a **igualdad exacta**; nuevo query `actorUserId` (UUID); la UI deja de filtrar solo por correo inferido.
+- **Código:** `backend/src/auditoria/audit-list.util.ts` compartido con `ReportesService.findAuditLogs`.
+- **Docs:** `15-modulo-auditoria.md`, `27-manual-usuario-sgd-gadpr-lm.md` § 10.
+
+### 2026-05-06 — Identidades (ADMIN): último ingreso real y matriz desde API
+
+- **Datos:** migración `20260506143000_user_ultimo_login` — columna `users.ultimo_login_at` (actualizada en `AUTH_LOGIN_OK` con credenciales).
+- **API:** `GET /api/v1/usuarios/matriz-acceso-referencia` — matriz efectiva alineada a `access-matrix.reference.ts` (evita matriz solo en cliente).
+- **Perfil:** `GET .../auth/me/profile` prioriza `ultimoLoginAt` persistido y conserva respaldo por auditoría.
+- **UI:** `/admin/usuarios` — dependencia/cargo visibles, estado **Suspendido**, último ingreso formateado, matriz consumida del servidor, acción **Ir a usuarios para asignar roles** (sin botón “guardar” ficticio).
+- **Docs:** `04-modelo-base-de-datos.md`, `27-manual-usuario-sgd-gadpr-lm.md` § 5.1.
+
+### 2026-05-06 — Clasificación documental: ficha y tabla con datos reales (agregados + honestidad sobre retención)
+
+- **API:** `GET /api/v1/documentos/clasificacion-agregados` — por serie/subserie activa del catálogo: cuenta de expedientes visibles (`activo` + misma función de alcance que `GET /documentos`), dependencia y nivel de confidencialidad predominantes entre esos registros (`DocumentosService.getClasificacionAgregados`).
+- **Frontend:** `/clasificacion` consume ese endpoint junto al catálogo; ficha muestra métricas reales sin inventar plazos/disposición final; tabla añade **Expedientes visibles** por serie; botón Actualizar coherente con otras pantallas.
+- **Docs:** `27-manual-usuario-sgd-gadpr-lm.md` § 7.2.2.
+
+### 2026-05-07 — Trámites (Kanban): tablero con datos consolidados desde API
+
+- **API:** `GET /api/v1/documentos/tablon-tramites` agrupa cargas por las cuatro columnas + totales borrador/rechazado (`DocumentosService.findTablonTramites`), misma visibilidad que `GET /documentos`.
+- **Listados:** `pageSize` máximo en `GET /documentos` pasa a **200** (antes 100) para grandes bandejas cuando se necesite.
+- **UI:** `/tramites` consume el tablero en una llamada; tarjetas muestran **tipo documental** + asunto compacto + dependencia; botón actualizar.
+
+### 2026-05-07 — Vite: mitigación riesgo `allowedHosts` vs LAN (`frontend/vite.config`)
+
+- **`server.allowedHosts`:** política repo documentada sin lista fija en config (valor por defecto Vite permite IPs/LAN + localhost).
+- **Túneles:** usar `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` (fusión oficial) según manual Vite — evita repetir errores tipo “sin conexión” con `Host` al acceder por `192.168.*.*`.
+- **Refs:** `docs/02-stack-y-convenciones.md`, `.env.example` del frontend.
+
+### 2026-05-06 — Sincronización de documentación con el estado del código (`docs/`)
+
+- Actualización transversal del índice (`README.md` snapshot), roadmap (`00`), arquitectura/stack (`01`, `02`, `03`), modelo (`04`), módulos `12`, `15`, `16`, `17`, `18`, pruebas (`19`), riesgos/problemas (`20`, `21`), listado de brechas (`28`), manual (`27`), cierres de etapa `38`/`39` y notas `29`–`37` donde aplica — alineados a revisión documental (**R‑28**), reportes (**R‑39**), auditoría UI, lockout (**R‑9**) y desarrollo estable (`tsbuildinfo:clean` + `start:dev`).
+
+### 2026-05-06 — R-39/R-28: reporte “pendientes de revisión” (ADMIN/REVISOR)
+
+- **API:** `GET /api/v1/reportes/pendientes-revision.{xlsx,pdf}` (usa mismas reglas de visibilidad que lectura).
+- **Auditoría:** `REPORT_EXPORTED` con `kind=pendientes_revision`.
+- **Frontend:** botones “Pendientes revisión (Excel/PDF)” en `/documentos` para rol **REVISOR**.
+- **Docs:** `28-listado-lo-que-deberia-tener-el-sistema.md`, `12-modulo-documentos.md`, `27-manual-usuario-sgd-gadpr-lm.md`.
+
+### 2026-05-06 — R-44 (MVP): notificaciones por correo en revisión documental (best-effort)
+
+- **Backend:** envía correo si SMTP está configurado:
+  - envío a revisión → notifica a usuarios **ADMIN/REVISOR** activos;
+  - resolución (aprobado/rechazado) → notifica al **creador** (incluye motivo en rechazo).
+- **Nota:** sin SMTP, el flujo funciona igual (no bloquea).
+- **Docs:** `28-listado-lo-que-deberia-tener-el-sistema.md`, `12-modulo-documentos.md`.
+
+### 2026-05-05 — R-28: rechazo con motivo obligatorio y auditoría
+
+- **API:** `POST .../resolver-revision` acepta `motivo` requerido si `decision: "RECHAZADO"` (DTO `ResolverRevisionDto`; validación global con `trim`).
+- **Auditoría:** `DOC_REVIEW_RESOLVED.meta` incluye **`motivoRechazo`** en rechazos.
+- **Frontend:** diálogo de confirmación antes de rechazar (`DocumentoDetallePage`).
+- **Docs:** `28-listado-lo-que-deberia-tener-el-sistema.md`, `12-modulo-documentos.md`, `27-manual-usuario-sgd-gadpr-lm.md`.
+
+### 2026-05-10 — R-28 MVP: enviar a revisión y resolver (rol REVISOR)
+
+- **API:** `POST /api/v1/documentos/:id/enviar-revision`, `POST .../resolver-revision` + DTO `ResolverRevisionDto`.
+- **Reglas:** envío solo desde **REGISTRADO** (creador o ADMIN); resolución **EN_REVISION** (ADMIN o REVISOR); auditoría `DOC_SUBMITTED_FOR_REVIEW` / `DOC_REVIEW_RESOLVED`.
+- **Frontend:** acciones en detalle; aviso a **REVISOR** en listado de documentos.
+- **Docs:** `28-listado...`, `12-modulo-documentos.md`, `06-modulo-usuarios.md`, `15-modulo-auditoria.md`, `27-manual-usuario-sgd-gadpr-lm.md`.
+
+### 2026-05-09 — R-27 MVP: catálogo y transiciones de estado en documentos
+
+- **Datos:** migración `20260509153000_normalize_documento_estados` (valores huérfanos → `REGISTRADO`).
+- **Backend:** `documento-estado.util.ts`; validación en `create`/`update`; bloqueo de adjuntos si **ARCHIVADO**; **`DOC_STATE_CHANGED`** en auditoría.
+- **Frontend:** `constants/documento-estado.ts`; filtro Estado en listado; estado inicial en alta; select en edición detalle + deshabilitar carga/eliminación de archivos archivados.
+- **Docs:** `28-listado-lo-que-deberia-tener-el-sistema.md`, `04-modelo-base-de-datos.md`, `12-modulo-documentos.md`, `15-modulo-auditoria.md`, `27-manual-usuario-sgd-gadpr-lm.md`.
+
 ### 2026-05-08 — Listado gap 28: auditoría 403 + lockout por cuenta en login
 
 - **Datos:** migración `20260508120000_user_login_lockout` (`failed_login_attempts`, `locked_until` en `users`).

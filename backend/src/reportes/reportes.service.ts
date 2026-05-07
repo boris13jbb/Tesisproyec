@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { JwtRequestUser } from '../auth/request-user';
+import {
+  buildAuditWhere,
+  enrichAuditLogsWithDocumentoCodigo,
+} from '../auditoria/audit-list.util';
+import { documentoWhereLibre } from '../documentos/documento-q-filter.util';
 import { documentoVisibilityWhere } from '../documentos/documento-scope.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type AuditReportFilter = {
   action?: string;
   result?: string;
+  actorUserId?: string;
   actorEmail?: string;
   resourceType?: string;
   resourceId?: string;
@@ -22,6 +28,7 @@ export type DocumentosReportFilter = {
   archivoSha256?: string;
   estado?: string;
   tipoDocumentalId?: string;
+  dependenciaId?: string;
   serieId?: string;
   subserieId?: string;
   fechaDesde?: Date;
@@ -37,32 +44,29 @@ export class ReportesService {
   async findAuditLogs(filter: AuditReportFilter) {
     const from = filter.from;
     const to = filter.to;
-    const where = {
-      ...(filter.action ? { action: { contains: filter.action.trim() } } : {}),
-      ...(filter.result ? { result: filter.result } : {}),
-      ...(filter.actorEmail
-        ? { actorEmail: { contains: filter.actorEmail.trim() } }
-        : {}),
-      ...(filter.resourceType
-        ? { resourceType: filter.resourceType.trim() }
-        : {}),
-      ...(filter.resourceId ? { resourceId: filter.resourceId.trim() } : {}),
-      ...(from || to
-        ? {
-            createdAt: {
-              ...(from ? { gte: from } : {}),
-              ...(to ? { lte: to } : {}),
-            },
-          }
-        : {}),
-    } as const;
+    const resultOk =
+      filter.result === 'OK' || filter.result === 'FAIL'
+        ? filter.result
+        : undefined;
+
+    const where = buildAuditWhere({
+      action: filter.action,
+      result: resultOk,
+      actorUserId: filter.actorUserId,
+      actorEmail: filter.actorEmail,
+      resourceType: filter.resourceType,
+      resourceId: filter.resourceId,
+      from,
+      to,
+    });
 
     const MAX_ROWS = 5000;
-    return this.prisma.auditLog.findMany({
+    const raw = await this.prisma.auditLog.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }],
       take: MAX_ROWS,
     });
+    return enrichAuditLogsWithDocumentoCodigo(this.prisma, raw);
   }
 
   async findDocumentos(filter: DocumentosReportFilter, viewer: JwtRequestUser) {
@@ -96,6 +100,7 @@ export class ReportesService {
       ...(filter.tipoDocumentalId
         ? { tipoDocumentalId: filter.tipoDocumentalId }
         : {}),
+      ...(filter.dependenciaId ? { dependenciaId: filter.dependenciaId } : {}),
       ...(filter.subserieId ? { subserieId: filter.subserieId } : {}),
       ...(filter.serieId ? { subserie: { serieId: filter.serieId } } : {}),
       ...(filter.fechaDesde || filter.fechaHasta
@@ -122,15 +127,7 @@ export class ReportesService {
             },
           }
         : {}),
-      ...(q
-        ? {
-            OR: [
-              { codigo: { contains: q } },
-              { asunto: { contains: q } },
-              { descripcion: { contains: q } },
-            ],
-          }
-        : {}),
+      ...documentoWhereLibre(q),
     } satisfies Prisma.DocumentoWhereInput;
 
     const vis = documentoVisibilityWhere(viewer);
@@ -179,5 +176,21 @@ export class ReportesService {
       createdAt: d.createdAt,
       archivosActivos: d.archivos.length,
     }));
+  }
+
+  /**
+   * Reporte operativo: documentos pendientes de revisión (R-28/R-39).
+   * Reusa las mismas reglas anti‑IDOR de lectura (dependencia + confidencialidad) para no filtrar de más.
+   */
+  async findPendientesRevision(viewer: JwtRequestUser) {
+    return this.findDocumentos(
+      {
+        incluirInactivos: false,
+        estado: 'EN_REVISION',
+        sortBy: 'fechaDocumento',
+        sortDir: 'desc',
+      },
+      viewer,
+    );
   }
 }

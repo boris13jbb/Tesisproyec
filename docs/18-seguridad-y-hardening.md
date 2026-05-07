@@ -46,7 +46,7 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 - **403 auditado**: intentos contra endpoints con rol insuficiente generan **`AUTHZ_FORBIDDEN`** (`forbidden-audit.filter.ts`).
 - **Cookies refresh**: `HttpOnly`, `secure` en producción, `sameSite=lax`, `path=/`; `clearCookie` con mismos flags.
 - **Validación API**: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
-- **RBAC por rol**: `RolesGuard` + `@Roles('ADMIN')` en mutaciones y reportes.
+- **RBAC por rol**: `RolesGuard` + `@Roles(...)`; mutaciones y reportes típicamente **ADMIN**; excepción documentada: export **pendientes de revisión** permite **ADMIN** o **REVISOR** (`reportes.controller.ts`).
 - **Archivos**: lista blanca MIME, tamaño máximo, nombres seguros, descarga controlada vía API.
 - **Trazabilidad**:
   - `documento_eventos` (CREADO/ACTUALIZADO)
