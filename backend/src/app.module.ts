@@ -28,6 +28,7 @@ class StartupConfigGuard implements OnModuleInit {
   onModuleInit() {
     const nodeEnv = String(this.config.get('NODE_ENV') ?? 'development');
     const isProd = nodeEnv === 'production';
+    const isTest = nodeEnv === 'test';
 
     const access = String(this.config.get<string>('JWT_ACCESS_SECRET') ?? '');
     const refresh = String(this.config.get<string>('JWT_REFRESH_SECRET') ?? '');
@@ -54,6 +55,10 @@ class StartupConfigGuard implements OnModuleInit {
 
     if (isProd) {
       throw new Error(`Configuración insegura:\n- ${problems.join('\n- ')}`);
+    }
+
+    if (isTest) {
+      return;
     }
 
     // En dev: no bloquear el arranque, pero dejar evidencia clara.
