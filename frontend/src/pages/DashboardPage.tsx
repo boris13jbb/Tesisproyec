@@ -664,9 +664,23 @@ export function DashboardPage() {
                       <TableRow
                         key={d.id}
                         hover
-                        component={RouterLink}
-                        to={`/documentos/${d.id}`}
-                        sx={{ cursor: 'pointer', textDecoration: 'none', '&:last-child td': { borderBottom: 0 } }}
+                        tabIndex={0}
+                        onClick={() => navigate(`/documentos/${d.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            navigate(`/documentos/${d.id}`);
+                          }
+                        }}
+                        sx={{
+                          cursor: 'pointer',
+                          '&:focus-visible': {
+                            outline: '2px solid rgba(45, 138, 153, 0.6)',
+                            outlineOffset: 2,
+                            borderRadius: 8,
+                          },
+                          '&:last-child td': { borderBottom: 0 },
+                        }}
                       >
                         <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                           {d.codigo}
