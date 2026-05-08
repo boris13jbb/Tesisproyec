@@ -22,6 +22,7 @@ import {
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
@@ -31,6 +32,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FullscreenOutlinedIcon from '@mui/icons-material/FullscreenOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import IconButton from '@mui/material/IconButton';
 import DOMPurify from 'dompurify';
 import mammoth from 'mammoth';
@@ -427,6 +429,48 @@ export function DocumentoDetallePage() {
   const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [previewDocxHtml, setPreviewDocxHtml] = useState<string | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
+  const openPreviewInNewTab = useCallback(() => {
+    try {
+      if (previewUrl) {
+        const w = window.open(previewUrl, '_blank', 'noopener,noreferrer');
+        if (w) w.opener = null;
+        return;
+      }
+      if (previewDocxHtml) {
+        const w = window.open('', '_blank', 'noopener,noreferrer');
+        if (!w) return;
+        w.opener = null;
+        const title = doc?.codigo ? `Vista previa — ${doc.codigo}` : 'Vista previa';
+        const safeBody = previewDocxHtml; // ya sanitizado con DOMPurify
+        w.document.open();
+        w.document.write(`<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${DOMPurify.sanitize(title)}</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+    header { position: sticky; top: 0; background: #1A2B3C; color: #fff; padding: 12px 16px; font-weight: 800; z-index: 2; }
+    main { padding: 24px 16px; }
+    .docx-preview { max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 10px; padding: 22px 18px; box-shadow: 0 14px 46px rgba(15, 23, 42, 0.10); }
+    .docx-preview img { max-width: 100%; height: auto; }
+    .docx-preview table { width: 100%; border-collapse: collapse; }
+    .docx-preview td, .docx-preview th { border: 1px solid rgba(15, 23, 42, 0.12); padding: 6px 8px; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <header>${DOMPurify.sanitize(title)}</header>
+  <main>${safeBody}</main>
+</body>
+</html>`);
+        w.document.close();
+      }
+    } catch {
+      // no-op: fallos de popup blocker u otros
+    }
+  }, [doc?.codigo, previewDocxHtml, previewUrl]);
 
   const historiaRef = useRef<HTMLDivElement | null>(null);
 
@@ -1124,19 +1168,40 @@ export function DocumentoDetallePage() {
                       }
                     />
                     <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 1 }}>
-                      <IconButton
-                        aria-label="Ver vista previa en pantalla completa"
-                        disabled={
-                          (!previewUrl && !previewDocxHtml) ||
-                          previewLoading ||
-                          Boolean(previewError) ||
-                          Boolean(previewSkipInfo)
-                        }
-                        onClick={() => setPreviewFullscreenOpen(true)}
-                        size="small"
-                      >
-                        <FullscreenOutlinedIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title="Abrir en nueva pestaña">
+                        <span>
+                          <IconButton
+                            aria-label="Abrir vista previa en una nueva pestaña"
+                            disabled={
+                              (!previewUrl && !previewDocxHtml) ||
+                              previewLoading ||
+                              Boolean(previewError) ||
+                              Boolean(previewSkipInfo)
+                            }
+                            onClick={openPreviewInNewTab}
+                            size="small"
+                          >
+                            <OpenInNewOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Pantalla completa">
+                        <span>
+                          <IconButton
+                            aria-label="Ver vista previa en pantalla completa"
+                            disabled={
+                              (!previewUrl && !previewDocxHtml) ||
+                              previewLoading ||
+                              Boolean(previewError) ||
+                              Boolean(previewSkipInfo)
+                            }
+                            onClick={() => setPreviewFullscreenOpen(true)}
+                            size="small"
+                          >
+                            <FullscreenOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Stack>
                   </Box>
                   <Box sx={{ px: 2.5, pb: 2, pt: 0.5, flex: 1 }}>
