@@ -52,6 +52,13 @@ async function seedRolePermissions(): Promise<void> {
     PERM.DOC_REVISION_SEND,
   ]);
 
+  await replaceForRole('EDITOR_DOC', [
+    ...auditorConsultaBase,
+    PERM.DOC_REVISION_SEND,
+    PERM.DOC_UPDATE,
+    PERM.DOC_FILES_UPLOAD,
+  ]);
+
   await replaceForRole('REVISOR', [
     ...auditorConsultaBase,
     PERM.DOC_REVISION_SEND,
@@ -118,6 +125,19 @@ async function main() {
       codigo: 'CONSULTA',
       nombre: 'Consulta',
       descripcion: 'Solo lectura / consulta (MVP igual a USUARIO)',
+      activo: true,
+    },
+    update: {},
+  });
+
+  /** Complementario: combinar con USUARIO vía multi-rol para quien deba editar/subir sin ser ADMIN. */
+  await prisma.role.upsert({
+    where: { codigo: 'EDITOR_DOC' },
+    create: {
+      codigo: 'EDITOR_DOC',
+      nombre: 'Editor documental (complemento)',
+      descripcion:
+        'Otorga edición de metadatos y gestión de archivos en documentos; permisos granulares vía BD (no es administrador)',
       activo: true,
     },
     update: {},

@@ -41,6 +41,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { isAxiosError } from 'axios';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { PageHeader } from '../../components/PageHeader';
@@ -74,6 +75,8 @@ type Usuario = {
   activo: boolean;
   ultimoLoginAt?: string | null;
   roles: { codigo: string; nombre: string }[];
+  /** Permisos adicionales otorgados solo a esta cuenta (además de los del rol). */
+  directPermissionCodes?: string[];
 };
 
 type InvitacionCorreoInfo = {
@@ -94,16 +97,28 @@ type RbacRoleRow = { id: string; codigo: string; nombre: string };
 const ROLE_OPTIONS = [
   'ADMIN',
   'USUARIO',
+  'EDITOR_DOC',
   'REVISOR',
   'AUDITOR',
   'CONSULTA',
 ] as const;
+
+function mensajeErrorApi(err: unknown, fallback: string): string {
+  if (isAxiosError(err) && err.response?.data) {
+    const d = err.response.data as { message?: string | string[] };
+    const m = d.message;
+    if (Array.isArray(m)) return m.join(' ');
+    if (typeof m === 'string' && m.trim()) return m;
+  }
+  return fallback;
+}
 
 /** Encabezado corto matriz — códigos reales igual que en JWT/RBAC. */
 const ROL_COLUMNA_ETIQUETA: Record<string, string> = {
   ADMIN: 'Administración',
   REVISOR: 'Revisor',
   USUARIO: 'Usuario',
+  EDITOR_DOC: 'Editor documental',
   AUDITOR: 'Auditor',
   CONSULTA: 'Consulta',
 };
@@ -227,9 +242,16 @@ export function UsuariosPage() {
   const [dependenciaId, setDependenciaId] = useState<string>('');
   const [cargoId, setCargoId] = useState<string>('');
   const [roles, setRoles] = useState<(typeof ROLE_OPTIONS)[number][]>(['USUARIO']);
+  /** Códigos de `Permission`; se aplican solo a ese usuario (`user_permissions`). */
+  const [directPermCodes, setDirectPermCodes] = useState<string[]>([]);
   const [invitarPorCorreo, setInvitarPorCorreo] = useState(true);
 
   const [newPassword, setNewPassword] = useState('');
+
+  const sortedPermCatalog = useMemo(
+    () => [...rbacPermissionCatalog].sort((a, b) => a.codigo.localeCompare(b.codigo)),
+    [rbacPermissionCatalog],
+  );
 
   const canSubmit = useMemo(() => {
     return email.trim().length > 3 && password.length >= 8;
@@ -317,8 +339,13 @@ export function UsuariosPage() {
       setRbacNotice(
         'Matriz de permisos guardada en base de datos. Los usuarios con este rol heredan los cambios en el próximo token (o al refrescar sesión).',
       );
-    } catch {
-      setError('No se pudo guardar la matriz de permisos (revise que ejecutó el seed y que su rol tiene permisos).');
+    } catch (err: unknown) {
+      setError(
+        mensajeErrorApi(
+          err,
+          'No se pudo guardar la matriz de permisos (revise que ejecutó el seed y que su rol tiene permisos).',
+        ),
+      );
     } finally {
       setRbacMatrixSaving(false);
     }
@@ -336,6 +363,7 @@ export function UsuariosPage() {
         dependenciaId: dependenciaId || undefined,
         cargoId: cargoId || undefined,
         roles,
+        directPermissionCodes: directPermCodes,
         invitarPorCorreo,
       });
 
@@ -360,11 +388,19 @@ export function UsuariosPage() {
       setDependenciaId('');
       setCargoId('');
       setRoles(['USUARIO']);
+      setDirectPermCodes([]);
       setInvitarPorCorreo(true);
       await load();
-    } catch {
-      setError('No se pudo crear el usuario (correo duplicado o datos inválidos).');
+    } catch (err: unknown) {
+      setError(
+        mensajeErrorApi(err, 'No se pudo crear el usuario (correo duplicado o datos inválidos).'),
+      );
     }
+  };
+
+  const handleDirectPermChange = (e: SelectChangeEvent<string[]>) => {
+    const value = e.target.value as string[];
+    setDirectPermCodes([...new Set(value)].sort((a, b) => a.localeCompare(b)));
   };
 
   const openEdit = (u: Usuario) => {
@@ -379,6 +415,7 @@ export function UsuariosPage() {
         (ROLE_OPTIONS as readonly string[]).includes(c),
       ) as (typeof ROLE_OPTIONS)[number][]) || ['USUARIO'],
     );
+    setDirectPermCodes([...(u.directPermissionCodes ?? [])].sort((a, b) => a.localeCompare(b)));
     setEditOpen(true);
   };
 
@@ -393,12 +430,18 @@ export function UsuariosPage() {
         dependenciaId: dependenciaId || null,
         cargoId: cargoId || null,
         roles,
+        directPermissionCodes: directPermCodes,
       });
       setEditOpen(false);
       setSelected(null);
       await load();
-    } catch {
-      setError('No se pudo actualizar el usuario.');
+    } catch (err: unknown) {
+      setError(
+        mensajeErrorApi(
+          err,
+          'No se pudo actualizar el usuario. Si asignó un rol nuevo (p. ej. EDITOR_DOC), ejecute migraciones o `npx prisma db seed` en el backend.',
+        ),
+      );
     }
   };
 
@@ -407,8 +450,8 @@ export function UsuariosPage() {
     try {
       await apiClient.patch(`/usuarios/${u.id}`, { activo: !u.activo });
       await load();
-    } catch {
-      setError('No se pudo actualizar el estado del usuario.');
+    } catch (err: unknown) {
+      setError(mensajeErrorApi(err, 'No se pudo actualizar el estado del usuario.'));
     }
   };
 
@@ -427,8 +470,13 @@ export function UsuariosPage() {
       });
       setResetOpen(false);
       setSelected(null);
-    } catch {
-      setError('No se pudo restablecer la contraseña (usuario inactivo o datos inválidos).');
+    } catch (err: unknown) {
+      setError(
+        mensajeErrorApi(
+          err,
+          'No se pudo restablecer la contraseña (usuario inactivo o datos inválidos).',
+        ),
+      );
     }
   };
 
@@ -642,8 +690,21 @@ export function UsuariosPage() {
                               ) : null;
                             })()}
                           </TableCell>
-                          <TableCell sx={{ maxWidth: 140 }}>
+                          <TableCell sx={{ maxWidth: 200 }}>
                             <Typography variant="body2">{formatRoles(u)}</Typography>
+                            {(u.directPermissionCodes?.length ?? 0) > 0 ? (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: 'block', mt: 0.35, lineHeight: 1.25 }}
+                              >
+                                Directos:{' '}
+                                {u.directPermissionCodes!
+                                  .slice(0, 5)
+                                  .join(', ')}
+                                {u.directPermissionCodes!.length > 5 ? '…' : ''}
+                              </Typography>
+                            ) : null}
                           </TableCell>
                           <TableCell>
                             <Chip
@@ -701,6 +762,7 @@ export function UsuariosPage() {
                   }}
                   onClick={() => {
                     setInviteNotice(null);
+                    setDirectPermCodes([]);
                     setOpen(true);
                   }}
                 >
@@ -1016,7 +1078,7 @@ export function UsuariosPage() {
         )}
       </Menu>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Crear usuario</DialogTitle>
         <DialogContent>
           <TextField
@@ -1118,6 +1180,34 @@ export function UsuariosPage() {
               ))}
             </Select>
           </FormControl>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="direct-perms-create-label">Permisos directos (solo esta cuenta)</InputLabel>
+            <Select
+              labelId="direct-perms-create-label"
+              multiple
+              value={directPermCodes}
+              label="Permisos directos (solo esta cuenta)"
+              onChange={handleDirectPermChange}
+              disabled={sortedPermCatalog.length === 0}
+              renderValue={(selected) =>
+                (selected as string[]).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Ninguno — solo hereda del rol
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" sx={{ whiteSpace: 'normal' }}>
+                    {(selected as string[]).join(', ')}
+                  </Typography>
+                )
+              }
+            >
+              {sortedPermCatalog.map((p) => (
+                <MenuItem key={p.codigo} value={p.codigo}>
+                  <ListItemText primary={p.codigo} secondary={p.descripcion ?? undefined} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)} variant="text">
@@ -1129,9 +1219,14 @@ export function UsuariosPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Editar usuario</DialogTitle>
         <DialogContent>
+          <Alert severity="info" sx={{ mt: 1, mb: 1 }}>
+            Puede asignar <strong>permisos directos</strong> a esta persona (p. ej.{' '}
+            <code>DOC_FILES_UPLOAD</code>) además de los que aporten sus roles. El efecto se nota al
+            iniciar sesión de nuevo o al renovar el token.
+          </Alert>
           <TextField
             label="Correo"
             type="email"
@@ -1203,6 +1298,34 @@ export function UsuariosPage() {
               {ROLE_OPTIONS.map((r) => (
                 <MenuItem key={r} value={r}>
                   {r}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="direct-perms-edit-label">Permisos directos (solo esta cuenta)</InputLabel>
+            <Select
+              labelId="direct-perms-edit-label"
+              multiple
+              value={directPermCodes}
+              label="Permisos directos (solo esta cuenta)"
+              onChange={handleDirectPermChange}
+              disabled={sortedPermCatalog.length === 0}
+              renderValue={(selected) =>
+                (selected as string[]).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Ninguno — solo hereda del rol
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" sx={{ whiteSpace: 'normal' }}>
+                    {(selected as string[]).join(', ')}
+                  </Typography>
+                )
+              }
+            >
+              {sortedPermCatalog.map((p) => (
+                <MenuItem key={p.codigo} value={p.codigo}>
+                  <ListItemText primary={p.codigo} secondary={p.descripcion ?? undefined} />
                 </MenuItem>
               ))}
             </Select>

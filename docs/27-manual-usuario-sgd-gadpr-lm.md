@@ -122,7 +122,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 ### 4.1 Qué verás
 
-- **Indicadores**: totales **en tiempo real** desde la API (`GET /dashboard/summary` y estado `GET /health`): **Documentos**, **Pendientes** por revisar para todos los roles; tarjetas **Usuarios** y **Alertas** solo si eres **`ADMIN`**; debajo aparece **actualización automática** cada unos segundos y una etiqueta **«Actualizado: …»**.
+- **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta roja, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
 - **Cumplimiento de seguridad (solo `ADMIN`)**: barras calculadas con métricas de los últimos 30 días (no son valores ficticios), más el bloque de **último respaldo verificado** y última línea auditada en el mismo panel.
@@ -151,22 +151,24 @@ La pantalla **Administración de identidades** muestra, en orden vertical y a **
 
 La tabla reproduce `GET /usuarios` y la **matriz de referencia** `GET /usuarios/matriz-acceso-referencia` (lectura útil por rol vs módulos; no persiste cambios).
 
-La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + **permisos en base de datos** (`role_permissions`) aplicados por el servidor (`@Permissions`). La sección **Matriz rol ↔ permiso (base de datos)** permite **marcar/desmarcar códigos** por cada rol institucional y **Guardar** (API `PUT /rbac/roles/:codigo/permissions`; queda evidencia **`ROLE_PERMISSIONS_UPDATED`** en auditoría para administradores).
+La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + **permisos en base de datos**: por **rol** (`role_permissions`) **y opcionalmente por persona** (`user_permissions`, llamados «permisos directos» en la pantalla), aplicados por el servidor (`@Permissions`). La sección **Matriz rol ↔ permiso (base de datos)** permite **marcar/desmarcar códigos** por cada rol institucional y **Guardar** (API `PUT /rbac/roles/:codigo/permissions`; queda evidencia **`ROLE_PERMISSIONS_UPDATED`** en auditoría para administradores).
 
-**Los usuarios** siguen administrándose con **roles** (**Editar usuario** / menú ⋮): los permisos del rol definen lo que pueden hacer dentro de ese rol una vez ejecutado el seed (sin permisos asignados a un rol, la API puede responder `403` aun manteniendo el mismo código de rol en la cuenta).
+**Los usuarios** se administran con **roles** y, si hace falta, con **permisos directos** en **Crear usuario** / **Editar usuario** (campo **Permisos directos (solo esta cuenta)**): se **suman** a lo que otorguen los roles (p. ej. asignar solo `DOC_FILES_UPLOAD` sin crear un rol nuevo). Quedan registrados cambios fuertes en auditoría (**`USER_DIRECT_PERMISSIONS_UPDATED`**). Quien cambie de combinación debe **volver a iniciar sesión** (o esperar renovación del token) para ver el efecto completo.
+
+**Los roles** siguen siendo obligatorios (al menos uno): si un rol no tiene permisos en BD, la API puede responder `403` aun con el mismo código de rol en la cuenta.
 
 1. En el menú lateral, entra a **Administración → Usuarios y roles**.
 2. En el directorio, revisa chips **Activos** / **Total** y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
 3. Para crear un usuario:
    - Presiona **Crear usuario**
-   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista: `ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`). El **alcance en API** viene de la **unión de roles** del usuario × **permisos configurados por rol** en la matriz BD (no basta el nombre del rol si ese rol quedó sin permisos).
+   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista ejemplar: `ADMIN`, `USUARIO`, `EDITOR_DOC`, `REVISOR`, `AUDITOR`, `CONSULTA`) y, opcionalmente, **Permisos directos** (lista de códigos del catálogo; vacío = solo hereda del rol). El **alcance en API** es la **unión** de permisos por **todos los roles** del usuario + **permisos directos**. El rol **`EDITOR_DOC`** (cuando existe en el seed o migración) complementa a **`USUARIO`** con edición de metadatos y gestión de adjuntos según **`role_permissions`**.
    - Deja marcada la opción recomendada **“Enviar al correo un enlace…”** para que llegue un mensaje con el enlace a **definir contraseña** (página de restablecer). Si no marcas la casilla, el usuario solo puede entrar con la contraseña temporal.
    - Presiona **Crear**
    - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
 4. Para editar:
    - En la fila del usuario, pulsa el botón **⋮ / Acciones** (icono junto al final de la fila).
-   - Elige **Editar usuario** (roles, dependencia, cargo).
-   - Ajusta y presiona **Guardar**
+   - Elige **Editar usuario** (roles, dependencia, cargo, permisos directos).
+   - Ajusta y presiona **Guardar** (si cambió permisos directos, revise auditoría y pida al usuario que cierre sesión si hace falta).
 5. Para activar/desactivar:
    - En **Acciones**, elija **Activar cuenta** o **Desactivar cuenta**
 6. Para restablecer contraseña:
@@ -230,6 +232,8 @@ Los catálogos son requisitos para registrar documentos correctamente.
 
 ### 7.2 Buscar documentos (simple y avanzada)
 
+Los filtros se organizan en **tarjeta** y se **adaptan al ancho de pantalla** (en móviles los campos se apilan; en escritorio pueden mostrarse en varias columnas). La **tabla** puede mostrar **scroll horizontal** en pantallas estrechas: desplázate lateralmente para ver todas las columnas.
+
 En la barra de filtros puedes usar:
 - Texto libre (`q`): coincide con **código**, **asunto**, **descripción**, **dependencia** del documento (nombre o código), **usuario que registró** (correo, nombres o apellidos), **tipo documental** y **clasificación** (subserie o serie).
 - **Estado** (lista desplegable con catálogo formal: Borrador, Registrado, En revisión, etc.; «(Todos)» para no filtrar)
@@ -240,10 +244,10 @@ En la barra de filtros puedes usar:
 
 **Acción**
 1. Ajusta filtros.
-2. Presiona **Filtrar**.
+2. Presiona **Aplicar filtros**.
 
 **Resultado esperado**
-- Lista **paginada** con registros **reales** del servidor (según tus permisos y filtros).
+- Lista **paginada** con registros **reales** del servidor (según tus permisos y filtros). Abajo del listado verás **número de página**, el **intervalo de registros** visibles respecto del total y botones **Anterior** / **Siguiente**.
 - En la tabla, **Clasificación** muestra serie y subserie; **Responsable** prioriza la **dependencia aplicada al documento** y, si no hay, muestra nombre o correo de quien lo registró (pasa el ratón sobre la celda para ver detalle cuando aplique).
 
 ### 7.2.1 Trámites — tablero de flujo (Kanban)
@@ -293,7 +297,7 @@ Los reportes usan los **mismos filtros** aplicados arriba (no exportan solo la p
 
 **Acción**
 
-1. Ajusta filtros y pulsa **Filtrar** (recomendado para acotar el resultado).
+1. Ajusta filtros y pulsa **Aplicar filtros** (recomendado para acotar el resultado).
 2. En el bloque de filtros, pulsa **Excel** o **PDF**.
 3. Acepta la descarga en el navegador.
 
@@ -331,7 +335,9 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, botón **Nuevo documento** si está visible.
 2. Los desplegables (**tipo**, **serie**, **clasificación**, **dependencia**) muestran el **catálogo real del servidor**. El sistema puede **prellenar su dependencia** si su usuario tiene dependencia en perfil y ésta existe en catálogo. Si hay un solo tipo documental o una sola serie o una sola subserie aplicable en el árbol, puede seleccionarse automáticamente al cargarse el catálogo.
 3. Completa:
-   - **Código (único)**: suele cargarse solo un correlativo institucional `PREFIJO-AÑO-SECUENCIAL` desde el servidor (según el año del campo fecha); puede solicitar otro con **Correlativo servidor** o sobreescribirlo a mano. El prefijo se configura con `DOCUMENTO_CODIGO_PREFIX` en el backend (`DOC` por defecto).
+   - **Código (único)**: el servidor **asigna automáticamente** el siguiente correlativo si no lo modifica. La pantalla puede mostrar una **vista previa** (también con **Correlativo servidor**). La convención depende de lo ya registrado: si existen códigos en forma **simple** (`PREFIJO-0001`, `PREFIJO-0002`…), se continúa esa serie; si no, puede usarse el formato **anual** (`PREFIJO-AÑO-00001`…). Solo **ADMIN** puede fijar un código distinto escribiéndolo en el formulario. El prefijo se configura con `DOCUMENTO_CODIGO_PREFIX` en el backend (`DOC` por defecto).
+
+   Desde **Documentos**, el cuadro **Registrar documento** se comporta igual: vista previa al abrir y asignación en el servidor si no tocó el campo **Código**.
    - Asunto
    - Descripción (opcional)
    - Fecha
@@ -360,8 +366,8 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 
 La pantalla se organiza en dos columnas (en escritorio):
 
-- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF** o **imagen** (JPG, PNG o WebP), descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). Para **DOCX**, **XLSX** u otros tipos debe usarse **Descargar** (el navegador no integra vista previa de Office aquí). Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (subir, listar, descargar, historial por versión), según permisos.
-- **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; dependencia; **Conservación** si no está parametrizada en datos (valor «—») y texto explicativo. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (solo **ADMIN**) y **Ver historial** (desplaza a la tarjeta inferior).
+- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF** o **imagen** (JPG, PNG o WebP), descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). Para **DOCX**, **XLSX** u otros tipos debe usarse **Descargar** (el navegador no integra vista previa de Office aquí). Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales**: **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
+- **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; dependencia; **Conservación** si no está parametrizada en datos (valor «—») y texto explicativo. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 
 Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además el bloque **Acceso al documento (ACL)**:
@@ -369,8 +375,9 @@ Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además
 - **INHERIT**: usa las reglas habituales del sistema (dependencia + confidencialidad + propiedad) para determinar visibilidad.
 - **RESTRICTED**: el documento queda visible solo para **ADMIN** y para los **usuarios/roles** que selecciones en la lista. Útil para evitar exposición accidental (prevención de **IDOR**) cuando un expediente debe compartirse con un grupo reducido.
 - **Guardar acceso**: aplica el cambio de inmediato; si eliges **RESTRICTED** y no seleccionas nadie, el documento deja de aparecer para usuarios no administradores.
+- **Aclaración (roles):** los **roles** del ACL solo cruzan con los roles que cada usuario **ya tiene** en su cuenta en el servidor. Aquí **no** se otorga el rol global **Administrador**. Para hacer administrador del sistema a alguien, use **Administración → Usuarios y roles**, **Editar** y cambie roles (solo un usuario que ya sea **ADMIN**).
 
-En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de confidencialidad**. Si eres **ADMIN**, presiona **Editar** en **Metadatos**, ajusta los campos y **Guardar** en el diálogo cuando la pantalla lo muestre.
+En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de confidencialidad**. Si tu cuenta tiene permiso **`DOC_UPDATE`**, presiona **Editar** en **Metadatos**, ajusta los campos y **Guardar** en el diálogo cuando la pantalla lo muestre.
 
 ### 8.1.1 Envío y resolución de revisión (flujo MVP)
 

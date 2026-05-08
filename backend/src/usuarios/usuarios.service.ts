@@ -11,6 +11,7 @@ import type { AuditContext } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 
@@ -26,6 +27,8 @@ type UsuarioResponse = {
   createdAt: Date;
   updatedAt: Date;
   roles: { codigo: string; nombre: string }[];
+  /** Permisos en `user_permissions` (además de los heredados por roles). */
+  directPermissionCodes: string[];
 };
 
 export type InvitacionCorreoInfo = {
@@ -40,12 +43,41 @@ export type CreateUsuarioResult = UsuarioResponse & {
 
 @Injectable()
 export class UsuariosService {
+  private readonly allowedDirectPermCodes = new Set<string>(ALL_PERMISSION_CODES);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
   ) {}
+
+  /** Resuelve IDs de `permissions` para códigos directos; valida catálogo y filas en BD. */
+  private async resolveDirectPermissionIds(codesInput: string[]): Promise<string[]> {
+    const unique = Array.from(
+      new Set(codesInput.map((c) => c.trim()).filter(Boolean)),
+    );
+    const invalid = unique.filter((c) => !this.allowedDirectPermCodes.has(c));
+    if (invalid.length) {
+      throw new BadRequestException({
+        message: 'Códigos de permiso directo no reconocidos',
+        invalid,
+      });
+    }
+    if (!unique.length) {
+      return [];
+    }
+    const rows = await this.prisma.permission.findMany({
+      where: { codigo: { in: unique } },
+      select: { id: true },
+    });
+    if (rows.length !== unique.length) {
+      throw new BadRequestException(
+        'Hay permisos no registrados en la base de datos. Ejecute `npx prisma db seed` en el backend.',
+      );
+    }
+    return rows.map((r) => r.id);
+  }
 
   private hashOpaqueToken(raw: string): string {
     return createHash('sha256').update(raw, 'utf8').digest('hex');
@@ -81,7 +113,11 @@ export class UsuariosService {
     createdAt: Date;
     updatedAt: Date;
     roles: { role: { codigo: string; nombre: string } }[];
+    directPermissions?: { permission: { codigo: string } }[];
   }): UsuarioResponse {
+    const directPermissionCodes = (u.directPermissions ?? [])
+      .map((p) => p.permission.codigo)
+      .sort();
     return {
       id: u.id,
       email: u.email,
@@ -97,6 +133,7 @@ export class UsuariosService {
         codigo: r.role.codigo,
         nombre: r.role.nombre,
       })),
+      directPermissionCodes,
     };
   }
 
@@ -115,6 +152,9 @@ export class UsuariosService {
         createdAt: true,
         updatedAt: true,
         roles: { include: { role: true } },
+        directPermissions: {
+          select: { permission: { select: { codigo: true } } },
+        },
       },
     });
     return users.map((u) => this.sanitize(u));
@@ -135,6 +175,9 @@ export class UsuariosService {
         createdAt: true,
         updatedAt: true,
         roles: { include: { role: true } },
+        directPermissions: {
+          select: { permission: { select: { codigo: true } } },
+        },
       },
     });
     if (!user) {
@@ -172,6 +215,13 @@ export class UsuariosService {
       type: argon2.argon2id,
     });
 
+    let directPermIdsCreate: string[] | null = null;
+    if (dto.directPermissionCodes !== undefined) {
+      directPermIdsCreate = await this.resolveDirectPermissionIds(
+        dto.directPermissionCodes,
+      );
+    }
+
     try {
       const created = await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -190,6 +240,18 @@ export class UsuariosService {
           data: roles.map((r) => ({ userId: user.id, roleId: r.id })),
         });
 
+        if (
+          directPermIdsCreate !== null &&
+          directPermIdsCreate.length > 0
+        ) {
+          await tx.userPermission.createMany({
+            data: directPermIdsCreate.map((permissionId) => ({
+              userId: user.id,
+              permissionId,
+            })),
+          });
+        }
+
         return tx.user.findUniqueOrThrow({
           where: { id: user.id },
           select: {
@@ -204,9 +266,14 @@ export class UsuariosService {
             createdAt: true,
             updatedAt: true,
             roles: { include: { role: true } },
+            directPermissions: {
+              select: { permission: { select: { codigo: true } } },
+            },
           },
         });
       });
+
+      const createdSanitized = this.sanitize(created);
 
       await this.audit.log({
         action: 'USER_CREATED',
@@ -222,6 +289,7 @@ export class UsuariosService {
         meta: {
           roles: created.roles.map((r) => r.role.codigo),
           activo: created.activo,
+          directPermissionCodes: createdSanitized.directPermissionCodes,
         },
       });
 
@@ -388,6 +456,19 @@ export class UsuariosService {
       roleRows = roles;
     }
 
+    let directPermIdsUpdate: string[] | undefined;
+    let antesDirectSorted: string[] | undefined;
+    if (dto.directPermissionCodes !== undefined) {
+      directPermIdsUpdate = await this.resolveDirectPermissionIds(
+        dto.directPermissionCodes,
+      );
+      const cur = await this.prisma.userPermission.findMany({
+        where: { userId: id },
+        select: { permission: { select: { codigo: true } } },
+      });
+      antesDirectSorted = cur.map((c) => c.permission.codigo).sort();
+    }
+
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         await tx.user.update({
@@ -417,6 +498,18 @@ export class UsuariosService {
           });
         }
 
+        if (directPermIdsUpdate !== undefined) {
+          await tx.userPermission.deleteMany({ where: { userId: id } });
+          if (directPermIdsUpdate.length > 0) {
+            await tx.userPermission.createMany({
+              data: directPermIdsUpdate.map((permissionId) => ({
+                userId: id,
+                permissionId,
+              })),
+            });
+          }
+        }
+
         return tx.user.findUniqueOrThrow({
           where: { id },
           select: {
@@ -431,9 +524,41 @@ export class UsuariosService {
             createdAt: true,
             updatedAt: true,
             roles: { include: { role: true } },
+            directPermissions: {
+              select: { permission: { select: { codigo: true } } },
+            },
           },
         });
       });
+
+      const updatedSanitized = this.sanitize(updated);
+
+      if (
+        dto.directPermissionCodes !== undefined &&
+        antesDirectSorted !== undefined
+      ) {
+        const despues = Array.from(
+          new Set(
+            dto.directPermissionCodes.map((c) => c.trim()).filter(Boolean),
+          ),
+        ).sort();
+        await this.audit.log({
+          action: 'USER_DIRECT_PERMISSIONS_UPDATED',
+          result: 'OK',
+          resource: { type: 'User', id },
+          context: {
+            actorUserId: ctx?.actorUserId ?? null,
+            actorEmail: ctx?.actorEmail ?? null,
+            ip: ctx?.ip ?? null,
+            userAgent: ctx?.userAgent ?? null,
+            correlationId: ctx?.correlationId ?? null,
+          },
+          meta: {
+            antes: antesDirectSorted,
+            despues,
+          },
+        });
+      }
 
       await this.audit.log({
         action: 'USER_UPDATED',
@@ -451,10 +576,11 @@ export class UsuariosService {
           roles: updated.roles.map((r) => r.role.codigo),
           dependenciaId: updated.dependenciaId,
           cargoId: updated.cargoId,
+          directPermissionCodes: updatedSanitized.directPermissionCodes,
         },
       });
 
-      return this.sanitize(updated);
+      return updatedSanitized;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes('Unique constraint') || msg.includes('P2002')) {

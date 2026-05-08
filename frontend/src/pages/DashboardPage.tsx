@@ -20,7 +20,15 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
@@ -345,6 +353,7 @@ export function DashboardPage() {
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
 
   const aliveRef = useRef(false);
+  const isAdminRef = useRef(false);
   const healthInflightRef = useRef(false);
   const summaryInflightRef = useRef(false);
   const manualRefreshingLockRef = useRef(false);
@@ -356,7 +365,13 @@ export function DashboardPage() {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    isAdminRef.current = isAdmin;
+  }, [isAdmin]);
+
+  /** Solo ADMIN: la UI de salud y las alertas enriquecidas con `API_SALUD_*` están ocultas al resto. */
   const reloadHealth = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!isAdminRef.current) return;
     if (healthInflightRef.current) return;
     healthInflightRef.current = true;
     const silent = opts?.silent ?? false;
@@ -365,17 +380,17 @@ export function DashboardPage() {
         setHealthLoading(true);
       }
       const res = await apiClient.get<HealthResponse>('/health');
-      if (!aliveRef.current) return;
+      if (!aliveRef.current || !isAdminRef.current) return;
       setHealth(res.data);
       setHealthError(null);
     } catch {
-      if (!aliveRef.current) return;
+      if (!aliveRef.current || !isAdminRef.current) return;
       setHealthError(
         'No se pudo contactar al API. Compruebe que el backend esté en marcha.',
       );
     } finally {
       healthInflightRef.current = false;
-      if (aliveRef.current) setHealthLoading(false);
+      if (aliveRef.current && isAdminRef.current) setHealthLoading(false);
     }
   }, []);
 
@@ -416,20 +431,41 @@ export function DashboardPage() {
     }
   }, [isAdmin]);
 
-  /** Carga inicial + sondeo silencioso cada 30s. */
+  /** Resumen del panel: todos los roles; sondeo silencioso cada 30s. */
   useEffect(() => {
     const bootstrap = window.setTimeout(() => {
-      void reloadHealth({ silent: true });
       void reloadSummary({ silent: true });
     }, 0);
-    const hi = window.setInterval(() => void reloadHealth({ silent: true }), 30_000);
     const si = window.setInterval(() => void reloadSummary({ silent: true }), 30_000);
     return () => {
       window.clearTimeout(bootstrap);
-      window.clearInterval(hi);
       window.clearInterval(si);
     };
-  }, [reloadHealth, reloadSummary]);
+  }, [reloadSummary]);
+
+  /** Salud del API: solo ADMIN (evita tráfico innecesario para usuarios operativos). */
+  useEffect(() => {
+    if (!isAdmin) return;
+    const bootstrap = window.setTimeout(() => {
+      void reloadHealth({ silent: true });
+    }, 0);
+    const hi = window.setInterval(() => void reloadHealth({ silent: true }), 30_000);
+    return () => {
+      window.clearTimeout(bootstrap);
+      window.clearInterval(hi);
+    };
+  }, [isAdmin, reloadHealth]);
+
+  /** Al no ser ADMIN, no conservar estado de `/health` ni dejar `healthLoading` colgado. */
+  useEffect(() => {
+    if (isAdmin) return;
+    const t = window.setTimeout(() => {
+      setHealth(null);
+      setHealthError(null);
+      setHealthLoading(false);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [isAdmin]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void reloadAdminPing(), 0);
@@ -441,16 +477,16 @@ export function DashboardPage() {
     manualRefreshingLockRef.current = true;
     setManualRefreshing(true);
     try {
-      await Promise.all([
-        reloadHealth({ silent: false }),
-        reloadSummary({ silent: false }),
-        reloadAdminPing(),
-      ]);
+      const tasks = [reloadSummary({ silent: false }), reloadAdminPing()];
+      if (isAdmin) {
+        tasks.push(reloadHealth({ silent: false }));
+      }
+      await Promise.all(tasks);
     } finally {
       manualRefreshingLockRef.current = false;
       if (aliveRef.current) setManualRefreshing(false);
     }
-  }, [reloadAdminPing, reloadHealth, reloadSummary]);
+  }, [isAdmin, reloadAdminPing, reloadHealth, reloadSummary]);
 
   useEffect(() => {
     const raw = location.hash.replace(/^#/, '').trim();

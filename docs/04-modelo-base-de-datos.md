@@ -38,6 +38,8 @@
 | 16 | `20260507153000_documento_dependencia_confidencialidad` | Documento: `dependencia_id` (propietaria) + `nivel_confidencialidad` (+ backfill desde creador). |
 | 17 | `20260508120000_user_login_lockout` | Usuario: `failed_login_attempts`, `locked_until` (bloqueo temporal tras N fallos). |
 | 18 | `20260509153000_normalize_documento_estados` | Normaliza `documentos.estado` a catálogo formal (R‑27). |
+| 19 | `20260509160000_editor_doc_role` | Rol `EDITOR_DOC` y enlaces por defecto en `role_permissions` si faltaban. |
+| 20 | `20260510090000_user_permissions` | Permisos directos por usuario: tabla `user_permissions` (además de `role_permissions`). |
 
 ### Tablas resumen por dominio
 
@@ -48,6 +50,7 @@
 | `users` | Cuentas (`password_hash` Argon2id); opcionalmente `dependencia_id`, `cargo_id`; contador de intentos fallidos y `locked_until` (R-9 MVP); `ultimo_login_at` (login exitoso con contraseña). |
 | `roles` / `permissions` | Catálogo de roles y permisos granulares. |
 | `user_roles` / `role_permissions` | N:M usuario↔rol y rol↔permiso. **Seed** (`prisma/seed.ts`): inserta/actualiza catálogo `permissions` y reemplaza enlaces por rol (idempotente). |
+| `user_permissions` | N:M usuario↔permiso **directo**: excepciones individuales (p. ej. solo `DOC_FILES_UPLOAD`) gestionadas por administración; **unión** con permisos de roles para el efecto en API (`PermissionsService`). Auditoría **`USER_DIRECT_PERMISSIONS_UPDATED`** cuando cambian. |
 
 **Sesión y credenciales**
 

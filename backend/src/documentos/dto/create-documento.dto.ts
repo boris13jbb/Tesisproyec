@@ -7,6 +7,7 @@ import {
   IsUUID,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 import type { DocumentoEstado } from '../documento-estado.util';
@@ -22,11 +23,13 @@ export const NIVELES_CONFIDENCIALIDAD = [
 ] as const;
 
 export class CreateDocumentoDto {
+  /** Si se omite o llega vacío, el servidor asigna el siguiente correlativo único. */
+  @IsOptional()
+  @ValidateIf((o: CreateDocumentoDto) => typeof o.codigo === 'string' && o.codigo.trim() !== '')
   @IsString()
-  @IsNotEmpty()
   @MinLength(2)
   @MaxLength(64)
-  codigo!: string;
+  codigo?: string;
 
   @IsString()
   @IsNotEmpty()

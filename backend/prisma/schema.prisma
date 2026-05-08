@@ -29,6 +29,8 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   roles         UserRole[]
+  /// Permisos otorgados directamente al usuario (unión con permisos de roles en runtime).
+  directPermissions UserPermission[]
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   dependencia   Dependencia? @relation(fields: [dependenciaId], references: [id], onDelete: SetNull)
@@ -168,8 +170,20 @@ model Permission {
   createdAt   DateTime @default(now()) @map("created_at")
 
   roles RolePermission[]
+  usersDirect UserPermission[]
 
   @@map("permissions")
+}
+
+/// Permisos adicionales por usuario (`Permission` directo), además de los heredados por `UserRole`.
+model UserPermission {
+  userId       String     @map("user_id")
+  permissionId String     @map("permission_id")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
 }
 
 model UserRole {

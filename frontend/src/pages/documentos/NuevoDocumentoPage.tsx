@@ -53,7 +53,13 @@ const ALLOWED_MIMES = [
 ] as const;
 
 const createSchema = z.object({
-  codigo: z.string().min(2, 'Código requerido').max(64),
+  codigo: z
+    .string()
+    .max(64)
+    .transform((s) => s.trim())
+    .refine((s) => s.length === 0 || s.length >= 2, {
+      message: 'Si indica código, mínimo 2 caracteres.',
+    }),
   asunto: z.string().min(3, 'Asunto requerido').max(250),
   descripcion: z.string().max(1000).optional(),
   fechaDocumento: z.string().min(10, 'Fecha requerida'),
@@ -162,8 +168,8 @@ export function NuevoDocumentoPage() {
         const { data } = await apiClient.get<{
           codigo: string;
           prefijo: string;
-          anio: number;
-          secuencia: number;
+          anio?: number;
+          secuencia?: number;
         }>('/documentos/next-codigo', { params });
         form.setValue('codigo', data.codigo, {
           shouldValidate: true,
@@ -332,8 +338,9 @@ export function NuevoDocumentoPage() {
 
     setSaving(true);
     try {
+      const trimmedCodigo = data.codigo.trim();
       const created = await apiClient.post<{ id: string }>('/documentos', {
-        codigo: data.codigo.trim(),
+        ...(codigoUsuarioRef.current && trimmedCodigo ? { codigo: trimmedCodigo } : {}),
         asunto: data.asunto.trim(),
         descripcion: data.descripcion?.trim() || undefined,
         fechaDocumento: new Date(data.fechaDocumento).toISOString(),
@@ -384,8 +391,10 @@ export function NuevoDocumentoPage() {
         <Typography variant="body2">
           Los desplegables provienen del catálogo activo. Cuando solo existe un tipo documental, una serie o una
           clasificación compatible con la serie elegida, pueden preseleccionarse: conviene revisar antes de guardar.
-          El <strong>código</strong> puede generarse con correlativo del servidor según el año de la fecha del
-          documento (configurable con <code>DOCUMENTO_CODIGO_PREFIX</code> en backend).
+          El <strong>código</strong> lo asigna el servidor si no lo edita: serie simple <strong>PREFIJO-0001</strong>{' '}
+          cuando ya hay documentos en ese formato, o correlativo anual <strong>PREFIJO-AÑO-00001</strong> cuando
+          aplique. Use <strong>Correlativo servidor</strong> como vista previa (prefijo <code>DOCUMENTO_CODIGO_PREFIX</code>, por
+          defecto <code>DOC</code>).
         </Typography>
       </Alert>
 
@@ -446,9 +455,8 @@ export function NuevoDocumentoPage() {
                     error={!!form.formState.errors.codigo}
                     helperText={
                       form.formState.errors.codigo?.message ??
-                      'Identificador único. Pulse «Correlativo servidor» o espere la sugerencia inicial según el año de la fecha.'
+                      'Vista previa: si no modifica el campo, el servidor asignará el siguiente código al guardar.'
                     }
-                    required
                   />
                   <Button
                     type="button"

@@ -43,4 +43,13 @@ export class UpdateUsuarioDto {
   @IsArray()
   @IsString({ each: true })
   roles?: string[];
+
+  /**
+   * Permisos directos en BD (`user_permissions`), además de los heredados por roles.
+   * Si se envía (incluido array vacío), reemplaza por completo la asignación directa del usuario.
+   */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  directPermissionCodes?: string[];
 }

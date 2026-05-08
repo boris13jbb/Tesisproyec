@@ -42,6 +42,12 @@ export class CreateUsuarioDto {
   @IsString({ each: true })
   roles?: string[];
 
+  /** Permisos directos adicionales (`user_permissions`). Opcional. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  directPermissionCodes?: string[];
+
   /**
    * Si es `true` (por defecto al omitir): tras crear la cuenta se envía un correo con enlace
    * para que el usuario defina su contraseña (misma mecánica que recuperación, token de un solo uso).

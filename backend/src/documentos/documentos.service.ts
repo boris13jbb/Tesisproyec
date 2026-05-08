@@ -35,6 +35,15 @@ function escapeRegExpSegment(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Delegado mínimo para correlativo (PrismaService o cliente de transacción). */
+type DocumentoCodigoDb = {
+  documento: {
+    findMany: (
+      args: Prisma.DocumentoFindManyArgs,
+    ) => Promise<Array<{ codigo: string }>>;
+  };
+};
+
 /** `_count._all` en `documento.groupBy` con `_count: { _all: true }` (tipificación Prisma estricta). */
 function documentoGroupByAll(row: {
   _count?: true | { _all?: number };
@@ -149,49 +158,117 @@ export class DocumentosService {
   }
 
   /**
-   * Correlativo `{PREFIJO}-{YYYY}-{NNNNN}` (5 dígitos, sin espacios).
-   * `DOCUMENTO_CODIGO_PREFIX` (opcional); por defecto `DOC`. El año es el indicado o el calendario del servidor.
+   * Siguiente código correlativo:
+   * - Si existe algún documento con formato **`PREFIJO-NN...`** (solo dígitos tras el primer guion): continúa esa serie (mínimo 4 dígitos, ancho crece si hace falta), p. ej. `DOC-0001` → `DOC-0002`.
+   * - Si no hay correlativos «simples» pero sí o solo hay **`PREFIJO-YYYY-NNNNN`**: sigue la serie anual del año indicado (5 dígitos).
+   * - Base vacía para el prefijo: empieza en **`PREFIJO-0001`**.
+   *
+   * `DOCUMENTO_CODIGO_PREFIX` opcional; por defecto `DOC`.
    */
   async sugerirSiguienteCodigo(anioParam?: number): Promise<{
     codigo: string;
     prefijo: string;
-    anio: number;
-    secuencia: number;
+    anio?: number;
+    secuencia?: number;
   }> {
-    const prefijo = this.codigoPrefijoDesdeEnv();
     const y =
       typeof anioParam === 'number' && Number.isFinite(anioParam)
         ? Math.trunc(anioParam)
         : new Date().getFullYear();
+    return this.computeNextCodigoDesdeDb(this.prisma, y);
+  }
+
+  /** Cálculo interno (misma transacción que `create` cuando el código es automático). */
+  private async computeNextCodigoDesdeDb(
+    db: DocumentoCodigoDb,
+    anioCalendarioDoc: number,
+  ): Promise<{
+    codigo: string;
+    prefijo: string;
+    anio?: number;
+    secuencia?: number;
+  }> {
+    const prefijo = this.codigoPrefijoDesdeEnv();
+    const prefixDash = `${prefijo}-`;
+
+    const rows = await db.documento.findMany({
+      where: { codigo: { startsWith: prefixDash } },
+      select: { codigo: true },
+    });
+
+    if (rows.length === 0) {
+      return { codigo: `${prefijo}-0001`, prefijo };
+    }
+
+    const simpleRe = new RegExp(`^${escapeRegExpSegment(prefijo)}-(\\d+)$`, 'i');
+    const annualRe = new RegExp(
+      `^${escapeRegExpSegment(prefijo)}-(\\d{4})-(\\d{5})$`,
+      'i',
+    );
+
+    let maxSimple = 0;
+    let hasSimple = false;
+    let maxAnnualForY = 0;
+    let hasAnnualForY = false;
+
+    const y = Math.trunc(anioCalendarioDoc);
+    for (const row of rows) {
+      const c = row.codigo.trim();
+      const sm = simpleRe.exec(c);
+      if (sm) {
+        hasSimple = true;
+        const n = Number.parseInt(sm[1], 10);
+        if (Number.isFinite(n)) {
+          maxSimple = Math.max(maxSimple, n);
+        }
+        continue;
+      }
+      const am = annualRe.exec(c);
+      if (am) {
+        const year = Number.parseInt(am[1], 10);
+        const seq = Number.parseInt(am[2], 10);
+        if (year === y && Number.isFinite(seq)) {
+          hasAnnualForY = true;
+          maxAnnualForY = Math.max(maxAnnualForY, seq);
+        }
+      }
+    }
+
+    if (hasSimple) {
+      const next = maxSimple + 1;
+      if (next > 9_999_999) {
+        throw new BadRequestException(
+          'Correlativo simple agotado para el prefijo configurado.',
+        );
+      }
+      const width = Math.max(4, String(next).length);
+      const secStr = String(next).padStart(width, '0');
+      return { codigo: `${prefijo}-${secStr}`, prefijo };
+    }
 
     if (y < 2000 || y > 2100) {
       throw new BadRequestException('El año debe estar entre 2000 y 2100');
     }
 
-    const start = `${prefijo}-${y}-`;
-    const matcher = new RegExp(`^${escapeRegExpSegment(start)}(\\d{5})$`, 'i');
-
-    const rows = await this.prisma.documento.findMany({
-      where: { codigo: { startsWith: start } },
-      select: { codigo: true },
-    });
-
-    let maxSeq = 0;
-    for (const row of rows) {
-      const m = matcher.exec(row.codigo.trim());
-      if (!m) continue;
-      maxSeq = Math.max(maxSeq, Number.parseInt(m[1], 10));
+    if (!hasAnnualForY && rows.length > 0) {
+      /** Hay códigos con prefijo pero sin formato reconocido: nueva serie anual. */
+      return {
+        codigo: `${prefijo}-${y}-00001`,
+        prefijo,
+        anio: y,
+        secuencia: 1,
+      };
     }
 
-    const next = maxSeq + 1;
-    if (next > 99999) {
+    const next = maxAnnualForY + 1;
+    if (next > 99_999) {
       throw new BadRequestException(
         'Correlativo anual agotado (máximo 99999 con esta convención).',
       );
     }
 
     const secStr = String(next).padStart(5, '0');
-    const codigo = `${start}${secStr}`;
+    const codigo = `${prefijo}-${y}-${secStr}`;
     return { codigo, prefijo, anio: y, secuencia: next };
   }
 
@@ -623,60 +700,85 @@ export class DocumentosService {
     const estadoInicial = normalizeDocumentoEstado(dto.estado ?? 'REGISTRADO');
     assertEstadoCreacionPermitido(estadoInicial);
 
-    const codigo = dto.codigo.trim().toUpperCase();
     const fechaDocumento = new Date(dto.fechaDocumento);
-
-    try {
-      const created = await this.prisma.$transaction(async (tx) => {
-        const documento = await tx.documento.create({
-          data: {
-            codigo,
-            asunto: dto.asunto.trim(),
-            descripcion: dto.descripcion?.trim() || null,
-            fechaDocumento,
-            tipoDocumentalId: dto.tipoDocumentalId,
-            subserieId: dto.subserieId,
-            dependenciaId,
-            nivelConfidencialidad,
-            estado: estadoInicial,
-            createdById,
-          },
-          include: includeCatalogos,
-        });
-
-        const snapshot: DocumentoSnapshot = {
-          codigo: documento.codigo,
-          asunto: documento.asunto,
-          descripcion: documento.descripcion,
-          fechaDocumento: documento.fechaDocumento,
-          estado: documento.estado,
-          nivelConfidencialidad: documento.nivelConfidencialidad,
-          activo: documento.activo,
-          tipoDocumentalId: documento.tipoDocumentalId,
-          subserieId: documento.subserieId,
-          dependenciaId: documento.dependenciaId,
-          createdById: documento.createdById,
-        };
-
-        await tx.documentoEvento.create({
-          data: {
-            documentoId: documento.id,
-            tipo: 'CREADO',
-            cambiosJson: JSON.stringify({ snapshot }),
-            createdById,
-          },
-        });
-
-        return documento;
-      });
-
-      return created;
-    } catch (e: unknown) {
-      if (isPrismaCode(e, 'P2002')) {
-        throw new ConflictException('Ya existe un documento con ese código');
-      }
-      throw e;
+    if (Number.isNaN(fechaDocumento.getTime())) {
+      throw new BadRequestException('Fecha del documento inválida');
     }
+    const anioCorrelativo = fechaDocumento.getUTCFullYear();
+
+    const explicitRaw = dto.codigo?.trim();
+    const codigoUsuario = explicitRaw ? explicitRaw.toUpperCase() : null;
+    const maxAttempts = codigoUsuario ? 1 : 5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const created = await this.prisma.$transaction(async (tx) => {
+          const codigo = codigoUsuario
+            ? codigoUsuario
+            : (await this.computeNextCodigoDesdeDb(tx, anioCorrelativo)).codigo;
+
+          const documento = await tx.documento.create({
+            data: {
+              codigo,
+              asunto: dto.asunto.trim(),
+              descripcion: dto.descripcion?.trim() || null,
+              fechaDocumento,
+              tipoDocumentalId: dto.tipoDocumentalId,
+              subserieId: dto.subserieId,
+              dependenciaId,
+              nivelConfidencialidad,
+              estado: estadoInicial,
+              createdById,
+            },
+            include: includeCatalogos,
+          });
+
+          const snapshot: DocumentoSnapshot = {
+            codigo: documento.codigo,
+            asunto: documento.asunto,
+            descripcion: documento.descripcion,
+            fechaDocumento: documento.fechaDocumento,
+            estado: documento.estado,
+            nivelConfidencialidad: documento.nivelConfidencialidad,
+            activo: documento.activo,
+            tipoDocumentalId: documento.tipoDocumentalId,
+            subserieId: documento.subserieId,
+            dependenciaId: documento.dependenciaId,
+            createdById: documento.createdById,
+          };
+
+          await tx.documentoEvento.create({
+            data: {
+              documentoId: documento.id,
+              tipo: 'CREADO',
+              cambiosJson: JSON.stringify({ snapshot }),
+              createdById,
+            },
+          });
+
+          return documento;
+        });
+
+        return created;
+      } catch (e: unknown) {
+        if (isPrismaCode(e, 'P2002')) {
+          if (codigoUsuario) {
+            throw new ConflictException('Ya existe un documento con ese código');
+          }
+          if (attempt >= maxAttempts - 1) {
+            throw new ConflictException(
+              'No fue posible asignar un código único tras varios intentos. Intente de nuevo.',
+            );
+          }
+          continue;
+        }
+        throw e;
+      }
+    }
+
+    throw new ConflictException(
+      'No fue posible crear el documento. Intente de nuevo.',
+    );
   }
 
   async findEventos(documentoId: string, viewer: JwtRequestUser) {

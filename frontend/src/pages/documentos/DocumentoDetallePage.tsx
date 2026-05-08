@@ -358,6 +358,21 @@ export function DocumentoDetallePage() {
     return myPermissionCodes?.includes('DOC_ACCESS_MANAGE') ?? false;
   }, [isAdmin, myPermissionCodes]);
 
+  const canUploadFiles = useMemo(() => {
+    if (isAdmin) return true;
+    return myPermissionCodes?.includes('DOC_FILES_UPLOAD') ?? false;
+  }, [isAdmin, myPermissionCodes]);
+
+  const canDeleteFiles = useMemo(() => {
+    if (isAdmin) return true;
+    return myPermissionCodes?.includes('DOC_FILES_DELETE') ?? false;
+  }, [isAdmin, myPermissionCodes]);
+
+  const canEditDocumento = useMemo(() => {
+    if (isAdmin) return true;
+    return myPermissionCodes?.includes('DOC_UPDATE') ?? false;
+  }, [isAdmin, myPermissionCodes]);
+
   const [doc, setDoc] = useState<DocumentoRow | null>(null);
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
@@ -1217,6 +1232,13 @@ export function DocumentoDetallePage() {
                           listados aquí (además de ADMIN). En <strong>INHERIT</strong> aplica la política actual por
                           dependencia/confidencialidad.
                         </Typography>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                          <strong>Roles con acceso</strong> usa los roles que la persona <strong>ya tiene en su cuenta</strong>{' '}
+                          (p. ej. REVISOR). Elegir <strong>ADMIN</strong> aquí no otorga permisos de administrador del sistema
+                          a nadie; solo permite ver <strong>este documento</strong> a quienes ya son ADMIN. Para dar rol
+                          global <strong>Administrador</strong>, vaya a <strong>Administración → Usuarios y roles</strong>,
+                          pulse <strong>Editar</strong> en el usuario y asigne ese rol (debe estar conectado como ADMIN).
+                        </Alert>
 
                         {accessError ? (
                           <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setAccessError(null)}>
@@ -1257,6 +1279,7 @@ export function DocumentoDetallePage() {
                                 labelId="doc-access-users-label"
                                 label="Usuarios con acceso"
                                 value={accessUserIds}
+                                MenuProps={{ disablePortal: true }}
                                 onChange={(e) => setAccessUserIds(e.target.value as string[])}
                                 renderValue={(selected) => {
                                   const map = new Map(accessUsers.map((u) => [u.id, u]));
@@ -1286,6 +1309,7 @@ export function DocumentoDetallePage() {
                                 labelId="doc-access-roles-label"
                                 label="Roles con acceso"
                                 value={accessRoleCodigos}
+                                MenuProps={{ disablePortal: true }}
                                 onChange={(e) => setAccessRoleCodigos(e.target.value as string[])}
                                 renderValue={(selected) => ((selected as string[]).length ? (selected as string[]).join(', ') : '—')}
                               >
@@ -1333,7 +1357,7 @@ export function DocumentoDetallePage() {
                       Versiones activas registradas en el servidor; la vista previa usa la de mayor versión.
                     </Typography>
 
-                    {isAdmin && (
+                    {canUploadFiles && (
                       <Box
                         sx={{
                           mb: 2,
@@ -1426,7 +1450,7 @@ export function DocumentoDetallePage() {
                                 >
                                   Descargar
                                 </Button>
-                                {isAdmin && (
+                                {canDeleteFiles && (
                                   <Button
                                     sx={{ textTransform: 'none' }}
                                     color="error"
@@ -1503,7 +1527,7 @@ export function DocumentoDetallePage() {
                       >
                         Descargar
                       </Button>
-                      {isAdmin && (
+                      {canEditDocumento && (
                         <Button
                           variant="contained"
                           onClick={openEdit}

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import {
   Alert,
   Box,
@@ -10,10 +11,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   FormControlLabel,
-  Container,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
@@ -26,9 +28,12 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
@@ -117,7 +122,13 @@ function labelClasificacionBandeja(row: DocumentoRow): { line: string; title: st
 }
 
 const createSchema = z.object({
-  codigo: z.string().min(2).max(64),
+  codigo: z
+    .string()
+    .max(64)
+    .transform((s) => s.trim())
+    .refine((s) => s.length === 0 || s.length >= 2, {
+      message: 'Si indica código, mínimo 2 caracteres.',
+    }),
   asunto: z.string().min(3).max(250),
   descripcion: z.string().max(1000).optional(),
   fechaDocumento: z.string().min(10, 'Fecha requerida'),
@@ -130,7 +141,21 @@ const createSchema = z.object({
 
 type CreateForm = z.infer<typeof createSchema>;
 
+const createFormDefaults: CreateForm = {
+  codigo: '',
+  asunto: '',
+  descripcion: '',
+  fechaDocumento: new Date().toISOString().slice(0, 10),
+  tipoDocumentalId: '',
+  subserieId: '',
+  dependenciaId: '',
+  nivelConfidencialidad: 'INTERNO',
+  estado: 'REGISTRADO',
+};
+
 export function DocumentosPage() {
+  const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
   const esRevisor = user?.roles.some((r) => r.codigo === 'REVISOR') ?? false;
@@ -164,6 +189,9 @@ export function DocumentosPage() {
   const pageSize = 20;
 
   const [createOpen, setCreateOpen] = useState(false);
+  /** Solo si el usuario editó el campo código se envía en el POST; si no, el servidor asigna correlativo en la transacción. */
+  const createCodigoUsuarioRef = useRef(false);
+  const [createCodigoBusy, setCreateCodigoBusy] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const estadoDesdeUrl = useMemo(() => {
@@ -441,24 +469,44 @@ export function DocumentosPage() {
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
-    defaultValues: {
-      codigo: '',
-      asunto: '',
-      descripcion: '',
-      fechaDocumento: new Date().toISOString().slice(0, 10),
-      tipoDocumentalId: '',
-      subserieId: '',
-      dependenciaId: '',
-      nivelConfidencialidad: 'INTERNO',
-      estado: 'REGISTRADO',
-    },
+    defaultValues: { ...createFormDefaults },
   });
+
+  const prefetchCreateCodigo = useCallback(
+    async (fechaYmd: string, resetUsuarioFlag: boolean) => {
+      if (resetUsuarioFlag) {
+        createCodigoUsuarioRef.current = false;
+      }
+      const anioStr = fechaYmd.slice(0, 4);
+      const params = /^\d{4}$/.test(anioStr) ? { anio: Number(anioStr) } : {};
+      setCreateCodigoBusy(true);
+      try {
+        const { data } = await apiClient.get<{ codigo: string }>(
+          '/documentos/next-codigo',
+          { params },
+        );
+        createForm.setValue('codigo', data.codigo, { shouldValidate: true });
+      } finally {
+        setCreateCodigoBusy(false);
+      }
+    },
+    [createForm],
+  );
+
+  useEffect(() => {
+    if (!createOpen || !isAdmin) return;
+    const fecha = new Date().toISOString().slice(0, 10);
+    createForm.reset({ ...createFormDefaults, fechaDocumento: fecha });
+    void prefetchCreateCodigo(fecha, true).catch(() => {
+      createForm.setValue('codigo', '', { shouldValidate: true });
+    });
+  }, [createOpen, isAdmin, createForm, prefetchCreateCodigo]);
 
   const onCreate = createForm.handleSubmit(async (data) => {
     setError(null);
     try {
-      await apiClient.post('/documentos', {
-        codigo: data.codigo,
+      const trimmedCodigo = data.codigo.trim();
+      const body: Record<string, unknown> = {
         asunto: data.asunto,
         descripcion: data.descripcion || undefined,
         fechaDocumento: new Date(data.fechaDocumento).toISOString(),
@@ -467,9 +515,14 @@ export function DocumentosPage() {
         dependenciaId: data.dependenciaId?.trim() || undefined,
         nivelConfidencialidad: data.nivelConfidencialidad,
         estado: data.estado,
-      });
+      };
+      if (createCodigoUsuarioRef.current && trimmedCodigo) {
+        body.codigo = trimmedCodigo;
+      }
+      await apiClient.post('/documentos', body);
       setCreateOpen(false);
-      createForm.reset();
+      createForm.reset({ ...createFormDefaults });
+      createCodigoUsuarioRef.current = false;
       await load();
     } catch (err: unknown) {
       if (isAxiosError(err) && err.response?.data) {
@@ -511,7 +564,17 @@ export function DocumentosPage() {
 
   return (
     <>
-      <Container maxWidth="lg">
+      <Box
+        component="main"
+        sx={{
+          width: '100%',
+          maxWidth: 'min(100%, 1420px)',
+          mx: 'auto',
+          px: { xs: 1.5, sm: 2, md: 3 },
+          py: { xs: 2, md: 2.5 },
+          pb: { xs: 6, md: 8 },
+        }}
+      >
         <PageHeader
           title="Bandeja documental"
           description={
@@ -539,24 +602,34 @@ export function DocumentosPage() {
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 3,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
-            p: 2,
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
+            p: { xs: 1.5, sm: 2 },
             mb: 2,
           }}
         >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={1.5}
-            sx={{ alignItems: { xs: 'stretch', md: 'center' } }}
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.08, fontWeight: 700 }}>
+            Filtros de búsqueda
+          </Typography>
+          <Box
+            sx={{
+              mt: 1.5,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 2,
+              alignItems: 'flex-end',
+              '& > *': { minWidth: 0 },
+            }}
           >
             <TextField
-              placeholder="Buscar por código, asunto o responsable"
+              placeholder="Código, asunto o texto en responsable"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               size="small"
-              sx={{ flex: 1, minWidth: 260 }}
+              fullWidth
+              sx={{ flex: '1 1 100%', minWidth: { sm: 'min(100%, 280px)' } }}
               slotProps={{
                 htmlInput: {
                   'aria-label': 'Buscar por código, asunto o responsable',
@@ -564,7 +637,7 @@ export function DocumentosPage() {
               }}
             />
 
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ flex: '1 1 160px', minWidth: { xs: '100%', sm: '160px' } }} fullWidth>
               <InputLabel id="tipo-filter-label">Tipo</InputLabel>
               <Select
                 labelId="tipo-filter-label"
@@ -581,7 +654,7 @@ export function DocumentosPage() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 170 }}>
+            <FormControl size="small" sx={{ flex: '1 1 160px', minWidth: { xs: '100%', sm: '168px' } }} fullWidth>
               <InputLabel id="estado-filter-label">Estado</InputLabel>
               <Select
                 labelId="estado-filter-label"
@@ -610,7 +683,7 @@ export function DocumentosPage() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 170 }}>
+            <FormControl size="small" sx={{ flex: '1 1 160px', minWidth: { xs: '100%', sm: '160px' } }} fullWidth>
               <InputLabel id="serie-filter-label">Serie</InputLabel>
               <Select
                 labelId="serie-filter-label"
@@ -635,35 +708,38 @@ export function DocumentosPage() {
               label="Desde"
               type="date"
               size="small"
+              fullWidth
               slotProps={{ inputLabel: { shrink: true } }}
               value={fechaDesde}
               onChange={(e) => setFechaDesde(e.target.value)}
-              sx={{ minWidth: 150 }}
+              sx={{ flex: '1 1 150px', minWidth: { xs: 'calc(50% - 8px)', sm: '150px' } }}
             />
             <TextField
               label="Hasta"
               type="date"
               size="small"
+              fullWidth
               slotProps={{ inputLabel: { shrink: true } }}
               value={fechaHasta}
               onChange={(e) => setFechaHasta(e.target.value)}
-              sx={{ minWidth: 150 }}
+              sx={{ flex: '1 1 150px', minWidth: { xs: 'calc(50% - 8px)', sm: '150px' } }}
             />
 
             <Button
               variant="contained"
+              color="primary"
               onClick={onApplyFilters}
               disabled={loading}
+              fullWidth={isXs}
               sx={{
-                borderRadius: 3,
-                px: 3,
-                bgcolor: '#1E7C89',
-                '&:hover': { bgcolor: '#196C77' },
+                flex: { xs: '1 1 100%', sm: '0 0 auto' },
+                minHeight: 40,
+                px: { sm: 3 },
               }}
             >
-              Filtrar
+              Aplicar filtros
             </Button>
-          </Stack>
+          </Box>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -732,11 +808,20 @@ export function DocumentosPage() {
 
           <Collapse in={showAdvancedFilters} unmountOnExit>
             <Box sx={{ mt: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 1 }}>
                 Filtros avanzados
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
-                <FormControl size="small" sx={{ minWidth: 220 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                  alignItems: 'flex-end',
+                  '& > *': { minWidth: 0 },
+                }}
+              >
+                <FormControl size="small" sx={{ flex: '1 1 220px', minWidth: { xs: '100%', sm: '200px' } }} fullWidth>
                   <InputLabel id="subserie-filter-label">Clasificación</InputLabel>
                   <Select
                     labelId="subserie-filter-label"
@@ -758,24 +843,27 @@ export function DocumentosPage() {
                   value={archivoNombre}
                   onChange={(e) => setArchivoNombre(e.target.value)}
                   size="small"
-                  sx={{ minWidth: 200 }}
+                  fullWidth
+                  sx={{ flex: '1 1 200px', minWidth: { xs: '100%', sm: '180px' } }}
                 />
                 <TextField
                   label="Adjunto: MIME"
                   value={archivoMime}
                   onChange={(e) => setArchivoMime(e.target.value)}
                   size="small"
-                  sx={{ minWidth: 160 }}
+                  fullWidth
+                  sx={{ flex: '1 1 160px', minWidth: { xs: '100%', sm: '140px' } }}
                 />
                 <TextField
                   label="Adjunto: SHA-256"
                   value={archivoSha256}
                   onChange={(e) => setArchivoSha256(e.target.value)}
                   size="small"
-                  sx={{ minWidth: 220 }}
+                  fullWidth
+                  sx={{ flex: '1 1 220px', minWidth: { xs: '100%', sm: '200px' } }}
                 />
 
-                <FormControl size="small" sx={{ minWidth: 160 }}>
+                <FormControl size="small" sx={{ flex: '1 1 160px', minWidth: { xs: 'calc(50% - 8px)', sm: '140px' } }} fullWidth>
                   <InputLabel id="sortby-label">Orden</InputLabel>
                   <Select
                     labelId="sortby-label"
@@ -790,7 +878,7 @@ export function DocumentosPage() {
                     <MenuItem value="estado">Estado</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl size="small" sx={{ minWidth: 140 }}>
+                <FormControl size="small" sx={{ flex: '1 1 140px', minWidth: { xs: 'calc(50% - 8px)', sm: '120px' } }} fullWidth>
                   <InputLabel id="sortdir-label">Dirección</InputLabel>
                   <Select
                     labelId="sortdir-label"
@@ -810,72 +898,107 @@ export function DocumentosPage() {
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 3,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
             overflow: 'hidden',
           }}
         >
-          <Box sx={{ px: 2.5, pt: 2.25, pb: 1.25 }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+          <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: 2, pb: 1.5 }}>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
               <Box
                 aria-hidden
                 sx={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(30, 124, 137, 0.12)',
-                  color: '#0F4C55',
+                  width: 40,
+                  height: 40,
+                  borderRadius: 1.5,
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
                   display: 'grid',
                   placeItems: 'center',
-                  fontWeight: 900,
+                  flexShrink: 0,
                 }}
               >
-                G
+                <DescriptionOutlinedIcon fontSize="small" />
               </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
                   Listado de documentos
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Resultado: {new Intl.NumberFormat('es-EC').format(total)} documentos (datos del
-                  servidor, según tus filtros y permisos)
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                  {new Intl.NumberFormat('es-EC').format(total)} resultado
+                  {total === 1 ? '' : 's'} · datos del servidor según filtros y permisos
                 </Typography>
               </Box>
             </Stack>
           </Box>
 
-          <TableContainer>
-            <Table size="small" aria-label="Tabla de documentos">
+          {loading && (
+            <LinearProgress
+              color="primary"
+              sx={{ height: 3 }}
+              aria-label="Cargando documentos"
+            />
+          )}
+
+          <TableContainer
+            sx={{
+              overflowX: 'auto',
+              maxWidth: '100%',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            <Table
+              size="small"
+              aria-label="Tabla de documentos"
+              sx={{
+                minWidth: { xs: 920, md: '100%' },
+                tableLayout: 'fixed',
+                '& .MuiTableCell-root': {
+                  verticalAlign: 'middle',
+                  py: 1.25,
+                },
+              }}
+            >
               <TableHead>
-                <TableRow>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
                   <TableCell
+                    width="10%"
                     onClick={() => toggleSort('codigo')}
-                    sx={{ cursor: 'pointer', userSelect: 'none', fontWeight: 800, color: 'text.secondary' }}
+                    sx={{ cursor: 'pointer', userSelect: 'none', fontWeight: 700, color: 'text.secondary' }}
                   >
                     Código{sortLabel('codigo')}
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>Asunto</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>Tipo</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.secondary', width: '22%' }}>
+                    Asunto
+                  </TableCell>
+                  <TableCell width="11%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    Tipo
+                  </TableCell>
+                  <TableCell width="17%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
                     Clasificación
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>
+                  <TableCell width="14%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
                     Responsable
                   </TableCell>
                   <TableCell
+                    width="12%"
                     onClick={() => toggleSort('estado')}
-                    sx={{ cursor: 'pointer', userSelect: 'none', fontWeight: 800, color: 'text.secondary' }}
+                    sx={{ cursor: 'pointer', userSelect: 'none', fontWeight: 700, color: 'text.secondary' }}
                   >
                     Estado{sortLabel('estado')}
                   </TableCell>
                   <TableCell
+                    width="10%"
                     onClick={() => toggleSort('fechaDocumento')}
-                    sx={{ cursor: 'pointer', userSelect: 'none', fontWeight: 800, color: 'text.secondary' }}
+                    sx={{ cursor: 'pointer', userSelect: 'none', fontWeight: 700, color: 'text.secondary' }}
                   >
                     Fecha{sortLabel('fechaDocumento')}
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>Acción</TableCell>
+                  <TableCell width="104px" align="right" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    Acción
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -898,7 +1021,15 @@ export function DocumentosPage() {
                         <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                           {row.codigo}
                         </TableCell>
-                        <TableCell>{row.asunto}</TableCell>
+                        <TableCell
+                          sx={{
+                            overflow: 'hidden',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'normal',
+                          }}
+                        >
+                          {row.asunto}
+                        </TableCell>
                         <TableCell>{row.tipoDocumental.nombre}</TableCell>
                         <TableCell
                           sx={{
@@ -934,19 +1065,14 @@ export function DocumentosPage() {
                         <TableCell>
                           {new Date(row.fechaDocumento).toISOString().slice(0, 10)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                           <Button
                             variant="contained"
+                            color="primary"
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
                               void navigate(`/documentos/${row.id}`);
-                            }}
-                            sx={{
-                              borderRadius: 999,
-                              px: 2,
-                              bgcolor: '#0D2C46',
-                              '&:hover': { bgcolor: '#0B2438' },
                             }}
                           >
                             Ver
@@ -969,37 +1095,99 @@ export function DocumentosPage() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          <Box
+            sx={{
+              px: { xs: 1.5, sm: 2 },
+              py: 1.5,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'stretch', sm: 'center' },
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+              Página <strong>{page}</strong>
+              {' · '}Mostrando {rows.length === 0 ? 0 : (page - 1) * pageSize + 1}–
+              {(page - 1) * pageSize + rows.length} de {total}
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ justifyContent: { xs: 'center', sm: 'flex-end' } }}
+            >
+              <Button
+                variant="outlined"
+                color="primary"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outlined"
+                color="primary"
+                disabled={page * pageSize >= total || loading || total === 0}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Siguiente
+              </Button>
+            </Stack>
+          </Box>
         </Paper>
 
-      <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button
-          variant="outlined"
-          disabled={page <= 1 || loading}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-        >
-          Anterior
-        </Button>
-        <Button
-          variant="outlined"
-          disabled={page * pageSize >= total || loading}
-          onClick={() => setPage((p) => p + 1)}
-        >
-          Siguiente
-        </Button>
       </Box>
-      </Container>
 
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          createCodigoUsuarioRef.current = false;
+          createForm.reset({ ...createFormDefaults });
+        }}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={isXs}
+      >
         <DialogTitle>Registrar documento</DialogTitle>
         <Box component="form" onSubmit={onCreate} noValidate>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField
-              label="Código"
-              {...createForm.register('codigo')}
-              error={!!createForm.formState.errors.codigo}
-              helperText={createForm.formState.errors.codigo?.message}
-              required
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
+              <TextField
+                label="Código"
+                sx={{ flex: 1, minWidth: 0 }}
+                {...(() => {
+                  const r = createForm.register('codigo');
+                  return {
+                    ...r,
+                    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                      createCodigoUsuarioRef.current = true;
+                      void r.onChange(e);
+                    },
+                  };
+                })()}
+                error={!!createForm.formState.errors.codigo}
+                helperText={
+                  createForm.formState.errors.codigo?.message ??
+                  'Vista previa del correlativo: si no modifica este campo, el servidor asignará el siguiente código al guardar.'
+                }
+              />
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={createCodigoBusy}
+                onClick={() => {
+                  const f = createForm.getValues('fechaDocumento');
+                  void prefetchCreateCodigo(f || new Date().toISOString().slice(0, 10), true);
+                }}
+                sx={{ mt: { xs: 0, sm: 0.5 }, flexShrink: 0 }}
+              >
+                {createCodigoBusy ? 'Obteniendo…' : 'Correlativo servidor'}
+              </Button>
+            </Stack>
             <TextField
               label="Asunto"
               {...createForm.register('asunto')}
@@ -1126,7 +1314,15 @@ export function DocumentosPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                setCreateOpen(false);
+                createCodigoUsuarioRef.current = false;
+                createForm.reset({ ...createFormDefaults });
+              }}
+            >
+              Cancelar
+            </Button>
             <Button type="submit" variant="contained">
               Guardar
             </Button>
