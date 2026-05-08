@@ -35,8 +35,9 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { getBreadcrumbsForPath } from '../nav/breadcrumbs';
 import { BreadcrumbDetailProvider } from './BreadcrumbDetailProvider';
@@ -159,6 +160,32 @@ export function MainLayout() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
+  const canCreateDocumento = useMemo(() => {
+    if (isAdmin) return true;
+    return myPermissionCodes?.includes('DOC_CREATE') ?? false;
+  }, [isAdmin, myPermissionCodes]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!user?.id) {
+          if (!cancelled) setMyPermissionCodes(null);
+          return;
+        }
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (cancelled) return;
+        setMyPermissionCodes(Array.isArray(res.data?.codigos) ? res.data.codigos : []);
+      } catch {
+        if (cancelled) return;
+        setMyPermissionCodes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const handleNav = (to: string) => {
     setMobileOpen(false);
@@ -186,7 +213,7 @@ export function MainLayout() {
             <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
           </ListItemButton>
         ))}
-        {isAdmin && (
+        {canCreateDocumento && (
           <ListItemButton
             key="/documentos/nuevo"
             selected={location.pathname === '/documentos/nuevo'}

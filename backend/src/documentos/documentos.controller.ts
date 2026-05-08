@@ -80,8 +80,6 @@ export class DocumentosController {
   }
 
   @Get('next-codigo')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
   @Permissions(PERM.DOC_CREATE)
   getSiguienteCodigo(@Query('anio') anio?: string) {
     let y: number | undefined;
@@ -152,8 +150,7 @@ export class DocumentosController {
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Permissions(PERM.DOC_CREATE)
   create(
     @Body() dto: CreateDocumentoDto,
     @Req() req: { user?: { id?: string } },
@@ -186,8 +183,6 @@ export class DocumentosController {
   }
 
   @Post(':id/archivos')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
   @Permissions(PERM.DOC_FILES_UPLOAD)
   @UseInterceptors(
     FileInterceptor('file', {

@@ -159,6 +159,13 @@ export function DocumentosPage() {
   const { user } = useAuth();
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
   const esRevisor = user?.roles.some((r) => r.codigo === 'REVISOR') ?? false;
+  const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(
+    null,
+  );
+  const canCreateDocumento = useMemo(() => {
+    if (isAdmin) return true;
+    return myPermissionCodes?.includes('DOC_CREATE') ?? false;
+  }, [isAdmin, myPermissionCodes]);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -193,6 +200,29 @@ export function DocumentosPage() {
   const createCodigoUsuarioRef = useRef(false);
   const [createCodigoBusy, setCreateCodigoBusy] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!user?.id) {
+          if (!cancelled) setMyPermissionCodes(null);
+          return;
+        }
+        const res = await apiClient.get<{ codigos: string[] }>(
+          '/rbac/me/permissions',
+        );
+        if (cancelled) return;
+        setMyPermissionCodes(Array.isArray(res.data?.codigos) ? res.data.codigos : []);
+      } catch {
+        if (cancelled) return;
+        setMyPermissionCodes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const estadoDesdeUrl = useMemo(() => {
     const raw = searchParams.get('estado')?.trim() ?? '';
@@ -494,13 +524,13 @@ export function DocumentosPage() {
   );
 
   useEffect(() => {
-    if (!createOpen || !isAdmin) return;
+    if (!createOpen || !canCreateDocumento) return;
     const fecha = new Date().toISOString().slice(0, 10);
     createForm.reset({ ...createFormDefaults, fechaDocumento: fecha });
     void prefetchCreateCodigo(fecha, true).catch(() => {
       createForm.setValue('codigo', '', { shouldValidate: true });
     });
-  }, [createOpen, isAdmin, createForm, prefetchCreateCodigo]);
+  }, [createOpen, canCreateDocumento, createForm, prefetchCreateCodigo]);
 
   const onCreate = createForm.handleSubmit(async (data) => {
     setError(null);
@@ -778,10 +808,12 @@ export function DocumentosPage() {
                   <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
                     PDF
                   </Button>
-                  <Button variant="contained" size="small" onClick={() => setCreateOpen(true)}>
-                    Nuevo documento
-                  </Button>
                 </>
+              )}
+              {canCreateDocumento && (
+                <Button variant="contained" size="small" onClick={() => setCreateOpen(true)}>
+                  Nuevo documento
+                </Button>
               )}
               {esRevisor && (
                 <>

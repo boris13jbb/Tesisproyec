@@ -473,9 +473,10 @@ export function DocumentoDetallePage() {
           if (!cancelled) setMyPermissionCodes(null);
           return;
         }
-        const res = await apiClient.get<string[]>('/rbac/me/permissions');
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
         if (cancelled) return;
-        setMyPermissionCodes(Array.isArray(res.data) ? res.data : []);
+        const codes = Array.isArray(res.data?.codigos) ? res.data.codigos : [];
+        setMyPermissionCodes(codes);
       } catch {
         if (cancelled) return;
         setMyPermissionCodes([]);
