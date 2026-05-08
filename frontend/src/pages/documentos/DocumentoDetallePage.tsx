@@ -29,6 +29,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import FullscreenOutlinedIcon from '@mui/icons-material/FullscreenOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import IconButton from '@mui/material/IconButton';
+import DOMPurify from 'dompurify';
+import mammoth from 'mammoth';
 import { z } from 'zod';
 import {
   DOCUMENTO_ESTADOS,
@@ -205,11 +210,12 @@ function formatDateTime(isoOrDate: string) {
   }).format(new Date(isoOrDate));
 }
 
-/** Vista integrada en el navegador (PDF / imágenes); Office y otros solo descarga. */
-function tipoVistaPreviaMime(mime: string): 'pdf' | 'image' | null {
+/** Vista integrada en el navegador (PDF / imágenes / DOCX). */
+function tipoVistaPreviaMime(mime: string): 'pdf' | 'image' | 'docx' | null {
   const m = mime.toLowerCase().trim();
   if (m === 'application/pdf') return 'pdf';
   if (m === 'image/jpeg' || m === 'image/png' || m === 'image/webp') return 'image';
+  if (m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
   return null;
 }
 
@@ -418,6 +424,8 @@ export function DocumentoDetallePage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   /** Mensaje informativo (p. ej. archivo demasiado grande); no es fallo de red. */
   const [previewSkipInfo, setPreviewSkipInfo] = useState<string | null>(null);
+  const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
+  const [previewDocxHtml, setPreviewDocxHtml] = useState<string | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
 
   const historiaRef = useRef<HTMLDivElement | null>(null);
@@ -654,6 +662,7 @@ export function DocumentoDetallePage() {
     }
     setPreviewUrl(null);
     setPreviewKind(null);
+    setPreviewDocxHtml(null);
     setPreviewError(null);
     setPreviewSkipInfo(null);
 
@@ -692,7 +701,7 @@ export function DocumentoDetallePage() {
       try {
         const res = await apiClient.get(
           `/documentos/${id}/archivos/${previewFetchKey.archivoId}/download`,
-          { responseType: 'blob', signal: ac.signal },
+          { responseType: kind === 'docx' ? 'arraybuffer' : 'blob', signal: ac.signal },
         );
         if (cancelled) return;
 
@@ -713,13 +722,36 @@ export function DocumentoDetallePage() {
                   ? 'image/jpeg'
                   : 'application/octet-stream');
 
-        const blob = new Blob([res.data], {
-          type: blobMime || 'application/octet-stream',
-        });
-        const url = URL.createObjectURL(blob);
-        previewObjectUrlRef.current = url;
-        setPreviewUrl(url);
-        setPreviewKind(kind);
+        if (kind === 'docx') {
+          const arrayBuffer = res.data as ArrayBuffer;
+          const result = await mammoth.convertToHtml(
+            { arrayBuffer },
+            {
+              styleMap: [
+                "p[style-name='Heading 1'] => h1:fresh",
+                "p[style-name='Heading 2'] => h2:fresh",
+                "p[style-name='Heading 3'] => h3:fresh",
+              ],
+            },
+          );
+          if (cancelled) return;
+          const safe = DOMPurify.sanitize(result.value, {
+            USE_PROFILES: { html: true },
+          });
+          setPreviewDocxHtml(
+            `<div class=\"docx-preview\">${safe}</div>`,
+          );
+          setPreviewKind(null);
+          setPreviewUrl(null);
+        } else {
+          const blob = new Blob([res.data as BlobPart], {
+            type: blobMime || 'application/octet-stream',
+          });
+          const url = URL.createObjectURL(blob);
+          previewObjectUrlRef.current = url;
+          setPreviewUrl(url);
+          setPreviewKind(kind);
+        }
       } catch (e: unknown) {
         if (cancelled || (isAxiosError(e) && e.code === 'ERR_CANCELED')) return;
         setPreviewError('No se pudo cargar la vista previa del archivo. Use Descargar si el problema continúa.');
@@ -1091,6 +1123,21 @@ export function DocumentoDetallePage() {
                             : doc.tipoDocumental.nombre
                       }
                     />
+                    <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 1 }}>
+                      <IconButton
+                        aria-label="Ver vista previa en pantalla completa"
+                        disabled={
+                          (!previewUrl && !previewDocxHtml) ||
+                          previewLoading ||
+                          Boolean(previewError) ||
+                          Boolean(previewSkipInfo)
+                        }
+                        onClick={() => setPreviewFullscreenOpen(true)}
+                        size="small"
+                      >
+                        <FullscreenOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
                   </Box>
                   <Box sx={{ px: 2.5, pb: 2, pt: 0.5, flex: 1 }}>
                     <Box
@@ -1143,6 +1190,37 @@ export function DocumentoDetallePage() {
                           <strong>{archivoUltimaVersion.mimeType}</strong>. Use <strong>Descargar</strong> para abrir el
                           archivo localmente (p. ej. documentos Office).
                         </Alert>
+                      ) : null}
+
+                      {!previewLoading && !previewError && previewDocxHtml ? (
+                        <Box
+                          sx={{
+                            flex: 1,
+                            overflow: 'auto',
+                            bgcolor: '#fff',
+                            p: { xs: 1.5, sm: 2.5 },
+                            '& .docx-preview': {
+                              maxWidth: 980,
+                              mx: 'auto',
+                              color: '#0f172a',
+                              lineHeight: 1.6,
+                            },
+                            '& .docx-preview img': {
+                              maxWidth: '100%',
+                              height: 'auto',
+                            },
+                            '& .docx-preview table': {
+                              width: '100%',
+                              borderCollapse: 'collapse',
+                            },
+                            '& .docx-preview td, & .docx-preview th': {
+                              border: '1px solid rgba(15, 23, 42, 0.12)',
+                              padding: '6px 8px',
+                              verticalAlign: 'top',
+                            },
+                          }}
+                          dangerouslySetInnerHTML={{ __html: previewDocxHtml }}
+                        />
                       ) : null}
 
                       {!previewLoading && !previewError && previewUrl && previewKind === 'pdf' ? (
@@ -1928,6 +2006,106 @@ export function DocumentoDetallePage() {
             Guardar
           </Button>
         </DialogActions>
+      </Dialog>
+
+      <Dialog
+        fullScreen
+        open={previewFullscreenOpen}
+        onClose={() => setPreviewFullscreenOpen(false)}
+      >
+        <DialogTitle sx={{ py: 1.25 }}>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 900 }} noWrap>
+                Vista previa — {doc?.codigo ?? 'Documento'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {archivoUltimaVersion?.originalName ?? doc?.asunto ?? ''}
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1 }} />
+            <IconButton
+              aria-label="Cerrar pantalla completa"
+              onClick={() => setPreviewFullscreenOpen(false)}
+            >
+              <CloseOutlinedIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            p: 0,
+            bgcolor: '#0b1220',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {previewDocxHtml ? (
+            <Box
+              sx={{
+                flex: 1,
+                overflow: 'auto',
+                bgcolor: '#fff',
+                p: { xs: 2, md: 4 },
+                '& .docx-preview': {
+                  maxWidth: 1100,
+                  mx: 'auto',
+                  color: '#0f172a',
+                  lineHeight: 1.65,
+                },
+                '& .docx-preview img': { maxWidth: '100%', height: 'auto' },
+                '& .docx-preview table': { width: '100%', borderCollapse: 'collapse' },
+                '& .docx-preview td, & .docx-preview th': {
+                  border: '1px solid rgba(15, 23, 42, 0.12)',
+                  padding: '6px 8px',
+                  verticalAlign: 'top',
+                },
+              }}
+              dangerouslySetInnerHTML={{ __html: previewDocxHtml }}
+            />
+          ) : null}
+
+          {previewUrl && previewKind === 'pdf' ? (
+            <Box
+              component="iframe"
+              title={`Vista previa PDF · ${doc?.codigo ?? ''}`}
+              src={previewUrl}
+              sx={{ flex: 1, width: '100%', border: 0, bgcolor: '#0b1220' }}
+            />
+          ) : null}
+
+          {previewUrl && previewKind === 'image' ? (
+            <Box
+              sx={{
+                flex: 1,
+                overflow: 'auto',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                p: 2,
+              }}
+            >
+              <Box
+                component="img"
+                src={previewUrl}
+                alt={archivoUltimaVersion?.originalName ?? `Adjunto · ${doc?.codigo ?? ''}`}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  bgcolor: '#fff',
+                  borderRadius: 1,
+                }}
+              />
+            </Box>
+          ) : null}
+
+          {!previewUrl && !previewDocxHtml ? (
+            <Box sx={{ p: 3 }}>
+              <Alert severity="info">No hay vista previa disponible para mostrar en pantalla completa.</Alert>
+            </Box>
+          ) : null}
+        </DialogContent>
       </Dialog>
 
       <Dialog
