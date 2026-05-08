@@ -664,6 +664,9 @@ export function DashboardPage() {
             footnote={
               summaryLoading || summary == null ? undefined : docDeltaEsteMes
             }
+            interactive
+            interactiveLabel="Ir a bandeja de Documentos"
+            onInteractiveAction={() => navigate('/documentos')}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: isAdmin ? 3 : 6 }}>
@@ -675,6 +678,9 @@ export function DashboardPage() {
               summaryLoading ? '…' : formattedNumber(summary?.kpis.pendientesRevision ?? null)
             }
             accentColor="#B45309"
+            interactive
+            interactiveLabel="Ver documentos pendientes de revisión"
+            onInteractiveAction={() => navigate('/documentos?estado=EN_REVISION')}
           />
         </Grid>
         {isAdmin ? (
@@ -685,6 +691,9 @@ export function DashboardPage() {
               subtitle="activos"
               value={summaryLoading ? '…' : formattedNumber(summary?.kpis.usuariosActivos ?? null)}
               accentColor="#0F766E"
+              interactive
+              interactiveLabel="Ir a Usuarios y roles"
+              onInteractiveAction={() => navigate('/admin/usuarios')}
             />
           </Grid>
         ) : null}
