@@ -101,6 +101,15 @@ function formatLastLogin(iso: string | null): string {
   }).format(d);
 }
 
+/** Evita mostrar códigos técnicos de auditoría si el API aún no envió etiqueta amigable. */
+function activityLabelForUser(label: string, action: string): string {
+  if (label.trim() && label !== action) return label.trim();
+  if (/^[A-Z][A-Z0-9_]+$/.test(action)) {
+    return 'Actividad registrada en el sistema';
+  }
+  return label.trim() || 'Actividad en el sistema';
+}
+
 function formatActivityTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -365,7 +374,11 @@ export function PerfilUsuarioPage() {
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Paper component="section" elevation={0} sx={paperCardSx} aria-label="Actividad reciente">
-                <CardHeaderIcon letter="A" title="Actividad reciente" subtitle="Acciones del usuario" />
+                <CardHeaderIcon
+                  letter="A"
+                  title="Actividad reciente"
+                  subtitle="Últimas acciones que realizó en el sistema"
+                />
                 <Box sx={{ pl: 0.5 }}>
                   {profile.activity.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">
@@ -418,7 +431,7 @@ export function PerfilUsuarioPage() {
                           </Box>
                           <Box sx={{ minWidth: 0 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                              {item.label}
+                              {activityLabelForUser(item.label, item.action)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {formatActivityTime(item.at)}

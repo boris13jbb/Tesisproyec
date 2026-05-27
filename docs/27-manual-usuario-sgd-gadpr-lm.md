@@ -71,7 +71,7 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 1. Tras iniciar sesión, en la barra superior presiona tu **correo** para abrir el menú de cuenta.
 2. Elige **Mi perfil**. También puedes abrir directamente la ruta **`/perfil`**.
 3. Revisa **Información personal** (correo, rol principal, área/dependencia si está asignada, estado y **último ingreso** preferentemente desde el campo **`ultimoLoginAt`**, con respaldo por último **`AUTH_LOGIN_OK`** en auditoría cuando el campo sea nulo).
-4. En **Actividad reciente** verás las últimas acciones auditadas asociadas a tu cuenta (por ejemplo inicio de sesión, cargas o consultas documentales cuando existan registros).
+4. En **Actividad reciente** verás las últimas acciones en lenguaje claro (por ejemplo «Inició sesión correctamente», «Cargó documento EXP-…»). No se muestran códigos técnicos de auditoría ni métricas de rendimiento del navegador (esas quedan solo en **Auditoría** para administradores).
 5. Para iniciar el **cambio de contraseña** vía recuperación, presiona **Cambiar contraseña** (lleva a **`/recuperar`**; es el mismo flujo que “olvidé mi contraseña”).
 6. Para salir, usa **Cerrar sesión de forma segura** o la opción **Cerrar sesión** del mismo menú superior.
 

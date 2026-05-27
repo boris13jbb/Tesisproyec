@@ -899,7 +899,7 @@ export class AuthService {
       metaJson: string | null;
     },
     codigoById: Map<string, string>,
-  ): string {
+  ): string | null {
     const meta = AuthService.parseAuditMetaJson(row.metaJson);
     const docIdDirect =
       this.profileDocumentoIdFromRow(meta) ??
@@ -949,8 +949,14 @@ export class AuthService {
         return 'Solicitó restablecer contraseña';
       case 'BACKUP_VERIFIED':
         return 'Registró verificación de respaldo institucional';
+      case 'DOC_ACCESS_UPDATED':
+        return codigo
+          ? `Actualizó el acceso al documento ${codigo}`
+          : 'Actualizó el acceso a un documento';
+      case 'USER_CREATED':
+        return 'Su cuenta fue creada en el sistema';
       default:
-        return row.action;
+        return null;
     }
   }
 
@@ -959,10 +965,23 @@ export class AuthService {
    * (solo lecturas propias, sin exponer IPs ni metadatos sensibles más allá del necesario para la etiqueta).
    */
   async getMyProfile(viewer: JwtRequestUser) {
+    /** Eventos técnicos o administrativos que no deben mostrarse en el perfil del usuario final. */
     const PROFILE_AUDIT_SKIP = [
       'AUTH_REFRESH_OK',
       'AUTH_REFRESH_FAIL',
       'AUTH_RATE_LIMITED',
+      'AUTHZ_FORBIDDEN',
+      'CLIENT_WEB_VITAL_LCP',
+      'DASHBOARD_ALERT_ACK',
+      'SECURITY_POLICY_UPDATED',
+      'ROLE_PERMISSIONS_UPDATED',
+      'USER_INVITE_MAIL_SENT',
+      'USER_INVITE_MAIL_SKIP',
+      'USER_INVITE_MAIL_FAIL',
+      'USER_DIRECT_PERMISSIONS_UPDATED',
+      'AUTH_PASSWORD_RESET_MAIL_FAIL',
+      'AUTH_PASSWORD_RESET_MAIL_SKIP',
+      'AUTH_PASSWORD_RESET_CONFIRM_FAIL',
     ] as const;
 
     const user = await this.prisma.user.findUnique({
@@ -1006,7 +1025,7 @@ export class AuthService {
         ],
       },
       orderBy: { createdAt: 'desc' },
-      take: 16,
+      take: 32,
       select: {
         id: true,
         createdAt: true,
@@ -1039,12 +1058,19 @@ export class AuthService {
         : [];
     const codigoById = new Map(docs.map((d) => [d.id, d.codigo]));
 
-    const activity = rawLogs.slice(0, 8).map((row) => ({
-      id: row.id,
-      at: row.createdAt.toISOString(),
-      action: row.action,
-      label: this.profileActivityLabel(row, codigoById),
-    }));
+    const activity = rawLogs
+      .map((row) => {
+        const label = this.profileActivityLabel(row, codigoById);
+        if (!label) return null;
+        return {
+          id: row.id,
+          at: row.createdAt.toISOString(),
+          action: row.action,
+          label,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .slice(0, 8);
 
     return {
       schemaVersion: 1 as const,

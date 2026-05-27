@@ -336,10 +336,11 @@ function ComplianceBar({
 }
 
 export function DashboardPage() {
-  useDashboardLcpReporting();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const isAdminForLcp = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  useDashboardLcpReporting(isAdminForLcp);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);

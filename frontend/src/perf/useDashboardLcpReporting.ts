@@ -7,11 +7,11 @@ const reportedLcpInstanceIds = new Set<string>();
 
 /**
  * Mide el LCP en el panel principal y lo registra en auditoría (`CLIENT_WEB_VITAL_LCP`).
- * Diseñado únicamente para la ruta `/` (uso desde `DashboardPage`).
+ * Solo administradores: métrica operativa para Auditoría, no para el perfil del usuario final.
  */
-export function useDashboardLcpReporting(): void {
+export function useDashboardLcpReporting(isAdmin: boolean): void {
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!isAdmin || typeof window === 'undefined') {
       return;
     }
 
@@ -40,5 +40,5 @@ export function useDashboardLcpReporting(): void {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin]);
 }
