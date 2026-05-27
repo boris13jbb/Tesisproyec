@@ -1,7 +1,7 @@
 # Listado de lo que debería tener el sistema (Gap vs implementación actual)
 
 **Proyecto:** SGD-GADPR-LM  
-**Fecha de última revisión:** 2026-05-06  
+**Fecha de última revisión:** 2026-05-08  
 **Propósito:** comparar los requisitos (1–45) propuestos vs el sistema implementado y listar lo que falta para un cierre institucional alineado con **ISO/IEC 27001**, **ISO 15489** y **OWASP ASVS**.
 
 > Leyenda de estado:

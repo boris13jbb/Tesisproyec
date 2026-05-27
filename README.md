@@ -11,7 +11,7 @@ Aplicación web para gestión documental institucional digitalizada (caso de est
 | Prisma / MySQL | **Esquema y migración inicial en repo** — aplicar en tu MySQL (XAMPP) con los pasos de abajo |
 | `storage/` | Carpeta reservada para archivos (ver `.gitignore`) |
 
-Documentación viva: carpeta **`docs/`** (índice en `docs/README.md`).
+Documentación viva: carpeta **`docs/`** (índice en `docs/README.md`). Comandos de ejecución local: **`docs/42-comandos-ejecucion-manual.md`**.
 
 ## Requisitos
 

@@ -1,6 +1,6 @@
 # Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
 
-**Versión del manual:** 2026-05-06 (snapshot `docs/README.md`; carga diferida + precarga tras login + LCP auditado para ADMIN)  
+**Versión del manual:** 2026-05-08 (snapshot `docs/README.md`; carga diferida + precarga tras login + LCP auditado para ADMIN)  
 **Audiencia:** personal institucional (usuario final), administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores (pruebas).  
 
 ---
@@ -125,21 +125,18 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 - **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta roja, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
+- **Ocultar tras revisar**: debajo de las tarjetas KPI, si hay alertas del servidor, aparece el bloque **«Ocultar alertas del panel»** con el botón **Marcar como revisada** por cada señal. Eso **no borra** los registros de auditoría; solo deja de mostrar esa alerta en el panel hasta que ocurra actividad **nueva** (otro 403/login fallido posterior, más documentos en revisión que al descartar, o respaldo verificado registrado). La acción queda en auditoría como **`DASHBOARD_ALERT_ACK`**.
 - **Cumplimiento de seguridad (solo `ADMIN`)**: barras calculadas con métricas de los últimos 30 días (no son valores ficticios), más el bloque de **último respaldo verificado** y última línea auditada en el mismo panel.
 - **Estado del servicio (solo `ADMIN`)**: confirmación de API y base de datos; el enlace rápido **Ir a documentos** aparece dentro de ese bloque. Los usuarios sin rol administrador pueden ir a documentos desde el menú o desde **Ver documentos** en la tabla de expedientes recientes.
 - **Comprobación de rol administrador** (si aplica): indicador de acceso ADMIN.
 
 ### 4.2 Menú lateral (navegación)
 
-- **Inicio**
-- **Documentos**
-- **Administración → Usuarios y roles** (solo `ADMIN`)
-- **Catálogos** (solo `ADMIN`):
-  - Dependencias
-  - Cargos
-  - Tipos documentales
-  - Series
-  - Subseries
+Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **`docs/44-guia-secciones-menu-navegacion.md`**.
+
+- **Menú:** Inicio · Documentos · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` o ADMIN)
+- **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Reportes · Configuración
+- **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries
 
 ---
 

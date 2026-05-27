@@ -22,7 +22,7 @@ Acreditar que la **capa de datos** declarada para el proyecto (MySQL/MariaDB ví
 | Entregable | Evidencia | Estado |
 |------------|-----------|--------|
 | `schema.prisma` alineado a MySQL (`provider = "mysql"`) | `backend/prisma/schema.prisma` | Cumple |
-| Migraciones versionadas en `prisma/migrations/` | Carpeta presente — **14** migraciones ordenadas cronológicamente (ver tabla en `docs/04-modelo-base-de-datos.md`) | Cumple |
+| Migraciones versionadas en `prisma/migrations/` | Carpeta presente — **22** migraciones ordenadas cronológicamente (ver tabla en `docs/04-modelo-base-de-datos.md`) | Cumple |
 | BD esperada para desarrollo (`DATABASE_URL`) documentada sin secretos | `backend/.env.example` + §1–3 de `04-modelo-base-de-datos.md` | Cumple |
 | Validación en phpMyAdmin / SQL | Pasos §2 y §4 de `04-modelo-base-de-datos.md` | Cumple |
 | Versión Prisma fijada (proyecto) | `@prisma/client` y `prisma` **5.22.0** en `backend/package.json` | Cumple |

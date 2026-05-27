@@ -44,10 +44,27 @@ model User {
   documentoUserAccess DocumentoUserAccess[]
   documentoUserAccessCreatedBy DocumentoUserAccess[] @relation("DocumentoUserAccessCreatedBy")
   documentoRoleAccessCreatedBy DocumentoRoleAccess[] @relation("DocumentoRoleAccessCreatedBy")
+  dashboardAlertAcknowledgments DashboardAlertAcknowledgment[]
 
   @@index([dependenciaId])
   @@index([cargoId])
   @@map("users")
+}
+
+/// Marca de revisión de alertas del panel (por administrador); oculta la señal hasta actividad nueva.
+model DashboardAlertAcknowledgment {
+  id             String   @id @default(uuid())
+  actorUserId    String   @map("actor_user_id")
+  alertCodigo    String   @map("alert_codigo") @db.VarChar(64)
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
+  /// Instantánea opcional (p. ej. pendientes de revisión al descartar).
+  metaJson       String?  @map("meta_json") @db.Text
+
+  actor User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@unique([actorUserId, alertCodigo])
+  @@index([alertCodigo, acknowledgedAt])
+  @@map("dashboard_alert_acknowledgments")
 }
 
 /// Refresh opaco (hash SHA-256 en BD); el valor en claro solo en cookie HttpOnly.

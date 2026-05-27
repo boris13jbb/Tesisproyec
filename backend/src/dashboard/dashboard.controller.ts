@@ -22,6 +22,7 @@ import {
   type DashboardDocumentoPorTipoItem,
   type DashboardSummary,
 } from './dashboard.service';
+import { AcknowledgeDashboardAlertDto } from './dto/acknowledge-dashboard-alert.dto';
 import { RecordBackupVerificationDto } from './dto/record-backup-verification.dto';
 
 @Controller('dashboard')
@@ -60,6 +61,19 @@ export class DashboardController {
   }
 
   /** KPI + historial real desde `audit_logs` (BACKUP_VERIFIED). */
+  /** Marca una alerta del panel como revisada (oculta hasta actividad nueva). */
+  @Post('admin/alerts/acknowledge')
+  @HttpCode(200)
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Permissions(PERM.DASHBOARD_ADMIN_READ)
+  acknowledgeDashboardAlert(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Body() dto: AcknowledgeDashboardAlertDto,
+  ): Promise<{ ok: true; codigo: string; acknowledgedAt: string }> {
+    return this.service.acknowledgeDashboardAlert(req.user, dto.codigo);
+  }
+
   @Get('admin/backup-overview')
   @UseGuards(RolesGuard)
   @Roles('ADMIN')

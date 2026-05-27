@@ -10,21 +10,48 @@ Persistencia en BD o fuente controlada; sin secretos en tablas de configuración
 
 ## Estado actual
 
-**No implementado.**
+**Implementado parcialmente (MVP orientado a seguridad y respaldos).**
+
+Este repositorio implementa configuración **administrativa** en dos frentes:
+
+- **Configuración de seguridad (ADMIN)**: pantalla **`/admin/configuracion`**.
+- **Respaldos y seguridad (ADMIN)**: pantalla **`/admin/respaldos`** (ejecución manual de mysqldump + registro de verificación auditable).
+
+> Distinción clave: la pantalla de configuración de seguridad separa (1) el **estado efectivo** (lo que el backend aplica hoy con `.env`, guards y validaciones) y (2) la **política institucional** persistida como **registro** en BD (ISO 15489), que no necesariamente altera el runtime automáticamente.
 
 ## Decisiones técnicas
 
 - Secretos solo en variables de entorno (`18`, `02`).
+  - Ejemplos: `JWT_ACCESS_SECRET`, `DATABASE_URL`, SMTP, rutas a `mysqldump`.
+- Parámetros “no secretos” sí pueden persistirse como **registros** auditables (ISO 15489), con trazabilidad `updatedBy` y timestamp.
 
 ## Pantallas
 
 - Panel de configuración (alcance acordado con director de tesis).
 
+### Pantallas implementadas (ADMIN)
+
+- **`/admin/configuracion`**: “Parámetros de seguridad”.
+  - Lee:
+    - `GET /api/v1/auth/admin/security-summary` (estado efectivo).
+    - `GET /api/v1/auth/admin/security-policy` (política institucional guardada).
+  - Guarda:
+    - `POST /api/v1/auth/admin/security-policy` (actualiza `security_policy` y audita `SECURITY_POLICY_UPDATED`).
+
+- **`/admin/respaldos`**: “Respaldos de información”.
+  - Lee:
+    - `GET /api/v1/dashboard/admin/backup-overview` (KPI + historial desde `audit_logs`).
+  - Acciones:
+    - `POST /api/v1/backup/admin/run-now` (ejecuta mysqldump “como el cron”; puede tardar varios minutos).
+    - `POST /api/v1/dashboard/admin/backup-verification` (registra evidencia `BACKUP_VERIFIED` OK/FAIL).
+
+Guía operativa de respaldo/restauración (local/XAMPP): `scripts/README-backups-mysql-xampp.md`.
+
 ---
 
 ## Qué falta para empezar a desarrollar (backlog accionable)
 
-### 1) Definir “qué se configura” (parámetros NO secretos)
+### 1) Completar configuración general (parámetros NO secretos)
 
 Parámetros recomendados para un SGD institucional:
 
@@ -47,9 +74,11 @@ Parámetros recomendados para un SGD institucional:
 - catálogo de `ESTADOS_DOCUMENTO` (si se formaliza)
 - `RETENTION_POLICIES` (si se implementa conservación/retención)
 
-### 2) Modelo de persistencia (recomendado)
+### 2) Modelo de persistencia (estado actual y recomendado)
 
-Crear tabla `system_settings`:
+**Estado actual:** existe tabla `security_policy` como registro institucional (singleton `id="default"`) y se actualiza desde UI con auditoría.
+
+**Evolución recomendada:** crear tabla `system_settings`:
 - `key` (string unique)
 - `value_json` (json/text)
 - `updated_by_id`
@@ -61,8 +90,19 @@ Reglas:
 
 ### 3) Endpoints (ADMIN)
 
+**Implementados (seguridad / respaldos):**
+
+- `GET /api/v1/auth/admin/security-summary` (ADMIN)
+- `GET /api/v1/auth/admin/security-policy` (ADMIN)
+- `POST /api/v1/auth/admin/security-policy` (ADMIN)
+- `GET /api/v1/dashboard/admin/backup-overview` (ADMIN)
+- `POST /api/v1/dashboard/admin/backup-verification` (ADMIN)
+- `POST /api/v1/backup/admin/run-now` (ADMIN)
+
+**Futuro (configuración general):**
+
 - `GET /api/v1/configuracion` (ADMIN) — lista de settings (no secretos)
-- `PATCH /api/v1/configuracion` (ADMIN) — actualizar settings permitidos
+- `PATCH /api/v1/configuracion` (ADMIN) — actualizar settings permitidos (validación estricta por `key`)
 
 ### 4) UI (ADMIN)
 

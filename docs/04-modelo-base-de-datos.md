@@ -6,12 +6,12 @@
 
 ---
 
-## Estado actual del repositorio (2026-05-06)
+## Estado actual del repositorio (2026-05-08)
 
 | Elemento | Situación |
 |----------|-----------|
 | `backend/prisma/schema.prisma` | **Existe** — `provider = "mysql"`. Prisma **5.22.0** fijado en `backend/package.json` (la línea base del proyecto no asume Prisma 7). |
-| `backend/prisma/migrations/` | **18** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
+| `backend/prisma/migrations/` | **22** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
 | `DATABASE_URL` | Definir en `backend/.env` (plantilla en `.env.example`). Crear la base vacía en phpMyAdmin antes de migrar. |
 | Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). En Windows ante **EPERM**: `npm run prisma:generate:clean`. |
 | Cierre ETAPA 2 | Evidencias formales en **`docs/31-etapa-2-cierre-y-evidencias.md`**. |
@@ -35,11 +35,13 @@
 | 13 | `20260505123600_add_audit_logs` | Bitácora transversal `audit_logs`. |
 | 14 | `20260505125800_refresh_tokens_last_used_at` | `refresh_tokens.last_used_at` (inactividad / ASVS sesión). |
 | 15 | `20260506143000_user_ultimo_login` | Usuario: `users.ultimo_login_at` (último login OK con credenciales). |
-| 16 | `20260507153000_documento_dependencia_confidencialidad` | Documento: `dependencia_id` (propietaria) + `nivel_confidencialidad` (+ backfill desde creador). |
-| 17 | `20260508120000_user_login_lockout` | Usuario: `failed_login_attempts`, `locked_until` (bloqueo temporal tras N fallos). |
-| 18 | `20260509153000_normalize_documento_estados` | Normaliza `documentos.estado` a catálogo formal (R‑27). |
-| 19 | `20260509160000_editor_doc_role` | Rol `EDITOR_DOC` y enlaces por defecto en `role_permissions` si faltaban. |
-| 20 | `20260510090000_user_permissions` | Permisos directos por usuario: tabla `user_permissions` (además de `role_permissions`). |
+| 16 | `20260507010600_documento_acl` | ACL por documento: `documento_user_access`, `documento_role_access` y `documentos.access_policy` (INHERIT/RESTRICTED). |
+| 17 | `20260507030000_security_policy` | Política de seguridad institucional (singleton): tabla `security_policy` (gobierno/evidencia). |
+| 18 | `20260507153000_documento_dependencia_confidencialidad` | Documento: `dependencia_id` (propietaria) + `nivel_confidencialidad` (+ backfill desde creador). |
+| 19 | `20260508120000_user_login_lockout` | Usuario: `failed_login_attempts`, `locked_until` (bloqueo temporal tras N fallos). |
+| 20 | `20260509153000_normalize_documento_estados` | Normaliza `documentos.estado` a catálogo formal (R‑27). |
+| 21 | `20260509160000_editor_doc_role` | Rol `EDITOR_DOC` y enlaces por defecto en `role_permissions` si faltaban. |
+| 22 | `20260510090000_user_permissions` | Permisos directos por usuario: tabla `user_permissions` (además de `role_permissions`). |
 
 ### Tablas resumen por dominio
 

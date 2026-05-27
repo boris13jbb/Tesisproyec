@@ -11,6 +11,7 @@ import {
 } from '../backup/backup.constants';
 import { documentoVisibilityWhere } from '../documentos/documento-scope.util';
 import { PrismaService } from '../prisma/prisma.service';
+import type { DashboardAlertCodigo } from './dto/acknowledge-dashboard-alert.dto';
 
 export type DashboardRecentDocumento = {
   id: string;
@@ -415,29 +416,65 @@ export class DashboardService {
     const inputValidationPercent =
       docTotalActions > 0 ? (docOk30d / docTotalActions) * 100 : 0;
 
+    const ackMap = isAdmin
+      ? await this.loadDashboardAlertAckMap(viewer.id)
+      : new Map<
+          string,
+          { acknowledgedAt: Date; metaJson: string | null }
+        >();
+
     const alertasItems: DashboardAlertItem[] = [];
     if (pendientesRevision > 0) {
-      alertasItems.push({
-        codigo: 'PENDIENTES_REVISION',
-        mensaje: `Hay ${pendientesRevision} documento(s) en estado «En revisión» pendiente(s) de atención por un revisor.`,
-      });
+      const ackPend = ackMap.get('PENDIENTES_REVISION');
+      const baseline = this.parsePendientesAckMeta(ackPend?.metaJson ?? null)
+        ?.pendientesAtAck;
+      const showPendientes =
+        !ackPend ||
+        baseline === undefined ||
+        pendientesRevision > baseline;
+      if (showPendientes) {
+        alertasItems.push({
+          codigo: 'PENDIENTES_REVISION',
+          mensaje: `Hay ${pendientesRevision} documento(s) en estado «En revisión» pendiente(s) de atención por un revisor.`,
+        });
+      }
     }
-    if (authzForbidden30d > 0) {
-      alertasItems.push({
-        codigo: 'AUTHZ_FORBIDDEN',
-        mensaje: `Se registraron ${authzForbidden30d} acceso(s) denegado(s) por permisos (HTTP 403 en auditoría) en los últimos 30 días.`,
-      });
+    if (isAdmin && authzForbidden30d > 0) {
+      const ack403 = ackMap.get('AUTHZ_FORBIDDEN');
+      const show403 =
+        !ack403 ||
+        (await this.auditEventsAfterAck(
+          'AUTHZ_FORBIDDEN',
+          since30d,
+          ack403.acknowledgedAt,
+        )) > 0;
+      if (show403) {
+        alertasItems.push({
+          codigo: 'AUTHZ_FORBIDDEN',
+          mensaje: `Se registraron ${authzForbidden30d} acceso(s) denegado(s) por permisos (HTTP 403 en auditoría) en los últimos 30 días.`,
+        });
+      }
     }
-    if (loginFail30d > 0) {
-      alertasItems.push({
-        codigo: 'AUTH_LOGIN_FAIL',
-        mensaje: `Se registraron ${loginFail30d} intento(s) fallido(s) de inicio de sesión en los últimos 30 días; revisar Auditoría (AUTH_LOGIN_FAIL) o posibles abusos.`,
-      });
+    if (isAdmin && loginFail30d > 0) {
+      const ackLogin = ackMap.get('AUTH_LOGIN_FAIL');
+      const showLoginFail =
+        !ackLogin ||
+        (await this.auditEventsAfterAck(
+          'AUTH_LOGIN_FAIL',
+          since30d,
+          ackLogin.acknowledgedAt,
+        )) > 0;
+      if (showLoginFail) {
+        alertasItems.push({
+          codigo: 'AUTH_LOGIN_FAIL',
+          mensaje: `Se registraron ${loginFail30d} intento(s) fallido(s) de inicio de sesión en los últimos 30 días; revisar Auditoría (AUTH_LOGIN_FAIL) o posibles abusos.`,
+        });
+      }
     }
     const backupAutoEnabled =
       this.config.get<string>('BACKUP_AUTOMATED_ENABLED')?.toLowerCase() ===
       'true';
-    if (isAdmin && !lastBackupVerified) {
+    if (isAdmin && !lastBackupVerified && !ackMap.has('BACKUP_SIN_REGISTRO')) {
       alertasItems.push({
         codigo: 'BACKUP_SIN_REGISTRO',
         mensaje: backupAutoEnabled
@@ -602,5 +639,107 @@ export class DashboardService {
       .sort((a, b) => b.count - a.count);
 
     return { items };
+  }
+
+  /**
+   * Oculta una alerta del panel para el administrador actual hasta que haya actividad nueva
+   * (p. ej. nuevos 403/login fallido tras la marca, o más pendientes de revisión que al descartar).
+   */
+  async acknowledgeDashboardAlert(
+    viewer: JwtRequestUser,
+    codigo: DashboardAlertCodigo,
+  ): Promise<{ ok: true; codigo: string; acknowledgedAt: string }> {
+    if (!jwtUserIsAdmin(viewer)) {
+      throw new ForbiddenException();
+    }
+
+    let metaJson: string | null = null;
+    if (codigo === 'PENDIENTES_REVISION') {
+      const vis = documentoVisibilityWhere(viewer);
+      const docWhere = vis
+        ? { AND: [{ activo: true }, vis] }
+        : { activo: true };
+      const pendientesAtAck = await this.prisma.documento.count({
+        where: { ...docWhere, estado: 'EN_REVISION' },
+      });
+      metaJson = JSON.stringify({ pendientesAtAck });
+    }
+
+    const row = await this.prisma.dashboardAlertAcknowledgment.upsert({
+      where: {
+        actorUserId_alertCodigo: {
+          actorUserId: viewer.id,
+          alertCodigo: codigo,
+        },
+      },
+      create: {
+        actorUserId: viewer.id,
+        alertCodigo: codigo,
+        metaJson,
+      },
+      update: {
+        acknowledgedAt: new Date(),
+        metaJson,
+      },
+    });
+
+    await this.audit.log({
+      action: 'DASHBOARD_ALERT_ACK',
+      result: 'OK',
+      resource: { type: 'DashboardAlert', id: codigo },
+      context: {
+        actorUserId: viewer.id,
+        actorEmail: viewer.email ?? null,
+      },
+      meta: { codigo },
+    });
+
+    return {
+      ok: true,
+      codigo,
+      acknowledgedAt: row.acknowledgedAt.toISOString(),
+    };
+  }
+
+  private async loadDashboardAlertAckMap(userId: string) {
+    const rows = await this.prisma.dashboardAlertAcknowledgment.findMany({
+      where: { actorUserId: userId },
+      select: { alertCodigo: true, acknowledgedAt: true, metaJson: true },
+    });
+    return new Map(
+      rows.map((r) => [
+        r.alertCodigo,
+        { acknowledgedAt: r.acknowledgedAt, metaJson: r.metaJson },
+      ]),
+    );
+  }
+
+  private parsePendientesAckMeta(
+    metaJson: string | null,
+  ): { pendientesAtAck?: number } | null {
+    if (!metaJson?.trim()) return null;
+    try {
+      const parsed: unknown = JSON.parse(metaJson);
+      if (typeof parsed !== 'object' || parsed === null) return null;
+      const n = (parsed as { pendientesAtAck?: unknown }).pendientesAtAck;
+      return typeof n === 'number' && Number.isFinite(n)
+        ? { pendientesAtAck: Math.floor(n) }
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Eventos de auditoría posteriores al descarte (o a la ventana de 30 días si no hubo descarte). */
+  private auditEventsAfterAck(
+    action: string,
+    since30d: Date,
+    acknowledgedAt: Date,
+  ) {
+    const from =
+      acknowledgedAt.getTime() > since30d.getTime() ? acknowledgedAt : since30d;
+    return this.prisma.auditLog.count({
+      where: { action, createdAt: { gt: from } },
+    });
   }
 }

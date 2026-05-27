@@ -29,6 +29,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
+import { isAxiosError } from 'axios';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
@@ -349,6 +350,8 @@ export function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   /** Evita segundo clic mientras refresco manual paralelo está en curso. */
   const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [ackInFlight, setAckInFlight] = useState<string | null>(null);
+  const [ackError, setAckError] = useState<string | null>(null);
 
   const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
 
@@ -416,6 +419,26 @@ export function DashboardPage() {
       if (aliveRef.current) setSummaryLoading(false);
     }
   }, []);
+
+  const acknowledgeServerAlert = useCallback(
+    async (codigo: string) => {
+      setAckError(null);
+      setAckInFlight(codigo);
+      try {
+        await apiClient.post('/dashboard/admin/alerts/acknowledge', { codigo });
+        await reloadSummary({ silent: true });
+      } catch (e: unknown) {
+        let msg = 'No se pudo marcar la alerta como revisada.';
+        if (isAxiosError(e) && e.response?.status === 403) {
+          msg = 'Solo un administrador puede descartar alertas del panel.';
+        }
+        setAckError(msg);
+      } finally {
+        setAckInFlight(null);
+      }
+    },
+    [reloadSummary],
+  );
 
   const reloadAdminPing = useCallback(async () => {
     if (!isAdmin) return;
@@ -547,6 +570,8 @@ export function DashboardPage() {
     () => alertasItemsMerged.map((i) => i.mensaje),
     [alertasItemsMerged],
   );
+
+  const serverAlertItems = summary?.kpis.alertasItems ?? [];
 
   const alertsCardInteractive =
     !summaryLoading &&
@@ -726,6 +751,61 @@ export function DashboardPage() {
           </Grid>
         ) : null}
       </Grid>
+
+      {isAdmin && !summaryLoading && serverAlertItems.length > 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 2,
+            borderRadius: 3,
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            boxShadow: '0 10px 32px rgba(15, 23, 42, 0.06)',
+            p: 2,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>
+            Ocultar alertas del panel
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Si ya revisó una señal en Auditoría u otro módulo, puede ocultarla del panel. Volverá a
+            mostrarse solo si hay actividad nueva (por ejemplo, otro 403 o login fallido después de
+            ahora).
+          </Typography>
+          {ackError ? (
+            <Alert severity="error" sx={{ mb: 1.5 }}>
+              {ackError}
+            </Alert>
+          ) : null}
+          <Stack spacing={1.25}>
+            {serverAlertItems.map((item) => (
+              <Stack
+                key={item.codigo}
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{
+                  alignItems: { xs: 'stretch', sm: 'center' },
+                  justifyContent: 'space-between',
+                  py: 0.75,
+                  borderBottom: '1px solid rgba(15, 23, 42, 0.06)',
+                  '&:last-of-type': { borderBottom: 0 },
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" sx={{ flex: 1, pr: 1 }}>
+                  {item.mensaje}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={ackInFlight !== null}
+                  onClick={() => void acknowledgeServerAlert(item.codigo)}
+                >
+                  {ackInFlight === item.codigo ? 'Guardando…' : 'Marcar como revisada'}
+                </Button>
+              </Stack>
+            ))}
+          </Stack>
+        </Paper>
+      ) : null}
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, md: isAdmin ? 7 : 12 }}>

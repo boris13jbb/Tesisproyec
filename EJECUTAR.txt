@@ -3,6 +3,10 @@ C:\Users\BRS\Documents\Tesisproyec
 
 === EJECUTAR EL SISTEMA EN DESARROLLO (Windows) ===
 
+Manual completo de comandos (Markdown):
+  docs\42-comandos-ejecucion-manual.md
+
+
 -----------------------------------------------------
 Opción recomendada: doble clic en:                 
   iniciar-desarrollo.cmd        

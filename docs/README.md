@@ -2,9 +2,11 @@
 
 Índice de la carpeta `docs/`. Los documentos se actualizan **en cada iteración** que toque el área correspondiente.
 
-## Estado del sistema (snapshot — 2026-05-06)
+## Estado del sistema (snapshot — 2026-05-08)
 
 Vista rápida del **código** frente a estos documentos. Lista de brechas y matriz 1–45: **`28-listado-lo-que-deberia-tener-el-sistema.md`**. Línea temporal de cambios: **`22-changelog-tecnico.md`**.
+
+Pendientes de alineación documental detectados durante la revisión: **`41-pendientes-documentacion-vs-sistema.md`**.
 
 | Área | Implementado hoy (resumen) |
 |------|----------------------------|
@@ -39,6 +41,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [03-estructura-de-carpetas.md](./03-estructura-de-carpetas.md) | Monorepo, rutas clave |
 | [04-modelo-base-de-datos.md](./04-modelo-base-de-datos.md) | Prisma, XAMPP, migraciones |
 | [24-prisma-comandos-cli.md](./24-prisma-comandos-cli.md) | Referencia de comandos Prisma CLI |
+| [42-comandos-ejecucion-manual.md](./42-comandos-ejecucion-manual.md) | **Manual de comandos** — instalación, arranque, Prisma, calidad y fallos típicos |
 
 ## Módulos funcionales
 
@@ -79,6 +82,8 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 
 | Archivo | Contenido |
 |---------|-----------|
+| [43-glosario-terminos.md](./43-glosario-terminos.md) | **Glosario** — siglas, términos técnicos y de negocio con definiciones |
+| [44-guia-secciones-menu-navegacion.md](./44-guia-secciones-menu-navegacion.md) | **Guía del menú lateral** — qué hay en cada sección y cómo funciona |
 | [27-manual-usuario-sgd-gadpr-lm.md](./27-manual-usuario-sgd-gadpr-lm.md) | Manual de usuario (paso a paso) |
 | [etapa-0-auditoria-inicial-y-diagnostico.md](./etapa-0-auditoria-inicial-y-diagnostico.md) | Informe de auditoría ETAPA 0 (**histórico 2026-04-19**); ver `29` para cierre vigente |
 

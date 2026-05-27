@@ -9,6 +9,7 @@ export const AUDIT_ACTION_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'AUTH_REFRESH_OK', label: 'Renovación de sesión OK' },
   { value: 'AUTH_REFRESH_FAIL', label: 'Renovación de sesión rechazada' },
   { value: 'AUTH_RATE_LIMITED', label: 'Límite de peticiones (HTTP 429)' },
+  { value: 'DASHBOARD_ALERT_ACK', label: 'Alerta del panel marcada como revisada' },
   { value: 'AUTHZ_FORBIDDEN', label: 'Acceso prohibido (HTTP 403)' },
   { value: 'DOC_FILE_UPLOADED', label: 'Carga de archivo documental' },
   { value: 'DOC_FILE_DOWNLOADED', label: 'Descarga de archivo documental' },

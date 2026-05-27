@@ -106,14 +106,34 @@ function shortenUserAgent(ua: string | null | undefined): string {
   return `${t.slice(0, max)}…`;
 }
 
-function parseAuditMeta(metaJson?: string | null): { reason?: string } | null {
+type AuditMetaParsed = {
+  reason?: string;
+  method?: string;
+  path?: string;
+};
+
+function parseAuditMeta(metaJson?: string | null): AuditMetaParsed | null {
   try {
     if (!metaJson) return null;
     const parsed = JSON.parse(metaJson);
-    return typeof parsed === 'object' && parsed !== null ? (parsed as { reason?: string }) : null;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const o = parsed as Record<string, unknown>;
+    return {
+      reason: typeof o.reason === 'string' ? o.reason : undefined,
+      method: typeof o.method === 'string' ? o.method : undefined,
+      path: typeof o.path === 'string' ? o.path : undefined,
+    };
   } catch {
     return null;
   }
+}
+
+/** Ruta HTTP en metadatos (403/429); ayuda a distinguir login vs otras APIs. */
+function auditHttpRouteLabel(metaJson?: string | null): string | null {
+  const meta = parseAuditMeta(metaJson);
+  if (!meta?.path?.trim()) return null;
+  const method = meta.method?.trim().toUpperCase();
+  return method ? `${method} ${meta.path.trim()}` : meta.path.trim();
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -236,6 +256,14 @@ export function AuditoriaPage() {
     AUDIT_ACTION_LABEL_LOOKUP[code] ?? code;
 
   const documentUiLabel = useCallback((r: AuditRow): { text: string; title: string } => {
+    const httpRoute = auditHttpRouteLabel(r.metaJson);
+    if (httpRoute) {
+      return {
+        text: httpRoute,
+        title: 'Ruta HTTP registrada en metadatos del evento',
+      };
+    }
+
     const codigoInfra = String(r.resourceCodigo ?? '').trim();
     if (codigoInfra.length > 0) {
       const id = String(r.resourceId ?? '').trim();
@@ -434,6 +462,24 @@ export function AuditoriaPage() {
       {exportError ? (
         <Alert severity="error" sx={{ mb: { xs: 2, md: 2 }, borderRadius: 2 }}>
           {exportError}
+        </Alert>
+      ) : null}
+
+      {(urlActionFilter ?? appliedAction) === 'AUTHZ_FORBIDDEN' ? (
+        <Alert severity="info" sx={{ mb: { xs: 2, md: 2 }, borderRadius: 2 }}>
+          Está viendo <strong>accesos denegados por permisos (HTTP 403)</strong> con sesión iniciada, no el
+          bloqueo de login por demasiados intentos. Para confirmar el límite de peticiones en{' '}
+          <code>/auth/login</code>, filtre por{' '}
+          <strong>Límite de peticiones (HTTP 429)</strong> o use <strong>Todas</strong> y busque eventos con código{' '}
+          <code>AUTH_RATE_LIMITED</code>.
+        </Alert>
+      ) : null}
+
+      {(urlActionFilter ?? appliedAction) === 'AUTH_RATE_LIMITED' ? (
+        <Alert severity="warning" sx={{ mb: { xs: 2, md: 2 }, borderRadius: 2 }}>
+          Estos eventos confirman el <strong>rate limit</strong> del servidor (HTTP 429). Espere unos 10 minutos o
+          reinicie el backend en desarrollo antes de volver a intentar login. La columna «Documento / recurso» muestra
+          la ruta bloqueada (p. ej. <code>POST /api/v1/auth/login</code>).
         </Alert>
       ) : null}
 
