@@ -2,7 +2,7 @@
 
 **Proyecto:** Sistema de Gestión Documental (SGD) para el **Gobierno Autónomo Descentralizado Parroquial Rural de La Merced** (GADPR-LM).  
 **Uso:** referencia única de siglas, conceptos de negocio, seguridad, base de datos y stack técnico del repositorio.  
-**Última revisión:** 2026-05-26 — alineado con código y documentación en `docs/`.
+**Última revisión:** 2026-05-27 — alineado con código y documentación en `docs/` (UI honesta: `45-principio-ui-controles-reales.md`).
 
 ---
 
@@ -317,6 +317,9 @@ Los términos están agrupados por tema. Dentro de cada grupo van en orden alfab
 | **Responsive** | Diseño adaptable a distintos anchos de pantalla (móvil, tablet, escritorio). |
 | **SafeArea / teclado** | Ajustes de UI para notch y teclado virtual en formularios (buenas prácticas móvil). |
 | **Tablón / panel** | Vista resumen o dashboard tras login (`DASHBOARD_SUMMARY`). |
+| **Indicadores operativos de seguridad** | Barras del panel ADMIN calculadas con datos reales (p. ej. últimos 30 días); cada una declara qué mide. **No** son certificación ISO ni auditoría externa. |
+| **Registrar revisión** | Acción en `/admin/configuracion` que guarda notas institucionales y una instantánea de controles verificados (`SECURITY_POLICY_UPDATED`); no cambia `.env` ni runtime por sí sola. |
+| **Control verificable (UI)** | Elemento visible solo si el servidor lo aplica, mide o registra con evidencia; ver principio en doc `45`. |
 
 ---
 

@@ -515,8 +515,8 @@ export function UsuariosPage() {
               Usuarios y roles · GADPR-LM · Sistema de Gestión Documental
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Ciclo de vida de cuentas y matriz RBAC de referencia, con alcance institucional (ISO/IEC 27001, gestión de
-              registros, OWASP ASVS).
+              Ciclo de vida de cuentas, roles y permisos efectivos en el sistema. La matriz muestra qué puede
+              hacer cada rol según las reglas actuales del servidor.
             </Typography>
           </Stack>
         }
@@ -607,7 +607,7 @@ export function UsuariosPage() {
             <SectionLetterHeader
               letter="U"
               title="Usuarios institucionales"
-              subtitle="Identidades institucionales · roles RBAC · estado activo/inactivo"
+              subtitle="Identidades institucionales · roles · estado activo/inactivo"
             />
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
               <Chip

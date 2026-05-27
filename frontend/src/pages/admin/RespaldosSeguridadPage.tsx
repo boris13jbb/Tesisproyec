@@ -76,7 +76,7 @@ function formatLastVerificationHeadline(iso: string | null): {
     return {
       headline: 'Sin registro OK',
       detail:
-        'Aún no hay un evento BACKUP_VERIFIED con resultado OK en auditoría. Use “Registrar verificación” tras el procedimiento.',
+        'Aún no hay una verificación de respaldo exitosa en auditoría. Use “Registrar verificación” tras el procedimiento.',
     };
   }
   const d = new Date(iso);
@@ -94,12 +94,12 @@ function formatLastVerificationHeadline(iso: string | null): {
   const yod = new Date(sod);
   yod.setDate(yod.getDate() - 1);
   if (d >= sod) {
-    return { headline: `Hoy ${time}`, detail: 'Último BACKUP_VERIFIED OK en auditoría.' };
+    return { headline: `Hoy ${time}`, detail: 'Última verificación de respaldo exitosa registrada.' };
   }
   if (d >= yod) {
-    return { headline: `Ayer ${time}`, detail: 'Último BACKUP_VERIFIED OK en auditoría.' };
+    return { headline: `Ayer ${time}`, detail: 'Última verificación de respaldo exitosa registrada.' };
   }
-  return { headline: `${date} · ${time}`, detail: 'Último BACKUP_VERIFIED OK en auditoría.' };
+  return { headline: `${date} · ${time}`, detail: 'Última verificación de respaldo exitosa registrada.' };
 }
 
 function formatTableDate(iso: string): string {
@@ -238,7 +238,7 @@ export function RespaldosSeguridadPage() {
     if (total === 0) {
       return {
         headline: 'N/D',
-        detail: 'Sin eventos BACKUP_VERIFIED en los últimos 90 días.',
+        detail: 'Sin verificaciones de respaldo registradas en los últimos 90 días.',
         color: '#64748b' as const,
       };
     }
@@ -318,8 +318,8 @@ export function RespaldosSeguridadPage() {
         severity: 'success',
         text:
           regOutcome === 'FAIL'
-            ? 'Fallo registrado en auditoría (BACKUP_VERIFIED / FAIL).'
-            : 'Verificación registrada (BACKUP_VERIFIED / OK). La tabla se actualiza desde auditoría.',
+            ? 'Fallo registrado en auditoría.'
+            : 'Verificación registrada en auditoría. El historial se actualiza automáticamente.',
       });
       setRegNotes('');
       setRegTamLabel('');
@@ -428,9 +428,9 @@ export function RespaldosSeguridadPage() {
           de archivos); guía: <strong>scripts/README-backups-mysql-xampp.md</strong>.
         </Typography>
         <Typography variant="body2" sx={{ mt: 1 }}>
-          Las tarjetas y la tabla leen <strong>auditoría real</strong> (<code>BACKUP_VERIFIED</code>, OK/FAIL) por registro manual
-          o por el job automático. Los artefactos (.sql / .zip) quedan en disco según <code>BACKUP_OUTPUT_DIR</code>, no en la base
-          de datos.
+          Las tarjetas y el historial muestran <strong>verificaciones registradas en auditoría</strong> (éxito o fallo),
+          ya sea por registro manual o por el proceso automático del servidor. Los archivos de copia (.sql / .zip) se
+          guardan en el servidor, no dentro de esta pantalla.
         </Typography>
       </Alert>
 
@@ -569,7 +569,7 @@ export function RespaldosSeguridadPage() {
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {overviewError
-                  ? 'No se pudo leer `GET /dashboard/admin/backup-overview`.'
+                  ? 'No se pudo cargar el resumen de respaldos desde el servidor.'
                   : overviewLoading
                     ? 'Cargando…'
                     : lastCard.detail}
@@ -646,7 +646,7 @@ export function RespaldosSeguridadPage() {
             Historial de respaldos
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Eventos <code>BACKUP_VERIFIED</code> en auditoría (hasta 50 más recientes)
+            Verificaciones de respaldo registradas en auditoría (hasta 50 más recientes)
           </Typography>
           <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 480 }}>
@@ -768,19 +768,18 @@ export function RespaldosSeguridadPage() {
             sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
           >
             <Button
-              variant="contained"
-              color="error"
+              variant="outlined"
               onClick={() => setRestoreOpen(true)}
               sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
             >
-              Restaurar copia
+              Ver procedimiento de restauración
             </Button>
             <Button
               variant="outlined"
               onClick={() => setTestOpen(true)}
               sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
             >
-              Probar respaldo
+              Cómo probar un respaldo
             </Button>
           </Stack>
         </Paper>

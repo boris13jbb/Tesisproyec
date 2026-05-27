@@ -1647,7 +1647,7 @@ export function DocumentoDetallePage() {
                         value="—"
                       />
                       <Typography variant="caption" color="text.secondary" sx={{ mt: -0.5, mb: 1 }}>
-                        Plazo formal no modelado en el sistema.
+                        Plazo de conservación no registrado en el catálogo.
                       </Typography>
                       <MetaRow label="Registrado por" value={doc.createdBy.email} />
                     </Stack>

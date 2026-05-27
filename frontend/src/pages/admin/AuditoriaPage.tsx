@@ -464,9 +464,9 @@ export function AuditoriaPage() {
 
       {(urlActionFilter ?? appliedAction) === 'AUTH_RATE_LIMITED' ? (
         <Alert severity="warning" sx={{ mb: { xs: 2, md: 2 }, borderRadius: 2 }}>
-          Estos eventos confirman el <strong>límite temporal de intentos</strong> del servidor. Espere unos 10
-          minutos o reinicie el backend en desarrollo antes de volver a intentar login. La columna «Documento /
-          recurso» indica la ruta afectada (solo referencia técnica para soporte).
+          Estos eventos confirman el <strong>límite temporal de intentos</strong> en la pantalla de ingreso. Espere
+          unos 10 minutos antes de volver a intentar. Si el bloqueo continúa, contacte al responsable técnico del
+          sistema.
         </Alert>
       ) : null}
 

@@ -1,8 +1,21 @@
 # Diseño UI/UX — Sistema web institucional de gestión documental (SGD-GADPR-LM)
 
-**Versión:** 1.0 (**coherencia con implementación revisada:** 2026-05-06; detalle funcional en `27`, `28`, snapshot `docs/README.md`)  
-**Ámbito:** Interfaz y experiencia de usuario alineadas con **ISO/IEC 27001:2022**, **ISO 15489** y **OWASP ASVS**.  
+**Versión:** 1.1 (**coherencia con implementación revisada:** 2026-05-27; detalle funcional en `27`, `45`, snapshot `docs/README.md`)  
+**Ámbito:** Interfaz y experiencia de usuario alineadas con **ISO/IEC 27001:2022**, **ISO 15489** y **OWASP ASVS** como **referencia de diseño** (no certificación en pantalla).  
 **Uso:** Referencia para implementación en frontend (MUI + React), pruebas con usuarios y sustento de tesis.
+
+---
+
+## 0. Principio obligatorio — solo controles reales
+
+Documento normativo breve: **[45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md)**.
+
+Resumen para diseño e implementación:
+
+1. **No** etiquetar barras del panel como «cumplimiento ISO» ni mostrar logos de normas en splash.
+2. **No** ofrecer formularios que el backend no aplica (política editable, MFA/historial de contraseñas pendientes).
+3. **Sí** mostrar valores efectivos en solo lectura, indicadores con **definición de la métrica**, y acciones que ejecutan o registran evidencia (`Registrar revisión`, mysqldump, verificación de respaldo).
+4. Códigos técnicos (`GET /…`, `BACKUP_VERIFIED`) en auditoría, tooltips o documentación técnica — no en el texto principal del usuario.
 
 ---
 
@@ -166,12 +179,14 @@ En rutas profundas: `Inicio > Documentos > Detalle`. Deben reflejar la jerarquí
 
 ## 7. Cumplimiento normativo vía UI/UX
 
+> La UI **apoya** controles verificables; **no** sustituye certificación ni auditoría externa. Los porcentajes del panel son **indicadores operativos** (ver §0 y doc `45`).
+
 ### ISO/IEC 27001:2022
 
 - Control de acceso **visible** (rol, solo lectura).  
 - **Sesión** gestionada con avisos cuando se implemente caducidad.  
 - **Alertas** sin datos sensibles en notificaciones.  
-- **Auditoría** legible para roles autorizados.
+- **Auditoría** legible para roles autorizados (etiquetas en lenguaje claro).
 
 ### ISO 15489
 

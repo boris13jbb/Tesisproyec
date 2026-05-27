@@ -13,6 +13,8 @@ Aplicación web para gestión documental institucional digitalizada (caso de est
 
 Documentación viva: carpeta **`docs/`** (índice en `docs/README.md`). Comandos de ejecución local: **`docs/42-comandos-ejecucion-manual.md`**.
 
+**UI (2026-05-27):** la interfaz muestra solo controles que el servidor aplica o puede medir; ver **`docs/45-principio-ui-controles-reales.md`** y el manual **`docs/27-manual-usuario-sgd-gadpr-lm.md`**.
+
 ## Requisitos
 
 - Node.js LTS

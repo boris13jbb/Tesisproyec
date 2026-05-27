@@ -1,6 +1,6 @@
 # Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
 
-**Versión del manual:** 2026-05-08 (snapshot `docs/README.md`; carga diferida + precarga tras login + LCP auditado para ADMIN)  
+**Versión del manual:** 2026-05-27 (UI honesta: solo controles verificables; ver `docs/45-principio-ui-controles-reales.md`)  
 **Audiencia:** personal institucional (usuario final), administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores (pruebas).  
 
 ---
@@ -10,6 +10,10 @@
 Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GADPR-LM desde el primer ingreso hasta el registro, consulta, adjuntos y trazabilidad de documentos.
 
 > Importante: varias acciones están restringidas por rol. Los flujos administrativos y de catálogo recaen sobre **`ADMIN`**. La **revisión/aprobación** documental (**R‑28**) la ejecutan **`ADMIN`** o **`REVISOR`**.
+
+### 0.1 Qué muestra la interfaz (controles reales)
+
+La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acceso, auditoría, respaldos registrados, validaciones). No aparecen opciones “de política futura” que el servidor aún no ejecuta. Los porcentajes del panel principal son **indicadores operativos** calculados desde datos del sistema; **no** equivalen a una certificación ISO ni a una auditoría externa. El detalle técnico para soporte suele estar en secciones colapsables o en documentación del proyecto.
 
 ---
 
@@ -36,7 +40,7 @@ Este manual describe **paso a paso y con detalle** cómo usar el sistema SGD-GAD
 ### 1.5 Precarga en segundo plano y métrica LCP (panel principal)
 
 - Con sesión iniciada el sistema puede, cuando el navegador está menos ocupado, **precargar** en segundo plano el código y datos más usados (panel **`/`**, lista **`/documentos`** por defecto, **`/perfil`**). Es normal observar peticiones paralelas sin haber pulsado esos menús todavía; no cambia permisos ni datos visibles hasta que abras cada pantalla.
-- Al cargar el **panel principal**, el cliente puede registrar una métrica de rendimiento (**LCP**) en auditoría (**`CLIENT_WEB_VITAL_LCP`**), visible para **ADMIN** en **Auditoría** junto al resto de acciones del sistema.
+- Al cargar el **panel principal**, el sistema puede registrar en auditoría una medición de rendimiento de la pantalla (visible para **ADMIN** en **Auditoría** como evento técnico de carga).
 
 ---
 
@@ -127,7 +131,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta roja, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
 - **Ocultar tras revisar**: debajo de las tarjetas KPI, si hay alertas del servidor, aparece el bloque **«Ocultar alertas del panel»** con el botón **Marcar como revisada** por cada señal. Eso **no borra** los registros de auditoría; solo deja de mostrar esa alerta en el panel hasta que ocurra actividad **nueva** (otro 403/login fallido posterior, más documentos en revisión que al descartar, o respaldo verificado registrado). La acción queda en auditoría como **`DASHBOARD_ALERT_ACK`**.
-- **Cumplimiento de seguridad (solo `ADMIN`)**: barras calculadas con métricas de los últimos 30 días (no son valores ficticios), más el bloque de **último respaldo verificado** y última línea auditada en el mismo panel.
+- **Indicadores operativos de seguridad (solo `ADMIN`)**: barras con métricas de los últimos 30 días (cada una indica **qué mide**; no son certificación ISO), aviso de que son proxies operativos, más **último respaldo verificado** y última línea auditada en el mismo panel.
 - **Estado del servicio (solo `ADMIN`)**: confirmación de API y base de datos; el enlace rápido **Ir a documentos** aparece dentro de ese bloque. Los usuarios sin rol administrador pueden ir a documentos desde el menú o desde **Ver documentos** en la tabla de expedientes recientes.
 - **Comprobación de rol administrador** (si aplica): indicador de acceso ADMIN.
 
@@ -500,7 +504,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
    - Descargar inventario en **PDF / XLSX** (respeta filtros aplicados; el XLSX permite acotar también por **Área** mediante `dependenciaId` en servidor).
    - Descargar **Actividad por usuario** como PDF de **auditoría** (solo rango de fechas del periodo, sin filtro de tipo/área).
    - **Trazabilidad por documento:** use el detalle del expediente (**Cómo consultar** explica la ruta dentro del sistema).
-   - **Cumplimiento de respaldos:** botón **Abrir** lleva a la pantalla de respaldos (procedimiento documentado fuera del SGD).
+   - **Verificaciones de respaldo:** atajo a la pantalla **Respaldos** (procedimiento documentado fuera del SGD).
 
 **Posibles fallos**
 
@@ -512,16 +516,17 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 ## 13. Configuración de seguridad (solo ADMIN)
 
 1. Menú lateral → **Administración** → **Configuración** (ruta `/admin/configuracion`).
-2. La pantalla muestra:
-   - **Estado efectivo** (lo que el backend aplica hoy) leído desde `GET /auth/admin/security-summary`.
-   - **Política institucional** (valores deseados) persistida como registro en base de datos con `GET /auth/admin/security-policy`.
-3. Ajuste los valores deseados (p. ej. longitud mínima, bloqueo por intentos, caducidad JWT deseada) y presione **Guardar política**.
-4. Al guardar, el sistema registra auditoría `SECURITY_POLICY_UPDATED` y conserva el contexto (actor, fecha/hora, IP si aplica).
+2. La pantalla tiene dos columnas:
+   - **Autenticación y acceso:** solo muestra valores **que el servidor aplica hoy** (longitud mínima de contraseña, bloqueo de cuenta, sesión, límite de intentos en login). **No** permite cambiar esos valores desde la web; el ajuste técnico corresponde a la configuración del servidor.
+   - **Protecciones del sistema:** medidas activas (validación, sesión segura, archivos, etc.). El icono ℹ️ muestra detalle técnico para soporte.
+3. Para dejar constancia de una **revisión institucional** (ISO 15489), escriba notas al final de la columna izquierda y pulse **Registrar revisión**.
+4. Debe aparecer el mensaje *Revisión registrada. La constancia quedó en auditoría junto con el estado verificado del servidor.*
 
 **Importante**
 
-- Guardar la política institucional **no cambia automáticamente** el runtime si el control no está implementado (ej. historial de contraseñas o step-up ADMIN). La pantalla muestra **Efectivo vs Deseado** para evitar falsas expectativas.
-- El mínimo de contraseña efectivo hoy está alineado a **8 caracteres** (DTO servidor), aunque la política deseada pueda definirse distinta.
+- No aparecen opciones que el sistema aún no ejecuta (historial de contraseñas, segundo factor administrativo, etc.).
+- El límite de intentos en la pantalla de ingreso es **distinto** del bloqueo de cuenta; ambos se listan en la columna izquierda.
+- El mínimo de contraseña suele ser **8 caracteres** al crear usuarios o restablecer clave.
 
 ---
 

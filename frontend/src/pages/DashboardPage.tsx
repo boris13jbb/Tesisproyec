@@ -554,7 +554,7 @@ export function DashboardPage() {
       items.push({
         codigo: 'ADMIN_PING_FALLIDO',
         mensaje:
-          'No se pudo verificar el permiso de administrador (falló GET /admin/ping; token o red).',
+          'No se pudo verificar el permiso de administrador (sesión o conexión con el servidor).',
       });
     }
     return items;
@@ -950,11 +950,11 @@ export function DashboardPage() {
                 </Box>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                    Cumplimiento de seguridad
+                    Indicadores operativos de seguridad
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Porcentajes calculados con métricas reales de los últimos 30 días (ver evidencia en
-                    API)
+                    Porcentajes desde auditoría y datos del sistema (últimos 30 días). No sustituyen una
+                    certificación ISO ni una auditoría externa.
                   </Typography>
                 </Box>
               </Stack>
@@ -1052,7 +1052,8 @@ export function DashboardPage() {
               Comprobación de rol administrador
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Ruta protegida en backend: <code>GET /api/v1/admin/ping</code> (JWT + rol ADMIN).
+              El sistema comprueba que su cuenta tiene permisos de administrador antes de mostrar funciones
+              sensibles.
             </Typography>
             {adminOk === null && !adminError && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>

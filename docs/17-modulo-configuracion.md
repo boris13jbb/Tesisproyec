@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Parámetros del sistema (plazos, tamaños máximos, listas auxiliares) gestionables según rol administrativo.
+Parámetros del sistema (plazos, tamaños máximos, listas auxiliares) gestionables según rol administrativo, y **transparencia** de controles de seguridad verificables.
 
 ## Alcance
 
@@ -17,101 +17,90 @@ Este repositorio implementa configuración **administrativa** en dos frentes:
 - **Configuración de seguridad (ADMIN)**: pantalla **`/admin/configuracion`**.
 - **Respaldos y seguridad (ADMIN)**: pantalla **`/admin/respaldos`** (ejecución manual de mysqldump + registro de verificación auditable).
 
-> Distinción clave: la pantalla de configuración de seguridad separa (1) el **estado efectivo** (lo que el backend aplica hoy con `.env`, guards y validaciones) y (2) la **política institucional** persistida como **registro** en BD (ISO 15489), que no necesariamente altera el runtime automáticamente.
+> **Principio de UI (2026-05-27):** ver [45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md). La pantalla de seguridad **no** ofrece campos editables que no cambien el runtime; muestra lo que el servidor aplica y permite **Registrar revisión** (notas + instantánea en auditoría).
 
 ## Decisiones técnicas
 
 - Secretos solo en variables de entorno (`18`, `02`).
   - Ejemplos: `JWT_ACCESS_SECRET`, `DATABASE_URL`, SMTP, rutas a `mysqldump`.
-- Parámetros “no secretos” sí pueden persistirse como **registros** auditables (ISO 15489), con trazabilidad `updatedBy` y timestamp.
+- Parámetros “no secretos” pueden persistirse como **registros** auditables (ISO 15489), con trazabilidad `updatedBy` y timestamp.
 
 ## Pantallas
 
-- Panel de configuración (alcance acordado con director de tesis).
+### Pantalla `/admin/configuracion` — Parámetros de seguridad
 
-### Pantallas implementadas (ADMIN)
+**Columna izquierda — Autenticación y acceso (solo lectura)**
 
-- **`/admin/configuracion`**: “Parámetros de seguridad”.
-  - Lee:
-    - `GET /api/v1/auth/admin/security-summary` (estado efectivo).
-    - `GET /api/v1/auth/admin/security-policy` (política institucional guardada).
-  - Guarda:
-    - `POST /api/v1/auth/admin/security-policy` (actualiza `security_policy` y audita `SECURITY_POLICY_UPDATED`).
+Tarjetas con valores **en uso hoy**, leídos de `GET /api/v1/auth/admin/security-summary`:
 
-- **`/admin/respaldos`**: “Respaldos de información”.
-  - Lee:
-    - `GET /api/v1/dashboard/admin/backup-overview` (KPI + historial desde `audit_logs`).
-  - Acciones:
-    - `POST /api/v1/backup/admin/run-now` (ejecuta mysqldump “como el cron”; puede tardar varios minutos).
-    - `POST /api/v1/dashboard/admin/backup-verification` (registra evidencia `BACKUP_VERIFIED` OK/FAIL).
+- Longitud mínima de contraseña (aplicada al crear usuarios y restablecer clave).
+- Bloqueo por contraseña incorrecta (intentos y minutos).
+- Duración de sesión y días de “mantener sesión” en el equipo.
+- Límite de intentos en la pantalla de ingreso (throttle por conexión).
 
-Guía operativa de respaldo/restauración (local/XAMPP): `scripts/README-backups-mysql-xampp.md`.
+Aviso explícito: bloqueo y sesión se ajustan en **configuración del servidor** (`.env`), no desde esta pantalla.
+
+**Registro de revisión institucional**
+
+- Campo de **notas** + botón **Registrar revisión**.
+- `POST /api/v1/auth/admin/security-policy` guarda notas y una instantánea de los valores efectivos; audita **`SECURITY_POLICY_UPDATED`**.
+- **No** sustituye cambiar `.env` ni desarrollo pendiente (historial de contraseñas, MFA admin: **no implementados**, **no mostrados**).
+
+**Columna derecha — Protecciones del sistema**
+
+Lista de controles activos en el despliegue (validación, sesión, navegador, archivos). Badge **Activa** / **No activo**. Detalle técnico (ASVS, JWT, etc.) solo en tooltip ℹ️.
+
+### Pantalla `/admin/respaldos` — Respaldos y seguridad
+
+| Acción | ¿Ejecuta en servidor? |
+|--------|------------------------|
+| Ejecutar mysqldump ahora | Sí (`POST /backup/admin/run-now`) |
+| Registrar verificación | Sí (auditoría) |
+| Ver procedimiento de restauración | No (diálogo orientativo) |
+| Cómo probar un respaldo | No (diálogo orientativo) |
+
+Textos de usuario sin códigos `BACKUP_VERIFIED`; el código de acción permanece en auditoría para soporte.
+
+Guía operativa: `scripts/README-backups-mysql-xampp.md`.
 
 ---
 
-## Qué falta para empezar a desarrollar (backlog accionable)
+## Endpoints (ADMIN)
 
-### 1) Completar configuración general (parámetros NO secretos)
+**Seguridad / respaldos (implementados):**
 
-Parámetros recomendados para un SGD institucional:
-
-**Archivos**
-- `MAX_UPLOAD_MB` (ej. 10)
-- `ALLOWED_MIME_TYPES` (lista blanca)
-- `ALLOWED_EXTENSIONS` (lista blanca)
-
-**Sesión y autenticación**
-- `JWT_ACCESS_EXPIRES` (ya existe como env)
-- `JWT_REFRESH_DAYS` (ya existe como env)
-- `PASSWORD_RESET_MINUTES` (ya existe como env o definir)
-- Throttling (**implementado:** `ThrottlerModule` + `@Throttle` en `/auth`; ver `18-seguridad-y-hardening.md`). Umbrales “institucionales” parametrizados en BD serían una evolución de este módulo.
-
-**Auditoría**
-- `AUDIT_RETENTION_DAYS`
-- `AUDIT_EXPORT_ENABLED`
-
-**Documentos (ISO 15489)**
-- catálogo de `ESTADOS_DOCUMENTO` (si se formaliza)
-- `RETENTION_POLICIES` (si se implementa conservación/retención)
-
-### 2) Modelo de persistencia (estado actual y recomendado)
-
-**Estado actual:** existe tabla `security_policy` como registro institucional (singleton `id="default"`) y se actualiza desde UI con auditoría.
-
-**Evolución recomendada:** crear tabla `system_settings`:
-- `key` (string unique)
-- `value_json` (json/text)
-- `updated_by_id`
-- `updated_at`
-
-Reglas:
-- No guardar secretos (tokens, passwords, llaves) aquí.
-- Cambios deben generar evento en auditoría transversal (`SETTINGS_UPDATED`).
-
-### 3) Endpoints (ADMIN)
-
-**Implementados (seguridad / respaldos):**
-
-- `GET /api/v1/auth/admin/security-summary` (ADMIN)
-- `GET /api/v1/auth/admin/security-policy` (ADMIN)
-- `POST /api/v1/auth/admin/security-policy` (ADMIN)
-- `GET /api/v1/dashboard/admin/backup-overview` (ADMIN)
-- `POST /api/v1/dashboard/admin/backup-verification` (ADMIN)
-- `POST /api/v1/backup/admin/run-now` (ADMIN)
+| Método | Ruta | Uso |
+|--------|------|-----|
+| GET | `/api/v1/auth/admin/security-summary` | Controles efectivos (UI lectura) |
+| GET | `/api/v1/auth/admin/security-policy` | Último registro + notas |
+| POST | `/api/v1/auth/admin/security-policy` | Registrar revisión |
+| GET | `/api/v1/dashboard/admin/backup-overview` | KPI e historial verificaciones |
+| POST | `/api/v1/dashboard/admin/backup-verification` | Registrar verificación manual |
+| POST | `/api/v1/backup/admin/run-now` | Volcado MySQL manual |
 
 **Futuro (configuración general):**
 
-- `GET /api/v1/configuracion` (ADMIN) — lista de settings (no secretos)
-- `PATCH /api/v1/configuracion` (ADMIN) — actualizar settings permitidos (validación estricta por `key`)
+- `GET /api/v1/configuracion` — settings no secretos (tabla `system_settings` propuesta).
+- `PATCH /api/v1/configuracion` — actualización validada por clave.
 
-### 4) UI (ADMIN)
+---
 
-Ruta sugerida: `/admin/configuracion`
-- Sección Archivos (límite, MIME, extensiones)
-- Sección Sesión (expiraciones informativas)
-- Sección Auditoría (retención/export)
+## Qué falta (backlog)
 
-### 5) Validaciones y seguridad
+### Configuración general (`system_settings`)
 
-- Validación server-side estricta por `key` (no aceptar claves arbitrarias).
-- Registrar cambios con actor + IP/UA si aplica.
+Parámetros recomendados: `MAX_UPLOAD_MB`, `ALLOWED_MIME_TYPES`, `AUDIT_RETENTION_DAYS`, políticas de retención documental en catálogo, etc.
+
+### Controles de seguridad avanzados (código + UI)
+
+- Historial de contraseñas (rechazar reuso).
+- MFA / step-up para administradores.
+- Aplicar valores de `security_policy` al runtime sin depender solo de `.env` (diseño explícito requerido).
+
+---
+
+## Validaciones y seguridad
+
+- Validación server-side estricta en endpoints existentes.
+- Registrar cambios con actor + IP/UA en auditoría.
+- Fail secure: no exponer secretos ni stack traces en UI.

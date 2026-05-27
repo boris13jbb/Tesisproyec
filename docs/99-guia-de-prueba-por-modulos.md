@@ -56,7 +56,26 @@ ISO/IEC 27001:2022, ISO 15489, OWASP ASVS.
 3. (Opcional) Ejecutar “run now” si está habilitado.
 4. Confirmar que el dashboard refleja el último OK y el historial.
 
-### 6) Rendimiento post-login (prefetch + LCP panel)
+### 6) Panel principal — indicadores operativos (solo ADMIN)
+
+Referencias: `docs/45-principio-ui-controles-reales.md`, manual § 4.1.
+
+1. Iniciar sesión como **ADMIN** y abrir **Inicio** (`/`).
+2. Confirmar título **Indicadores operativos de seguridad** (no «Cumplimiento ISO») y aviso de que no es certificación.
+3. Revisar que cada barra tiene subtítulo que explica **qué mide** (últimos 30 días).
+4. Si hay alertas, usar **Marcar como revisada** y comprobar que desaparecen del panel (auditoría `DASHBOARD_ALERT_ACK`).
+
+### 7) Configuración de seguridad (solo ADMIN)
+
+Referencias: `docs/17-modulo-configuracion.md`, manual § 13.
+
+1. Abrir `/admin/configuracion`.
+2. Confirmar columna izquierda **solo lectura** (sin campos numéricos editables).
+3. Escribir notas y pulsar **Registrar revisión** → mensaje de éxito.
+4. En **Auditoría**, filtrar `SECURITY_POLICY_UPDATED` y verificar fila con notas.
+5. Confirmar que **no** aparecen MFA ni historial de contraseñas.
+
+### 8) Rendimiento post-login (prefetch + LCP panel)
 Referencias: `docs/40-rendimiento-post-login-web-vitals.md`, manual § 1.5.
 
 1. Con sesión iniciada, esperar ~2–3 s sin navegar lejos (precarga en idle).

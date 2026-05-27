@@ -2,7 +2,7 @@
 
 Índice de la carpeta `docs/`. Los documentos se actualizan **en cada iteración** que toque el área correspondiente.
 
-## Estado del sistema (snapshot — 2026-05-08)
+## Estado del sistema (snapshot — 2026-05-27)
 
 Vista rápida del **código** frente a estos documentos. Lista de brechas y matriz 1–45: **`28-listado-lo-que-deberia-tener-el-sistema.md`**. Línea temporal de cambios: **`22-changelog-tecnico.md`**.
 
@@ -16,6 +16,7 @@ Pendientes de alineación documental detectados durante la revisión: **`41-pend
 | **Notificaciones** | Correo SMTP opcional (nodemailer) en envío a revisión y al resolver (ver `12`, `28` R-44); sin SMTP el flujo sigue. |
 | **Auditoría** | `audit_logs`; API `GET /auditoria` (ADMIN); UI **`/admin/auditoria`**; `AUTHZ_FORBIDDEN` en 403 autenticados; export Excel/PDF de auditoría. |
 | **Reportes** | Documentos y auditoría → Excel/PDF (**ADMIN**); **pendientes de revisión** → Excel/PDF (**ADMIN** + **REVISOR**); cada export genera `REPORT_EXPORTED`. |
+| **UI institucional** | Solo controles **verificables** en pantalla; indicadores del panel = proxies operativos (30 días), no certificación ISO — ver **`45-principio-ui-controles-reales.md`**. |
 | **Arranque dev** | En `backend/`, `npm run start:dev` ejecuta `tsbuildinfo:clean` antes de `nest start --watch` para evitar salida `dist` inconsistente en Windows. |
 
 Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden incorporar una nota que remite a este snapshot y a `22`/`28` para cambios posteriores al cierre formal.
@@ -73,6 +74,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [22-changelog-tecnico.md](./22-changelog-tecnico.md) | Historial técnico y sesiones ngrok |
 | [23-entorno-local-xampp-ngrok.md](./23-entorno-local-xampp-ngrok.md) | XAMPP, puertos, ngrok |
 | [25-ui-ux-diseno-sistema-institucional.md](./25-ui-ux-diseno-sistema-institucional.md) | UI/UX institucional, IA, design system, ISO/ASVS |
+| [45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md) | **Principio UI** — solo controles reales; qué no mostrar hasta implementar |
 | [26-cloudflared-tunnel.md](./26-cloudflared-tunnel.md) | Exposición temporal del frontend (Vite) con cloudflared |
 | [28-listado-lo-que-deberia-tener-el-sistema.md](./28-listado-lo-que-deberia-tener-el-sistema.md) | Gap vs checklist institucional (1–45) |
 | [40-rendimiento-post-login-web-vitals.md](./40-rendimiento-post-login-web-vitals.md) | Prefetch post-login, LCP del panel y registro RUM (antes/después) |
@@ -84,6 +86,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 |---------|-----------|
 | [43-glosario-terminos.md](./43-glosario-terminos.md) | **Glosario** — siglas, términos técnicos y de negocio con definiciones |
 | [44-guia-secciones-menu-navegacion.md](./44-guia-secciones-menu-navegacion.md) | **Guía del menú lateral** — qué hay en cada sección y cómo funciona |
+| [45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md) | Principio UI — solo controles reales |
 | [27-manual-usuario-sgd-gadpr-lm.md](./27-manual-usuario-sgd-gadpr-lm.md) | Manual de usuario (paso a paso) |
 | [etapa-0-auditoria-inicial-y-diagnostico.md](./etapa-0-auditoria-inicial-y-diagnostico.md) | Informe de auditoría ETAPA 0 (**histórico 2026-04-19**); ver `29` para cierre vigente |
 

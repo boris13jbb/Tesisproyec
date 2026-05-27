@@ -23,7 +23,7 @@ export type AccessMatrixFila = {
 export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   {
     modulo: 'Inicio / panel',
-    ayuda: 'Panel con JWT',
+    ayuda: 'Panel principal tras iniciar sesión',
     porRol: {
       ADMIN: true,
       REVISOR: true,
@@ -35,7 +35,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Consulta documental (ámbitos del servidor)',
-    ayuda: 'Listado/detalle/exportaciones filtradas según reglas del documento',
+    ayuda: 'Listado, detalle y exportaciones según permisos del documento',
     porRol: {
       ADMIN: true,
       REVISOR: true,
@@ -47,7 +47,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Alta/edición/eliminaciones administrativas de documento',
-    ayuda: 'POST/PATCH documento y adjuntos',
+    ayuda: 'Crear y modificar expedientes y adjuntos (según rol)',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -59,7 +59,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Enviar a revisión (propiedad del registro)',
-    ayuda: 'Flujo cuando el estado lo permite',
+    ayuda: 'Cuando el estado del documento lo permite',
     porRol: {
       ADMIN: true,
       REVISOR: true,
@@ -71,7 +71,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Resolver revisión (aprobar/rechazar)',
-    ayuda: 'POST resolver-revision',
+    ayuda: 'Decisión de revisión en el expediente',
     porRol: {
       ADMIN: true,
       REVISOR: true,
@@ -83,7 +83,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Trámites (tablero) · Clasificación',
-    ayuda: 'Vistas dentro de sesión',
+    ayuda: 'Vistas de organización y seguimiento documental',
     porRol: {
       ADMIN: true,
       REVISOR: true,
@@ -95,8 +95,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Reportes servidor (documentos y auditoría)',
-    ayuda:
-      'GET /reportes/documentos*, /reportes/auditoria* · UI /admin/reportes',
+    ayuda: 'Exportaciones administrativas de inventario y auditoría',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -108,7 +107,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Reporte pendientes de revisión',
-    ayuda: 'GET pendientes-revision.*',
+    ayuda: 'Bandeja de documentos en revisión',
     porRol: {
       ADMIN: true,
       REVISOR: true,
@@ -120,6 +119,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Catálogos (CRUD)',
+    ayuda: 'Dependencias, cargos, tipos y series documentales',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -131,6 +131,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Usuarios / roles',
+    ayuda: 'Alta y administración de cuentas institucionales',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -142,6 +143,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Auditoría del sistema',
+    ayuda: 'Consulta de eventos de seguridad y operación',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -153,7 +155,7 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Respaldos y seguridad',
-    ayuda: 'Pantalla ADMIN /admin/respaldos',
+    ayuda: 'Registro de verificación de copias y procedimiento documentado',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -164,8 +166,8 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
     },
   },
   {
-    modulo: 'Configuración de seguridad (solo lectura UI)',
-    ayuda: '/admin/configuracion · GET /auth/admin/security-summary',
+    modulo: 'Configuración de seguridad',
+    ayuda: 'Consulta de controles en uso y registro de revisiones',
     porRol: {
       ADMIN: true,
       REVISOR: false,
@@ -178,8 +180,8 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
 ];
 
 export type AccessMatrixReferenceDto = {
-  columnas: AccessMatrixColumna[];
-  filas: AccessMatrixFila[];
+  columnas: readonly string[];
+  filas: Array<{ modulo: string; ayuda?: string; porRol: Record<string, boolean> }>;
   nota: string;
   generadoEn: string;
 };
@@ -192,7 +194,8 @@ export function buildAccessMatrixReference(): AccessMatrixReferenceDto {
       ...(f.ayuda != null ? { ayuda: f.ayuda } : {}),
       porRol: { ...f.porRol },
     })),
-    nota: 'Referencia efectiva según código del backend; no es matriz editable. La asignación de capacidades es por roles de usuario en la tabla de la izquierda.',
+    nota:
+      'Referencia de capacidades por rol según reglas actuales del servidor. No sustituye políticas corporativas de identidad.',
     generadoEn: new Date().toISOString(),
   };
 }

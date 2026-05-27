@@ -30,12 +30,6 @@ export type AdminSecuritySummary = {
   /** Caducidad del access token JWT (p. ej. `15m`, `1h`). No sustituye política de idle en servidor stateless. */
   jwtAccessExpiresIn: string;
   refreshSessionDays: number;
-  passwordReuseHistory: {
-    implemented: boolean;
-    /** Placeholder si existiera política de reuso. */
-    lastPasswordsRemembered: number;
-  };
-  adminStepUpAuth: { implemented: boolean };
   applicationControls: {
     helmetEnabled: boolean;
     globalValidationPipe: boolean;
@@ -1006,11 +1000,6 @@ export class AuthService {
       jwtAccessExpiresIn:
         this.config.get<string>('JWT_ACCESS_EXPIRES') ?? '15m',
       refreshSessionDays,
-      passwordReuseHistory: {
-        implemented: false,
-        lastPasswordsRemembered: 0,
-      },
-      adminStepUpAuth: { implemented: false },
       applicationControls: {
         helmetEnabled: true,
         globalValidationPipe: true,

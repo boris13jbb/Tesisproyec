@@ -71,7 +71,7 @@ Es el **tablero de bienvenida** después del login. Resume la actividad del sist
 | Tarjetas de totales | Cantidad de **documentos** y **pendientes de revisión** (estado *En revisión*), actualizados desde el servidor. | Todos |
 | Tarjetas **Usuarios** y **Alertas** | Conteos y avisos operativos (revisiones pendientes, 403 recientes, logins fallidos, respaldo sin verificar, salud API/BD). | Solo **ADMIN** |
 | **Actualizar ahora** | Fuerza una nueva consulta al API sin esperar el intervalo automático. | Todos (datos según rol) |
-| **Cumplimiento de seguridad** | Barras con métricas de los últimos 30 días + último respaldo verificado. | Solo **ADMIN** |
+| **Indicadores operativos de seguridad** | Barras con métricas de los últimos 30 días (definición operativa en subtítulo; **no** certificación ISO) + último respaldo verificado. | Solo **ADMIN** |
 | **Estado del servicio** | Comprueba que API y base de datos respondan (`GET /health`). | Solo **ADMIN** |
 | Tabla de **expedientes recientes** | Últimos documentos visibles para el usuario con enlace al detalle. | Todos (filtrado por visibilidad) |
 | Enlace **Ver documentos** | Atajo al listado completo. | Todos |
@@ -404,10 +404,10 @@ Centro de **continuidad y evidencia de copias** de la base de datos (y opcionalm
 |----------|---------|
 | **Ejecutar mysqldump ahora (manual)** | Lanza backup inmediato vía API (`POST /backup/admin/run-now`); genera `.sql` en carpeta configurada (`BACKUP_OUTPUT_DIR`). |
 | **ZIP de storage** (opcional) | Si `BACKUP_INCLUDE_STORAGE_ZIP=true`, empaqueta adjuntos junto al volcado SQL. |
-| **Historial de verificaciones** | Lista eventos **`BACKUP_VERIFIED`** (OK/FAIL), origen Manual/Automático, KPI 90 días. |
+| **Historial de verificaciones** | Lista verificaciones registradas (OK/FAIL), origen Manual/Automático, KPI 90 días (código de auditoría `BACKUP_VERIFIED` solo en export técnico). |
 | **Registrar verificación manual** | Documenta que una copia fue probada o falló (FAIL exige notas/motivo). |
 | **Programación / próximo respaldo** | Muestra hint textual y expresión cron si el backup automático está activo en el servidor. |
-| Diálogos orientativos | *Restaurar* / *Probar respaldo* — guía procedimental (la restauración **no** se hace desde el navegador). |
+| **Ver procedimiento de restauración** / **Cómo probar un respaldo** | Diálogos orientativos; la restauración **no** se ejecuta desde el navegador. |
 
 #### Cómo funciona el backup automático
 
@@ -445,7 +445,7 @@ Módulo de **análisis y exportación agregada** (distinto de los botones Excel/
 | **Inventario PDF / XLSX** | Exporta listado documental según filtros del periodo. |
 | **Actividad por usuario** | PDF de auditoría en el rango de fechas del periodo. |
 | **Trazabilidad por documento** | Enlace/guía hacia detalle del expediente. |
-| **Cumplimiento de respaldos** | Atajo a pantalla **Respaldos**. |
+| **Verificaciones de respaldo** | Atajo a pantalla **Respaldos**. |
 
 #### Cómo funciona
 
@@ -475,19 +475,19 @@ Módulo de **análisis y exportación agregada** (distinto de los botones Excel/
 
 #### Qué hay en esta sección
 
-Panel de **transparencia y gobierno de políticas de seguridad** (no es configuración de catálogos ni de correo).
+Panel de **transparencia** de controles de seguridad **en uso** (no es configuración de catálogos ni de correo). Ver también [45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md).
 
 | Bloque | Contenido |
 |--------|-----------|
-| **Estado efectivo** | Lo que el backend **aplica hoy** (lectura desde `GET /auth/admin/security-summary`): JWT, lockout, longitud mínima real, etc. |
-| **Política institucional (deseada)** | Valores que la institución quiere registrar en BD (`security_policy`): longitudes, intentos, caducidades deseadas, etc. |
-| **Guardar política** | Persiste y audita **`SECURITY_POLICY_UPDATED`**. |
+| **Autenticación y acceso (solo lectura)** | Valores que el backend **aplica hoy** (`GET /auth/admin/security-summary`): longitud mínima, bloqueo de cuenta, sesión, límite de intentos en login. |
+| **Registrar revisión** | Notas institucionales + `POST /auth/admin/security-policy` → auditoría **`SECURITY_POLICY_UPDATED`** con instantánea de valores verificados (no edita `.env`). |
+| **Protecciones del sistema** | Lista de medidas activas en el despliegue (badge Activa / No activo); detalle ASVS/JWT en tooltip ℹ️. |
 
 #### Cómo funciona (expectativas correctas)
 
-- Guardar la política **documenta** la intención institucional (ISO 15489 — evidencia de gobierno).
-- **No todos** los campos «deseables» recalculan el runtime al instante: la pantalla contrasta **Efectivo vs Deseado** para evitar confusión.
-- Ejemplo: la política puede pedir 12 caracteres de contraseña, pero el mínimo **efectivo** del DTO puede seguir en 8 hasta que se implemente el enlace completo.
+- **No** hay formulario «política deseada» ni botón **Guardar política** que cambie el runtime.
+- Ajustar bloqueo, JWT o backup automático sigue siendo responsabilidad de **configuración del servidor** (`.env`) y reinicio del backend cuando aplique.
+- **No** se muestran MFA administrativo ni historial de contraseñas hasta que existan en código.
 
 #### Qué no configura esta pantalla
 
@@ -497,7 +497,8 @@ Panel de **transparencia y gobierno de políticas de seguridad** (no es configur
 
 #### Fallos frecuentes
 
-- «Guardé pero no cambió el login»: revisar bloque *Efectivo*; puede requerir desarrollo adicional o variables `.env`.
+- «Registré revisión pero el login sigue igual»: es el comportamiento esperado; la revisión es **evidencia**, no cambio técnico inmediato.
+- Cambiar lockout o duración de sesión: editar `.env` y reiniciar backend, no esta pantalla.
 
 ---
 

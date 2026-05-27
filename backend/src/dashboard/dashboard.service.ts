@@ -488,7 +488,8 @@ export class DashboardService {
       {
         key: 'access_control',
         title: 'Control de acceso',
-        standard: 'ISO 27001 A.5.15',
+        standard:
+          'Proporción de eventos de auditoría sin denegación por permiso (últimos 30 días).',
         percent: clampPercent(accessControlPercent),
         evidence: {
           audit_total_30d: accessTotal,
@@ -498,7 +499,7 @@ export class DashboardService {
       {
         key: 'identity_management',
         title: 'Gestión de identidades',
-        standard: 'ISO 27001 A.5.16',
+        standard: 'Usuarios activos con al menos un rol asignado en el sistema.',
         percent: clampPercent(identityPercent),
         evidence: {
           users_active: usuariosActivos ?? 0,
@@ -508,7 +509,8 @@ export class DashboardService {
       {
         key: 'authentication_information',
         title: 'Información de autenticación',
-        standard: 'ISO 27001 A.5.17 · ASVS V2',
+        standard:
+          'Proporción de inicios de sesión exitosos frente a intentos fallidos (30 días).',
         percent: clampPercent(authSuccessPercent),
         evidence: {
           auth_login_ok_30d: loginOk30d,
@@ -518,7 +520,8 @@ export class DashboardService {
       {
         key: 'document_traceability',
         title: 'Trazabilidad documental',
-        standard: 'ISO 15489',
+        standard:
+          'Documentos con al menos un evento de auditoría en los últimos 30 días.',
         percent: clampPercent(traceabilityPercent),
         evidence: {
           documentos_total: documentosTotal,
@@ -528,7 +531,8 @@ export class DashboardService {
       {
         key: 'input_validation',
         title: 'Validación de entradas',
-        standard: 'OWASP ASVS V5',
+        standard:
+          'Operaciones documentales aceptadas frente a rechazos por validación (30 días).',
         percent: clampPercent(inputValidationPercent),
         evidence: {
           doc_actions_ok_30d: docOk30d,

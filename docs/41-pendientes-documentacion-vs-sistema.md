@@ -2,7 +2,7 @@
 
 **Propósito:** registrar diferencias detectadas entre la documentación y el estado real del repositorio/código, para cerrarlas de forma controlada y auditables (ISO 15489).
 
-**Última actualización:** 2026-05-08
+**Última actualización:** 2026-05-27
 
 ---
 
@@ -54,4 +54,10 @@
   - UI `/admin/configuracion` y endpoints `/auth/admin/security-*`.
   - UI `/admin/respaldos` y endpoints `backup`/`dashboard` asociados.
 - **Pendiente**: definir si se creará una configuración general tipo `system_settings` (backlog), y documentar el roadmap.
+
+### 5) Alineación documentación ↔ UI «solo controles reales» (2026-05-27)
+
+- **Estado**: cerrado en documentos vivos principales.
+- **Referencias actualizadas**: `17-modulo-configuracion.md`, `27-manual-usuario-sgd-gadpr-lm.md`, `44-guia-secciones-menu-navegacion.md`, `25-ui-ux-diseno-sistema-institucional.md`, `45-principio-ui-controles-reales.md` (nuevo), `22-changelog-tecnico.md`, `docs/README.md`, `99-guia-de-prueba-por-modulos.md`, `pantallas_profesionales_/00_Indice_Pantallas.md`.
+- **Pendiente menor**: PDFs en raíz (`19-mapeo-...pdf`, etc.) y carpeta `docs/Descargas/` si contienen textos antiguos de UI.
 

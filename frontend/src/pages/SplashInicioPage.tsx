@@ -81,36 +81,21 @@ export function SplashInicioPage() {
               spacing={1}
               sx={{ mb: 3.25, flexWrap: 'wrap', rowGap: 1 }}
             >
-              <Chip
-                label="ISO/IEC 27001:2022"
-                size="small"
-                sx={{
-                  color: 'common.white',
-                  bgcolor: 'rgba(255,255,255,0.18)',
-                  border: '1px solid rgba(255,255,255,0.28)',
-                  fontWeight: 700,
-                }}
-              />
-              <Chip
-                label="ISO 15489"
-                size="small"
-                sx={{
-                  color: 'common.white',
-                  bgcolor: 'rgba(255,255,255,0.18)',
-                  border: '1px solid rgba(255,255,255,0.28)',
-                  fontWeight: 700,
-                }}
-              />
-              <Chip
-                label="OWASP ASVS"
-                size="small"
-                sx={{
-                  color: 'common.white',
-                  bgcolor: 'rgba(255,255,255,0.18)',
-                  border: '1px solid rgba(255,255,255,0.28)',
-                  fontWeight: 700,
-                }}
-              />
+              {(['Gestión documental con control de acceso', 'Trazabilidad en auditoría', 'Protección de sesión y datos'] as const).map(
+                (label) => (
+                  <Chip
+                    key={label}
+                    label={label}
+                    size="small"
+                    sx={{
+                      color: 'common.white',
+                      bgcolor: 'rgba(255,255,255,0.18)',
+                      border: '1px solid rgba(255,255,255,0.28)',
+                      fontWeight: 700,
+                    }}
+                  />
+                ),
+              )}
             </Stack>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 4 }}>

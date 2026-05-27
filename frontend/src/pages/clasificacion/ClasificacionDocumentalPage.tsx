@@ -74,9 +74,9 @@ const paperCardSx = {
 } as const;
 
 const CONSERVACION_SIN_MODELO_DATOS =
-  'Plazos / disposición final no están almacenados en el sistema (pending ISO 15489 en datos del catálogo).';
+  'Plazos y disposición final no están registrados en el catálogo del sistema.';
 
-const RETENCION_TABLA_NA = '— (no modelado en datos)';
+const RETENCION_TABLA_NA = 'Sin registrar en el sistema';
 
 const DESTINO_TABLA_NA = '—';
 
@@ -327,7 +327,7 @@ export function ClasificacionDocumentalPage() {
               <SectionHeaderLetter
                 letter="C"
                 title="Estructura documental"
-                subtitle="Basado en ISO 15489"
+                subtitle="Series y subseries del catálogo institucional"
               />
               <Box
                 sx={{

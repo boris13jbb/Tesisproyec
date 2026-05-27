@@ -2,7 +2,7 @@
  * Respaldo local solo si falla GET /usuarios/matriz-acceso-referencia (ADMIN).
  *
  * Mantener sincronizada con `backend/src/usuarios/access-matrix.reference.ts`.
- * Refleja políticas efectivas (`JwtAuthGuard` + `@Roles` + `@Permissions`), no sustituye IdM corporativo.
+ * Textos de ayuda: lenguaje institucional (sin rutas HTTP en la tabla visible).
  */
 export const ROLES_MATRIX_COLS = [
   'ADMIN',
@@ -30,7 +30,7 @@ export type AccessMatrixReferencia = {
 export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   {
     modulo: 'Inicio / panel',
-    ayuda: 'Panel con JWT',
+    ayuda: 'Panel principal tras iniciar sesión',
     ADMIN: true,
     REVISOR: true,
     USUARIO: true,
@@ -40,7 +40,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Consulta documental (ámbitos del servidor)',
-    ayuda: 'Listado/detalle/exportaciones filtradas según reglas del documento',
+    ayuda: 'Listado, detalle y exportaciones según permisos del documento',
     ADMIN: true,
     REVISOR: true,
     USUARIO: true,
@@ -50,7 +50,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Alta/edición/eliminaciones administrativas de documento',
-    ayuda: 'POST/PATCH documento y adjuntos',
+    ayuda: 'Crear y modificar expedientes y adjuntos (según rol)',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -60,7 +60,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Enviar a revisión (propiedad del registro)',
-    ayuda: 'Flujo cuando el estado lo permite',
+    ayuda: 'Cuando el estado del documento lo permite',
     ADMIN: true,
     REVISOR: true,
     USUARIO: true,
@@ -70,7 +70,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Resolver revisión (aprobar/rechazar)',
-    ayuda: 'POST resolver-revision',
+    ayuda: 'Decisión de revisión en el expediente',
     ADMIN: true,
     REVISOR: true,
     USUARIO: false,
@@ -80,7 +80,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Trámites (tablero) · Clasificación',
-    ayuda: 'Vistas dentro de sesión',
+    ayuda: 'Vistas de organización y seguimiento documental',
     ADMIN: true,
     REVISOR: true,
     USUARIO: true,
@@ -90,7 +90,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Reportes servidor (documentos y auditoría)',
-    ayuda: 'GET /reportes/documentos*, /reportes/auditoria* · UI /admin/reportes · indicador GET /dashboard/admin/documentos-por-tipo',
+    ayuda: 'Exportaciones administrativas de inventario y auditoría',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -100,7 +100,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Reporte pendientes de revisión',
-    ayuda: 'GET pendientes-revision.*',
+    ayuda: 'Bandeja de documentos en revisión',
     ADMIN: true,
     REVISOR: true,
     USUARIO: false,
@@ -110,6 +110,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Catálogos (CRUD)',
+    ayuda: 'Dependencias, cargos, tipos y series documentales',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -119,6 +120,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Usuarios / roles',
+    ayuda: 'Alta y administración de cuentas institucionales',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -128,6 +130,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Auditoría del sistema',
+    ayuda: 'Consulta de eventos de seguridad y operación',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -137,7 +140,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Respaldos y seguridad',
-    ayuda: 'Pantalla ADMIN /admin/respaldos (procedimiento en scripts/README-backups-mysql-xampp.md)',
+    ayuda: 'Registro de verificación de copias y procedimiento documentado',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -146,8 +149,8 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
     CONSULTA: false,
   },
   {
-    modulo: 'Configuración de seguridad (solo lectura UI)',
-    ayuda: '/admin/configuracion · GET /auth/admin/security-summary',
+    modulo: 'Configuración de seguridad',
+    ayuda: 'Consulta de controles en uso y registro de revisiones',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
@@ -172,3 +175,4 @@ export function buildLocalAccessMatrixFallback(): AccessMatrixReferencia {
     generadoEn: new Date().toISOString(),
   };
 }
+

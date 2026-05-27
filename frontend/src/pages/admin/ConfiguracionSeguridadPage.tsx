@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -7,11 +7,17 @@ import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
-import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { apiClient } from '../../api/client';
+import {
+  APPLICATION_CONTROL_ROWS,
+  SECURITY_CONFIG_COPY,
+} from '../../constants/security-config-labels';
 import { PageHeader } from '../../components/PageHeader';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
 
@@ -33,8 +39,6 @@ type AdminSecuritySummary = {
   };
   jwtAccessExpiresIn: string;
   refreshSessionDays: number;
-  passwordReuseHistory: { implemented: boolean; lastPasswordsRemembered: number };
-  adminStepUpAuth: { implemented: boolean };
   applicationControls: {
     helmetEnabled: boolean;
     globalValidationPipe: boolean;
@@ -61,6 +65,21 @@ type SecurityPolicyRecord = {
   updatedBy: { userId: string | null; email: string | null } | null;
 };
 
+function InactivoBadge() {
+  return (
+    <Chip
+      size="small"
+      label="No activo"
+      sx={{
+        bgcolor: 'rgba(15, 23, 42, 0.06)',
+        color: 'text.secondary',
+        fontWeight: 600,
+        '& .MuiChip-label': { px: 1 },
+      }}
+    />
+  );
+}
+
 function ActivaBadge() {
   return (
     <Chip
@@ -76,100 +95,69 @@ function ActivaBadge() {
   );
 }
 
-function StableSwitch(props: { checked: boolean; disabled?: boolean; onChange?: (v: boolean) => void }) {
-  return (
-    <Switch
-      checked={props.checked}
-      disabled={props.disabled}
-      onChange={(e) => props.onChange?.(e.target.checked)}
-      size="medium"
-      color="success"
-      sx={{
-        ...(props.disabled
-          ? {
-              '&.Mui-disabled': { opacity: 1 },
-              '& .MuiSwitch-switchBase.Mui-disabled+.MuiSwitch-track': {
-                opacity: props.checked ? 0.95 : 0.48,
-              },
-            }
-          : null),
-      }}
-    />
-  );
-}
-
-function PolicyRow({
+function EffectiveControlCard({
   title,
-  description,
-  control,
+  value,
+  caption,
 }: {
   title: string;
-  description: string;
-  control: ReactNode;
+  value: string;
+  caption?: string;
 }) {
   return (
-    <Stack spacing={1.25}>
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 1,
-        }}
-      >
-        <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {description}
-          </Typography>
-        </Box>
-        <Box sx={{ flexShrink: 0 }}>{control}</Box>
-      </Stack>
-    </Stack>
+    <Paper
+      variant="outlined"
+      sx={{
+        px: { xs: 1.75, md: 2 },
+        py: { xs: 1.35, md: 1.5 },
+        borderRadius: 2,
+        borderColor: 'rgba(15, 23, 42, 0.09)',
+      }}
+    >
+      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.35 }}>
+        {title}
+      </Typography>
+      <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+        {value}
+      </Typography>
+      {caption ? (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {caption}
+        </Typography>
+      ) : null}
+    </Paper>
   );
 }
 
-function PolicyPanel(props: {
+function AuthenticationStatusPanel(props: {
   summary: AdminSecuritySummary;
   policy: SecurityPolicyRecord | null;
-  draft: {
-    desiredPasswordMinLength: number;
-    desiredLockoutEnabled: boolean;
-    desiredLockoutMaxAttempts: number;
-    desiredLockoutMinutes: number;
-    desiredJwtAccessExpiresIn: string;
-    desiredRefreshSessionDays: number;
-    desiredPasswordHistoryCount: number;
-    desiredAdminStepUpAuth: boolean;
-    notes: string;
-  };
   saveBusy: boolean;
   setSaveBusy: (v: boolean) => void;
   setSaveMsg: (v: { severity: 'success' | 'warning'; text: string } | null) => void;
   setPolicy: (p: SecurityPolicyRecord | null) => void;
 }) {
-  const { summary, policy, draft, saveBusy, setSaveBusy, setSaveMsg, setPolicy } =
-    props;
-  const [form, setForm] = useState(() => draft);
+  const { summary, policy, saveBusy, setSaveBusy, setSaveMsg, setPolicy } = props;
+  const [notes, setNotes] = useState(() => policy?.notes ?? '');
 
-  async function savePolicy(): Promise<void> {
+  useEffect(() => {
+    setNotes(policy?.notes ?? '');
+  }, [policy?.notes]);
+
+  async function saveReview(): Promise<void> {
     setSaveBusy(true);
     setSaveMsg(null);
     try {
       const payload = {
-        desiredPasswordMinLength: Number(form.desiredPasswordMinLength),
-        desiredLockoutEnabled: !!form.desiredLockoutEnabled,
-        desiredLockoutMaxAttempts: Number(form.desiredLockoutMaxAttempts),
-        desiredLockoutMinutes: Number(form.desiredLockoutMinutes),
-        desiredJwtAccessExpiresIn: String(form.desiredJwtAccessExpiresIn ?? '').trim(),
-        desiredRefreshSessionDays: Number(form.desiredRefreshSessionDays),
-        desiredPasswordHistoryCount: Number(form.desiredPasswordHistoryCount),
-        desiredAdminStepUpAuth: !!form.desiredAdminStepUpAuth,
-        notes: String(form.notes ?? '').trim() || undefined,
+        desiredPasswordMinLength: summary.passwordPolicy.minLength,
+        desiredLockoutEnabled: summary.accountLockout.enabled,
+        desiredLockoutMaxAttempts: summary.accountLockout.maxFailedAttempts,
+        desiredLockoutMinutes: summary.accountLockout.lockoutMinutes,
+        desiredJwtAccessExpiresIn: summary.jwtAccessExpiresIn,
+        desiredRefreshSessionDays: summary.refreshSessionDays,
+        desiredPasswordHistoryCount: 0,
+        desiredAdminStepUpAuth: false,
+        notes: String(notes ?? '').trim() || undefined,
       };
       const { data } = await apiClient.post<SecurityPolicyRecord>(
         '/auth/admin/security-policy',
@@ -178,17 +166,21 @@ function PolicyPanel(props: {
       setPolicy(data);
       setSaveMsg({
         severity: 'success',
-        text: 'Política institucional guardada y auditada (SECURITY_POLICY_UPDATED).',
+        text: SECURITY_CONFIG_COPY.saveSuccess,
       });
-    } catch {
+    } catch (err: unknown) {
       setSaveMsg({
         severity: 'warning',
-        text: 'No se pudo guardar la política (¿sesión ADMIN y backend en línea?).',
+        text: getApiErrorMessage(err, SECURITY_CONFIG_COPY.saveFail),
       });
     } finally {
       setSaveBusy(false);
     }
   }
+
+  const lockoutValue = summary.accountLockout.enabled
+    ? `Tras ${summary.accountLockout.maxFailedAttempts} intentos fallidos, bloqueo ${summary.accountLockout.lockoutMinutes} minutos`
+    : 'Desactivado';
 
   return (
     <>
@@ -211,207 +203,67 @@ function PolicyPanel(props: {
         </Box>
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-            Política de autenticación
+            {SECURITY_CONFIG_COPY.authPanelTitle}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            ISO 27001 A.5.17 · estado efectivo vs política institucional (editable)
+            {SECURITY_CONFIG_COPY.authPanelSubtitle}
           </Typography>
         </Box>
       </Stack>
 
-      <Stack spacing={2}>
-        <PolicyRow
-          title="Política mínima de contraseña (altas/restablecimientos)"
-          description={`Efectivo: ${summary.passwordPolicy.minLength} (DTO servidor). Política institucional: configurar valor deseado.`}
-          control={
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <TextField
-                size="small"
-                type="number"
-                value={form.desiredPasswordMinLength}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    desiredPasswordMinLength: Number(e.target.value),
-                  }))
-                }
-                slotProps={{
-                  htmlInput: {
-                    min: 8,
-                    max: 128,
-                    'aria-label': 'Longitud mínima deseada',
-                  },
-                }}
-                sx={{ width: 120 }}
-              />
-              <StableSwitch
-                checked={
-                  summary.passwordPolicy.enforcedOnUserCreate &&
-                  summary.passwordPolicy.minLength > 0
-                }
-                disabled
-              />
-            </Stack>
-          }
+      <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+        <Typography variant="body2">{SECURITY_CONFIG_COPY.opsNote}</Typography>
+      </Alert>
+
+      <Stack spacing={1.25}>
+        <EffectiveControlCard
+          title="Longitud mínima de contraseña"
+          value={`${summary.passwordPolicy.minLength} caracteres`}
+          caption="Al crear usuarios y al restablecer contraseña."
         />
-        <Divider />
-        <PolicyRow
-          title="Bloqueo tras intentos fallidos"
-          description={`Efectivo: ${summary.accountLockout.maxFailedAttempts} intentos → ${summary.accountLockout.lockoutMinutes} min. Política institucional: valores deseados.`}
-          control={
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <StableSwitch
-                checked={form.desiredLockoutEnabled}
-                onChange={(v) =>
-                  setForm((s) => ({ ...s, desiredLockoutEnabled: v }))
-                }
-              />
-              <TextField
-                size="small"
-                type="number"
-                value={form.desiredLockoutMaxAttempts}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    desiredLockoutMaxAttempts: Number(e.target.value),
-                  }))
-                }
-                slotProps={{
-                  htmlInput: { min: 1, max: 50, 'aria-label': 'Intentos máximos deseados' },
-                }}
-                sx={{ width: 110 }}
-              />
-              <TextField
-                size="small"
-                type="number"
-                value={form.desiredLockoutMinutes}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    desiredLockoutMinutes: Number(e.target.value),
-                  }))
-                }
-                slotProps={{
-                  htmlInput: { min: 1, max: 1440, 'aria-label': 'Minutos de bloqueo deseados' },
-                }}
-                sx={{ width: 120 }}
-              />
-              <StableSwitch checked={summary.accountLockout.enabled} disabled />
-            </Stack>
-          }
+        <EffectiveControlCard
+          title="Bloqueo por contraseña incorrecta"
+          value={lockoutValue}
+          caption="Protege cuentas ante intentos repetidos de ingreso."
         />
-        <Divider />
-        <PolicyRow
-          title="Caducidad del token de acceso (JWT)"
-          description={`Efectivo: ${summary.jwtAccessExpiresIn} (JWT) · refresco ${summary.refreshSessionDays} día(s). Política institucional: valor deseado.`}
-          control={
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <TextField
-                size="small"
-                value={form.desiredJwtAccessExpiresIn}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    desiredJwtAccessExpiresIn: e.target.value,
-                  }))
-                }
-                slotProps={{
-                  htmlInput: { maxLength: 16, 'aria-label': 'JWT access expires in deseado' },
-                }}
-                sx={{ width: 120 }}
-              />
-              <TextField
-                size="small"
-                type="number"
-                value={form.desiredRefreshSessionDays}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    desiredRefreshSessionDays: Number(e.target.value),
-                  }))
-                }
-                slotProps={{
-                  htmlInput: { min: 1, max: 365, 'aria-label': 'Días de refresh deseados' },
-                }}
-                sx={{ width: 120 }}
-              />
-              <StableSwitch checked disabled />
-            </Stack>
-          }
+        <EffectiveControlCard
+          title="Duración de la sesión"
+          value={`Activa hasta ${summary.jwtAccessExpiresIn} sin uso · recordar ingreso ${summary.refreshSessionDays} día(s) en este equipo`}
+          caption="Cierre de sesión automático y opción «mantener sesión» en el login."
         />
-        <Divider />
-        <PolicyRow
-          title="Historial de contraseñas previas"
-          description={
-            summary.passwordReuseHistory.implemented
-              ? `Últimas ${summary.passwordReuseHistory.lastPasswordsRemembered}`
-              : 'No implementado en backend'
-          }
-          control={
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <TextField
-                size="small"
-                type="number"
-                value={form.desiredPasswordHistoryCount}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    desiredPasswordHistoryCount: Number(e.target.value),
-                  }))
-                }
-                slotProps={{
-                  htmlInput: { min: 0, max: 24, 'aria-label': 'Historial deseado (cantidad)' },
-                }}
-                sx={{ width: 120 }}
-              />
-              <StableSwitch checked={summary.passwordReuseHistory.implemented} disabled />
-            </Stack>
-          }
-        />
-        <Divider />
-        <PolicyRow
-          title="Segundo factor / paso extra para ADMIN"
-          description={
-            summary.adminStepUpAuth.implemented
-              ? 'Activo según servidor'
-              : 'Pendiente (no configurado)'
-          }
-          control={
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <StableSwitch
-                checked={form.desiredAdminStepUpAuth}
-                onChange={(v) =>
-                  setForm((s) => ({ ...s, desiredAdminStepUpAuth: v }))
-                }
-              />
-              <StableSwitch checked={summary.adminStepUpAuth.implemented} disabled />
-            </Stack>
-          }
+        <EffectiveControlCard
+          title="Límite de intentos en la pantalla de ingreso"
+          value={`${summary.applicationControls.loginThrottle.limitPerIp} intentos cada ${summary.applicationControls.loginThrottle.windowMinutes} minutos por conexión`}
+          caption="Complementa el bloqueo de cuenta; reduce abuso desde la misma red."
         />
       </Stack>
 
+      <Divider sx={{ my: 2.5 }} />
+
+      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>
+        {SECURITY_CONFIG_COPY.reviewSectionTitle}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.6 }}>
+        {SECURITY_CONFIG_COPY.reviewSectionHelper}
+      </Typography>
+
+      <TextField
+        label={SECURITY_CONFIG_COPY.notesLabel}
+        helperText={SECURITY_CONFIG_COPY.notesHelper}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        multiline
+        minRows={3}
+        size="small"
+        fullWidth
+      />
+
       <Button
         variant="contained"
-        onClick={() => void savePolicy()}
+        onClick={() => void saveReview()}
         disabled={saveBusy}
         sx={{
-          mt: 3,
+          mt: 2,
           textTransform: 'none',
           fontWeight: 800,
           bgcolor: INSTITUTIONAL_TEAL,
@@ -420,25 +272,16 @@ function PolicyPanel(props: {
           '&:hover': { bgcolor: INSTITUTIONAL_TEAL, filter: 'brightness(0.97)' },
         }}
       >
-        {saveBusy ? 'Guardando…' : 'Guardar política'}
+        {saveBusy ? SECURITY_CONFIG_COPY.savingReviewButton : SECURITY_CONFIG_COPY.saveReviewButton}
       </Button>
 
-      <TextField
-        label="Notas (ISO 15489: contexto y justificación)"
-        value={form.notes}
-        onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
-        multiline
-        minRows={3}
-        size="small"
-        sx={{ mt: 2 }}
-      />
       {policy?.updatedAt ? (
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ display: 'block', mt: 1 }}
+          sx={{ display: 'block', mt: 1.25 }}
         >
-          Última actualización: {new Date(policy.updatedAt).toLocaleString('es-EC')} ·{' '}
+          Último registro: {new Date(policy.updatedAt).toLocaleString('es-EC')} ·{' '}
           {policy.updatedBy?.email ?? '—'}
         </Typography>
       ) : null}
@@ -468,13 +311,11 @@ export function ConfiguracionSeguridadPage() {
           setSummary(summaryRes.data);
           setPolicy(policyRes.data);
         }
-      } catch {
+      } catch (err: unknown) {
         if (!cancelled) {
           setSummary(null);
           setPolicy(null);
-          setError(
-            'No se pudo leer la configuración de seguridad del servidor (¿ADMIN y backend en línea?).',
-          );
+          setError(getApiErrorMessage(err, SECURITY_CONFIG_COPY.loadFail));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -487,24 +328,10 @@ export function ConfiguracionSeguridadPage() {
 
   const ctr = summary?.applicationControls;
 
-  const draft = useMemo(() => {
-    const d = policy?.desired;
-    return {
-      desiredPasswordMinLength: d?.passwordMinLength ?? summary?.passwordPolicy.minLength ?? 8,
-      desiredLockoutEnabled: d?.lockoutEnabled ?? summary?.accountLockout.enabled ?? true,
-      desiredLockoutMaxAttempts: d?.lockoutMaxAttempts ?? summary?.accountLockout.maxFailedAttempts ?? 5,
-      desiredLockoutMinutes: d?.lockoutMinutes ?? summary?.accountLockout.lockoutMinutes ?? 20,
-      desiredJwtAccessExpiresIn: d?.jwtAccessExpiresIn ?? summary?.jwtAccessExpiresIn ?? '15m',
-      desiredRefreshSessionDays: d?.refreshSessionDays ?? summary?.refreshSessionDays ?? 7,
-      desiredPasswordHistoryCount: d?.passwordHistoryCount ?? 0,
-      desiredAdminStepUpAuth: d?.adminStepUpAuth ?? false,
-      notes: policy?.notes ?? '',
-    };
-  }, [policy, summary]);
-
   const controlBadgeRow = (
     title: string,
     desc: string,
+    technicalHint: string,
     badge: ReactNode,
   ) => (
     <Paper
@@ -522,9 +349,17 @@ export function ConfiguracionSeguridadPage() {
         sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {title}
-          </Typography>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {title}
+            </Typography>
+            <Tooltip title={technicalHint} arrow placement="top">
+              <InfoOutlinedIcon
+                sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }}
+                aria-label="Detalle técnico"
+              />
+            </Tooltip>
+          </Stack>
           <Typography variant="caption" color="text.secondary">
             {desc}
           </Typography>
@@ -533,6 +368,22 @@ export function ConfiguracionSeguridadPage() {
       </Stack>
     </Paper>
   );
+
+  const appControlActive = (index: number): boolean => {
+    if (!ctr) return false;
+    switch (index) {
+      case 0:
+        return ctr.globalValidationPipe;
+      case 1:
+        return ctr.helmetEnabled && ctr.corsWithCredentials;
+      case 2:
+        return ctr.helmetEnabled;
+      case 3:
+        return ctr.fileUpload.mimeAllowlistEnforced;
+      default:
+        return false;
+    }
+  };
 
   return (
     <>
@@ -547,7 +398,7 @@ export function ConfiguracionSeguridadPage() {
               · GADPR-LM · Sistema de Gestión Documental
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              Políticas de contraseña, sesión, validación y protección de la aplicación.
+              {SECURITY_CONFIG_COPY.pageSubtitle}
             </Typography>
           </Stack>
         }
@@ -560,10 +411,7 @@ export function ConfiguracionSeguridadPage() {
       ) : null}
 
       <Alert severity="info" sx={{ mb: { xs: 2, md: 2.25 }, borderRadius: 2 }}>
-        <Typography variant="body2">
-          Esta pantalla separa dos cosas: (1) <strong>estado efectivo</strong> (lo que el backend aplica hoy) y (2){' '}
-          <strong>política institucional</strong> persistida en base de datos como registro (ISO 15489), auditada al guardar.
-        </Typography>
+        <Typography variant="body2">{SECURITY_CONFIG_COPY.infoBanner}</Typography>
       </Alert>
 
       {saveMsg ? (
@@ -588,11 +436,10 @@ export function ConfiguracionSeguridadPage() {
           }}
         >
           <Paper elevation={1} sx={paperCardSx}>
-            <PolicyPanel
+            <AuthenticationStatusPanel
               key={policy?.updatedAt ?? 'policy-inicial'}
               summary={summary}
               policy={policy}
-              draft={draft}
               saveBusy={saveBusy}
               setSaveBusy={setSaveBusy}
               setSaveMsg={setSaveMsg}
@@ -620,45 +467,32 @@ export function ConfiguracionSeguridadPage() {
               </Box>
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                  Controles de aplicación
+                  {SECURITY_CONFIG_COPY.appPanelTitle}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Lineamientos OWASP ASVS (evidencias técnicas resumidas)
+                  {SECURITY_CONFIG_COPY.appPanelSubtitle}
                 </Typography>
               </Box>
             </Stack>
 
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.75 }}>
-              Login acotado: {ctr?.loginThrottle.limitPerIp} intentos / {ctr?.loginThrottle.windowMinutes} min por IP
-              (endpoint <code>/auth/login</code>).
-            </Typography>
-
-            <Stack spacing={1.25}>
-              {controlBadgeRow(
-                'Validación de entradas',
-                'DTO + ValidationPipe global (whitelist/forbid)',
-                ctr?.globalValidationPipe ? <ActivaBadge /> : null,
-              )}
-              {controlBadgeRow(
-                'Superficie web / navegador',
-                'Helmet + CORS credenciales; cookie HttpOnly refresh; JWT access en headers',
-                ctr?.helmetEnabled && ctr?.corsWithCredentials ? <ActivaBadge /> : null,
-              )}
-              {controlBadgeRow(
-                'Cabeceras seguras base',
-                'Helmet (p. ej. frameguard/XCTO según presets)',
-                ctr?.helmetEnabled ? <ActivaBadge /> : null,
-              )}
-              {controlBadgeRow(
-                'Manejo de errores API',
-                'Filtros de auditoría; sin fugas deliberadas en payload genéricos',
-                <ActivaBadge />,
-              )}
-              {controlBadgeRow(
-                'Carga de archivos',
-                `MIME permitido en upload y límite ${ctr?.fileUpload.maxMegabytes} MB`,
-                ctr?.fileUpload.mimeAllowlistEnforced ? <ActivaBadge /> : null,
-              )}
+            <Stack spacing={1.25} sx={{ mt: 0.5 }}>
+              {APPLICATION_CONTROL_ROWS.map((row, index) => {
+                const active = appControlActive(index);
+                const desc =
+                  index === 3 && ctr
+                    ? `${row.description} Tamaño máximo: ${ctr.fileUpload.maxMegabytes} MB.`
+                    : row.description;
+                return (
+                  <Box key={row.title}>
+                    {controlBadgeRow(
+                      row.title,
+                      desc,
+                      row.technicalHint,
+                      active ? <ActivaBadge /> : <InactivoBadge />,
+                    )}
+                  </Box>
+                );
+              })}
             </Stack>
           </Paper>
         </Box>

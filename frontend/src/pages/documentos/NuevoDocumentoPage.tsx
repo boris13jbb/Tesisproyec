@@ -310,7 +310,7 @@ export function NuevoDocumentoPage() {
   ] as const;
 
   const statusChip = (ok: boolean, pending: boolean) => {
-    if (pending) return <Chip label="Pendiente" size="small" color="warning" />;
+    if (pending) return <Chip label="Por completar" size="small" color="warning" />;
     if (ok) return <Chip label="Correcto" size="small" color="success" />;
     return <Chip label="Incorrecto" size="small" color="error" />;
   };
@@ -754,7 +754,7 @@ export function NuevoDocumentoPage() {
                     Validaciones automáticas
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Reglas reales del sistema (OWASP/ISO)
+                    Comprobaciones antes de guardar
                   </Typography>
                 </Box>
               </Stack>

@@ -19,8 +19,12 @@ Estas imágenes son mockups visuales profesionales basados en el alcance del sis
 13. Configuración de seguridad
 14. Perfil de usuario
 
-## Estándares representados visualmente
+## Nota sobre mockups vs sistema en ejecución
 
-- ISO/IEC 27001:2022: control de acceso, gestión de identidades e información de autenticación.
-- ISO 15489: clasificación, organización, trazabilidad y conservación documental.
-- OWASP ASVS: validación de entradas, autenticación segura, sesiones y protección de la aplicación web.
+Los PNG de esta carpeta son **referencias visuales** de diseño. El sistema en código (2026-05-27) sigue el principio **[docs/45-principio-ui-controles-reales.md](../docs/45-principio-ui-controles-reales.md)**:
+
+- **Splash:** chips de capacidades del sistema (acceso, trazabilidad, sesión), no logos de normas ISO/OWASP.
+- **Panel ADMIN:** «Indicadores operativos de seguridad», no barras tituladas como certificación ISO.
+- **Configuración:** solo lectura + «Registrar revisión»; sin «Guardar política» ni controles no implementados.
+
+Las normas **ISO/IEC 27001:2022**, **ISO 15489** y **OWASP ASVS** se usan como **marco de diseño** en documentación técnica (`docs/19-mapeo-iso27001-iso15489-owasp-asvs.md`), no como etiquetas de cumplimiento en la UI.

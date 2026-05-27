@@ -652,10 +652,10 @@ export function ReportesInstitucionalesPage() {
             >
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  Cumplimiento de respaldos
+                  Verificaciones de respaldo registradas
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Evidencia en auditoría: BACKUP_VERIFIED (OK/FAIL) + vista de control
+                  Exporta eventos de verificación de copias desde la auditoría del sistema
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
