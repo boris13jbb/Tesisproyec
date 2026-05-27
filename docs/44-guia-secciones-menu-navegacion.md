@@ -487,7 +487,7 @@ Panel de **transparencia** de controles de seguridad **en uso** (no es configura
 
 - **No** hay formulario «política deseada» ni botón **Guardar política** que cambie el runtime.
 - Ajustar bloqueo, JWT o backup automático sigue siendo responsabilidad de **configuración del servidor** (`.env`) y reinicio del backend cuando aplique.
-- **No** se muestran MFA administrativo ni historial de contraseñas hasta que existan en código.
+- **Sí** se muestran los controles operativos de **historial de contraseñas** y **MFA administrativa (TOTP)** cuando la política institucional está activa y el servidor aplica esos controles.
 
 #### Qué no configura esta pantalla
 

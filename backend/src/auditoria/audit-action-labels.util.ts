@@ -69,6 +69,16 @@ export function profileActivityLabel(
   switch (row.action) {
     case 'AUTH_LOGIN_OK':
       return 'Inició sesión correctamente';
+    case 'AUTH_MFA_ENABLED':
+      return 'Activó verificación en dos pasos';
+    case 'AUTH_MFA_DISABLED':
+      return 'Desactivó verificación en dos pasos';
+    case 'AUTH_MFA_VERIFY_OK':
+      return 'Completó verificación en dos pasos al ingresar';
+    case 'AUTH_MFA_VERIFY_FAIL':
+      return 'Código de verificación incorrecto';
+    case 'AUTH_MFA_CHALLENGE_ISSUED':
+      return 'Se solicitó código de verificación en dos pasos';
     case 'AUTH_LOGOUT':
       return 'Cerró sesión';
     case 'DOC_FILE_UPLOADED':

@@ -71,6 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }, []);
 
+  const setSession = useCallback((accessToken: string, newUser: AuthUser) => {
+    setAccessToken(accessToken);
+    setUser(newUser);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await apiClient.post('/auth/logout');
@@ -87,8 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       refreshSession,
+      setSession,
     }),
-    [user, ready, login, logout, refreshSession],
+    [user, ready, login, logout, refreshSession, setSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

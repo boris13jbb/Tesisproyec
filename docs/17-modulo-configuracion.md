@@ -44,7 +44,7 @@ Aviso explícito: bloqueo y sesión se ajustan en **configuración del servidor*
 
 - Campo de **notas** + botón **Registrar revisión**.
 - `POST /api/v1/auth/admin/security-policy` guarda notas y una instantánea de los valores efectivos; audita **`SECURITY_POLICY_UPDATED`**.
-- **No** sustituye cambiar `.env` ni desarrollo pendiente (historial de contraseñas, MFA admin: **no implementados**, **no mostrados**).
+- **No** sustituye cambiar `.env`. Los controles operativos de **historial de contraseñas** y **MFA para administradores** se aplican según el registro `security_policy` y se muestran como evidencia/estado en UI.
 
 **Columna derecha — Protecciones del sistema**
 
@@ -93,8 +93,7 @@ Parámetros recomendados: `MAX_UPLOAD_MB`, `ALLOWED_MIME_TYPES`, `AUDIT_RETENTIO
 
 ### Controles de seguridad avanzados (código + UI)
 
-- Historial de contraseñas (rechazar reuso).
-- MFA / step-up para administradores.
+- Ajustes finos de experiencia (p. ej. pantallas de administración/recuperación de TOTP y flujos de re-enrolamiento).
 - Aplicar valores de `security_policy` al runtime sin depender solo de `.env` (diseño explícito requerido).
 
 ---

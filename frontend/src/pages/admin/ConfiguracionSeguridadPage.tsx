@@ -32,6 +32,8 @@ const paperCardSx = {
 type AdminSecuritySummary = {
   schemaVersion: 1;
   passwordPolicy: { minLength: number; enforcedOnUserCreate: boolean };
+  passwordReuseHistory: { enabled: boolean; retainCount: number };
+  adminMfa: { requiredForAdmin: boolean; algorithm: 'TOTP' };
   accountLockout: {
     enabled: boolean;
     maxFailedAttempts: number;
@@ -140,10 +142,6 @@ function AuthenticationStatusPanel(props: {
   const { summary, policy, saveBusy, setSaveBusy, setSaveMsg, setPolicy } = props;
   const [notes, setNotes] = useState(() => policy?.notes ?? '');
 
-  useEffect(() => {
-    setNotes(policy?.notes ?? '');
-  }, [policy?.notes]);
-
   async function saveReview(): Promise<void> {
     setSaveBusy(true);
     setSaveMsg(null);
@@ -155,8 +153,8 @@ function AuthenticationStatusPanel(props: {
         desiredLockoutMinutes: summary.accountLockout.lockoutMinutes,
         desiredJwtAccessExpiresIn: summary.jwtAccessExpiresIn,
         desiredRefreshSessionDays: summary.refreshSessionDays,
-        desiredPasswordHistoryCount: 0,
-        desiredAdminStepUpAuth: false,
+        desiredPasswordHistoryCount: summary.passwordReuseHistory.retainCount,
+        desiredAdminStepUpAuth: summary.adminMfa.requiredForAdmin,
         notes: String(notes ?? '').trim() || undefined,
       };
       const { data } = await apiClient.post<SecurityPolicyRecord>(
@@ -235,6 +233,24 @@ function AuthenticationStatusPanel(props: {
           title="Límite de intentos en la pantalla de ingreso"
           value={`${summary.applicationControls.loginThrottle.limitPerIp} intentos cada ${summary.applicationControls.loginThrottle.windowMinutes} minutos por conexión`}
           caption="Complementa el bloqueo de cuenta; reduce abuso desde la misma red."
+        />
+        <EffectiveControlCard
+          title="Historial de contraseñas"
+          value={
+            summary.passwordReuseHistory.enabled
+              ? `Activa: últimas ${summary.passwordReuseHistory.retainCount} contraseñas`
+              : 'Desactivado'
+          }
+          caption="Evita que un usuario reutilice contraseñas recientes cuando la política está activa."
+        />
+        <EffectiveControlCard
+          title="MFA para administradores (TOTP)"
+          value={
+            summary.adminMfa.requiredForAdmin
+              ? 'Requerida al iniciar sesión'
+              : 'No requerida'
+          }
+          caption="Cuando se requiere, el ADMIN configura o verifica su TOTP antes de obtener sesión."
         />
       </Stack>
 

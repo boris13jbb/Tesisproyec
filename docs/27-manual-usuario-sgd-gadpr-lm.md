@@ -524,7 +524,10 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 
 **Importante**
 
-- No aparecen opciones que el sistema aún no ejecuta (historial de contraseñas, segundo factor administrativo, etc.).
+- Sí aparecen los controles operativos:
+  - **Historial de contraseñas** (reuso según política).
+  - **MFA para administradores (TOTP)** (requerimiento de segundo factor).
+  La pantalla usa **Registrar revisión** para evidencia institucional; no promete cambios futuros en el servidor desde la web.
 - El límite de intentos en la pantalla de ingreso es **distinto** del bloqueo de cuenta; ambos se listan en la columna izquierda.
 - El mínimo de contraseña suele ser **8 caracteres** al crear usuarios o restablecer clave.
 

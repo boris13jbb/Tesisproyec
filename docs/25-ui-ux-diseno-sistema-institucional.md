@@ -13,7 +13,7 @@ Documento normativo breve: **[45-principio-ui-controles-reales.md](./45-principi
 Resumen para diseño e implementación:
 
 1. **No** etiquetar barras del panel como «cumplimiento ISO» ni mostrar logos de normas en splash.
-2. **No** ofrecer formularios que el backend no aplica (política editable, MFA/historial de contraseñas pendientes).
+2. **No** ofrecer formularios que el backend no aplica (promesas sin control verificable en servidor).
 3. **Sí** mostrar valores efectivos en solo lectura, indicadores con **definición de la métrica**, y acciones que ejecutan o registran evidencia (`Registrar revisión`, mysqldump, verificación de respaldo).
 4. Códigos técnicos (`GET /…`, `BACKUP_VERIFIED`) en auditoría, tooltips o documentación técnica — no en el texto principal del usuario.
 

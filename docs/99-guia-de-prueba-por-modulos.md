@@ -70,10 +70,12 @@ Referencias: `docs/45-principio-ui-controles-reales.md`, manual § 4.1.
 Referencias: `docs/17-modulo-configuracion.md`, manual § 13.
 
 1. Abrir `/admin/configuracion`.
-2. Confirmar columna izquierda **solo lectura** (sin campos numéricos editables).
+2. Confirmar que aparecen los paneles operativos:
+   - **Historial de contraseñas** (política de reuso).
+   - **MFA para administradores (TOTP)** (requerimiento de segundo factor).
 3. Escribir notas y pulsar **Registrar revisión** → mensaje de éxito.
 4. En **Auditoría**, filtrar `SECURITY_POLICY_UPDATED` y verificar fila con notas.
-5. Confirmar que **no** aparecen MFA ni historial de contraseñas.
+5. Confirmar que los valores mostrados concuerdan con lo que el servidor aplica (no son promesas futuras).
 
 ### 8) Rendimiento post-login (prefetch + LCP panel)
 Referencias: `docs/40-rendimiento-post-login-web-vitals.md`, manual § 1.5.

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { getApiErrorMessage } from '../utils/api-error-message';
 
@@ -19,8 +20,20 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login, user, ready } = useAuth();
+  const { setSession, user, ready } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<
+    'CREDENTIALS' | 'MFA_REQUIRED' | 'MFA_SETUP_REQUIRED'
+  >('CREDENTIALS');
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [setupChallengeToken, setSetupChallengeToken] = useState<
+    string | null
+  >(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [setupOtpauthUrl, setSetupOtpauthUrl] = useState<string | null>(null);
 
   const {
     register,
@@ -35,18 +48,120 @@ export function LoginPage() {
     return <Navigate to="/" replace />;
   }
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmitCredentials = async (data: LoginForm) => {
     setError(null);
     try {
-      await login(data.email, data.password);
-      await navigate('/', { replace: true });
+      const { data: loginRes } = await apiClient.post<
+        | {
+            accessToken: string;
+            user: import('../auth/types').AuthUser;
+          }
+        | {
+            mfaRequired: true;
+            challengeToken: string;
+            email: string;
+          }
+        | {
+            mfaSetupRequired: true;
+            setupChallengeToken: string;
+            email: string;
+          }
+      >('/auth/login', { email: data.email, password: data.password });
+
+      if ('accessToken' in loginRes) {
+        setSession(loginRes.accessToken, loginRes.user);
+        await navigate('/', { replace: true });
+        return;
+      }
+
+      if ('mfaRequired' in loginRes && loginRes.mfaRequired) {
+        setStep('MFA_REQUIRED');
+        setChallengeToken(loginRes.challengeToken);
+        setSetupChallengeToken(null);
+        setSetupSecret(null);
+        setSetupOtpauthUrl(null);
+        setMfaCode('');
+        return;
+      }
+
+      if (
+        'mfaSetupRequired' in loginRes &&
+        loginRes.mfaSetupRequired
+      ) {
+        setStep('MFA_SETUP_REQUIRED');
+        setSetupChallengeToken(loginRes.setupChallengeToken);
+        setChallengeToken(null);
+        setMfaCode('');
+        setSetupBusy(true);
+        setSetupSecret(null);
+        setSetupOtpauthUrl(null);
+        try {
+          const { data: setupBegin } = await apiClient.post<{
+            otpauthUrl: string;
+            secret: string;
+          }>('/auth/mfa/setup/begin-login', {
+            setupChallengeToken: loginRes.setupChallengeToken,
+          });
+          setSetupOtpauthUrl(setupBegin.otpauthUrl);
+          setSetupSecret(setupBegin.secret);
+        } finally {
+          setSetupBusy(false);
+        }
+        return;
+      }
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
           err,
-          'No fue posible iniciar sesión. Verifique su correo y contraseña.',
+          'No fue posible completar la autenticación. Verifique sus credenciales o el código de verificación.',
         ),
       );
+    }
+  };
+
+  const onSubmitMfa = async (): Promise<void> => {
+    if (!mfaCode || !/^\d{6}$/.test(mfaCode)) {
+      setError('El código debe tener 6 dígitos.');
+      return;
+    }
+    if (step === 'MFA_REQUIRED' && !challengeToken) {
+      setError('Falta el token de verificación.');
+      return;
+    }
+    if (step === 'MFA_SETUP_REQUIRED' && !setupChallengeToken) {
+      setError('Falta el token de enrolamiento.');
+      return;
+    }
+
+    setError(null);
+    setMfaBusy(true);
+    try {
+      if (step === 'MFA_REQUIRED') {
+        const { data } = await apiClient.post<{
+          accessToken: string;
+          user: import('../auth/types').AuthUser;
+        }>('/auth/mfa/verify-login', {
+          challengeToken,
+          code: mfaCode,
+        });
+        setSession(data.accessToken, data.user);
+        await navigate('/', { replace: true });
+        return;
+      }
+
+      const { data } = await apiClient.post<{
+        accessToken: string;
+        user: import('../auth/types').AuthUser;
+      }>('/auth/mfa/setup/confirm-login', {
+        setupChallengeToken,
+        code: mfaCode,
+      });
+      setSession(data.accessToken, data.user);
+      await navigate('/', { replace: true });
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Código de verificación inválido o expirado.'));
+    } finally {
+      setMfaBusy(false);
     }
   };
 
@@ -211,83 +326,192 @@ export function LoginPage() {
                 Ingrese sus credenciales institucionales.
               </Typography>
 
-              <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-                {error && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                  </Alert>
-                )}
-
-                <TextField
-                  label="Correo o usuario"
-                  type="email"
-                  fullWidth
-                  margin="normal"
-                  autoComplete="email"
-                  placeholder="admin@gadprlm.local"
-                  error={!!errors.email}
-                  helperText={errors.email?.message}
-                  {...register('email')}
-                />
-                <TextField
-                  label="Contraseña"
-                  type="password"
-                  fullWidth
-                  margin="normal"
-                  autoComplete="current-password"
-                  error={!!errors.password}
-                  helperText={errors.password?.message}
-                  {...register('password')}
-                />
-
-                <Stack
-                  direction="row"
-                  sx={{ mt: 1.25, mb: 2, alignItems: 'center', justifyContent: 'space-between' }}
+              {step === 'CREDENTIALS' ? (
+                <Box
+                  component="form"
+                  onSubmit={handleSubmit(onSubmitCredentials)}
+                  noValidate
                 >
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <Checkbox size="small" />
-                    <Typography variant="caption" color="text.secondary">
-                      Mantener sesión en este equipo
-                    </Typography>
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {error}
+                    </Alert>
+                  )}
+
+                  <TextField
+                    label="Correo o usuario"
+                    type="email"
+                    fullWidth
+                    margin="normal"
+                    autoComplete="email"
+                    placeholder="admin@gadprlm.local"
+                    error={!!errors.email}
+                    helperText={errors.email?.message}
+                    {...register('email')}
+                  />
+                  <TextField
+                    label="Contraseña"
+                    type="password"
+                    fullWidth
+                    margin="normal"
+                    autoComplete="current-password"
+                    error={!!errors.password}
+                    helperText={errors.password?.message}
+                    {...register('password')}
+                  />
+
+                  <Stack
+                    direction="row"
+                    sx={{
+                      mt: 1.25,
+                      mb: 2,
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <Checkbox size="small" />
+                      <Typography variant="caption" color="text.secondary">
+                        Mantener sesión en este equipo
+                      </Typography>
+                    </Stack>
+                    <Button component={RouterLink} to="/recuperar" variant="text" size="small">
+                      ¿Olvidó su llave?
+                    </Button>
                   </Stack>
-                  <Button component={RouterLink} to="/recuperar" variant="text" size="small">
-                    ¿Olvidó su llave?
+
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    sx={{
+                      mt: 0.5,
+                      borderRadius: 3,
+                      py: 1.3,
+                      bgcolor: '#1E7C89',
+                      '&:hover': { bgcolor: '#196C77' },
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Ingresando…' : 'Ingresar al sistema'}
                   </Button>
-                </Stack>
 
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  sx={{
-                    mt: 0.5,
-                    borderRadius: 3,
-                    py: 1.3,
-                    bgcolor: '#1E7C89',
-                    '&:hover': { bgcolor: '#196C77' },
-                  }}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Ingresando…' : 'Ingresar al sistema'}
-                </Button>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      mt: 2,
+                      px: 2,
+                      py: 1.1,
+                      borderRadius: 3,
+                      bgcolor: '#FCE7E7',
+                      border: '1px solid rgba(185, 28, 28, 0.12)',
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{ color: '#9F1239', fontWeight: 700 }}
+                    >
+                      Acceso restringido a la red local institucional
+                    </Typography>
+                  </Paper>
+                </Box>
+              ) : (
+                <Box component="form" onSubmit={(e) => { e.preventDefault(); void onSubmitMfa(); }} noValidate>
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {error}
+                    </Alert>
+                  )}
 
-                <Paper
-                  elevation={0}
-                  sx={{
-                    mt: 2,
-                    px: 2,
-                    py: 1.1,
-                    borderRadius: 3,
-                    bgcolor: '#FCE7E7',
-                    border: '1px solid rgba(185, 28, 28, 0.12)',
-                  }}
-                >
-                  <Typography variant="caption" sx={{ color: '#9F1239', fontWeight: 700 }}>
-                    Acceso restringido a la red local institucional
+                  <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5 }}>
+                    {step === 'MFA_REQUIRED'
+                      ? 'Verificación en dos pasos'
+                      : 'Configurar verificación en dos pasos'}
                   </Typography>
-                </Paper>
-              </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                    Ingrese el código de su app autenticadora.
+                  </Typography>
+
+                  {step === 'MFA_SETUP_REQUIRED' && (
+                    <>
+                      <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                          En este acceso el sistema solicita enrolar su TOTP. En la app
+                          autenticadora agregue una cuenta con la clave indicada.
+                        </Typography>
+                      </Alert>
+
+                      <TextField
+                        label="Clave TOTP (secret)"
+                        value={setupSecret ?? ''}
+                        placeholder="Generando…"
+                        fullWidth
+                        margin="normal"
+                        size="small"
+                        disabled={setupBusy}
+                      />
+                      <TextField
+                        label="URL otpauth (referencia)"
+                        value={setupOtpauthUrl ?? ''}
+                        placeholder="Generando…"
+                        fullWidth
+                        margin="normal"
+                        size="small"
+                        disabled={setupBusy}
+                      />
+                      {setupBusy ? (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          Preparando enrolamiento…
+                        </Typography>
+                      ) : null}
+                    </>
+                  )}
+
+                  <TextField
+                    label="Código de 6 dígitos"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\\D/g, '').slice(0, 6))}
+                    fullWidth
+                    margin="normal"
+                  />
+
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    disabled={mfaBusy || setupBusy}
+                    sx={{
+                      mt: 1,
+                      borderRadius: 3,
+                      py: 1.3,
+                      bgcolor: '#1E7C89',
+                      '&:hover': { bgcolor: '#196C77' },
+                    }}
+                  >
+                    {mfaBusy ? 'Verificando…' : step === 'MFA_REQUIRED' ? 'Confirmar código' : 'Finalizar configuración'}
+                  </Button>
+
+                  <Button
+                    variant="text"
+                    fullWidth
+                    sx={{ mt: 1 }}
+                    disabled={mfaBusy || setupBusy}
+                    onClick={() => {
+                      setStep('CREDENTIALS');
+                      setChallengeToken(null);
+                      setSetupChallengeToken(null);
+                      setSetupSecret(null);
+                      setSetupOtpauthUrl(null);
+                      setMfaCode('');
+                      setError(null);
+                    }}
+                  >
+                    Volver a iniciar con credenciales
+                  </Button>
+                </Box>
+              )}
             </Paper>
           </Box>
         </Stack>

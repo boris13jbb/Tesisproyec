@@ -72,8 +72,8 @@ Variables de entorno (`.env`) siguen siendo la fuente de verdad para lockout, JW
 
 | Control | Estado backend | UI |
 |---------|----------------|-----|
-| Historial de contraseñas (reuso) | No implementado | No aparece |
-| MFA / step-up administrador | No implementado | No aparece |
+| Historial de contraseñas (reuso) | Implementado (rechaza reuso según `security_policy.desired_password_history_count`) | Aparece en `/admin/configuracion` y se aplica en creación/restablecimiento |
+| MFA / step-up administrador | Implementado (TOTP) | Aparece en `/admin/configuracion` y se activa durante `/auth/login` según `desired_admin_step_up_auth` |
 | Edición de lockout/JWT desde web | Solo `.env` | Solo lectura + nota |
 
 Cuando se implementen, actualizar `getAdminSecuritySummary()`, la pantalla y este documento.

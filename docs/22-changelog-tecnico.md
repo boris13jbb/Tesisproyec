@@ -27,8 +27,8 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 ### 2026-05-27 — Documentación y UI: solo controles reales y exigibles
 
 - **Principio:** interfaz sin promesas de certificación ISO, sin políticas futuras editables ni botones que no ejecutan (restore remoto, «Guardar política» sin efecto en runtime).
-- **Frontend (ya en código):** panel «Indicadores operativos de seguridad», configuración solo lectura + «Registrar revisión», respaldos con diálogos de procedimiento, textos institucionales en usuarios/auditoría/clasificación/reportes; constantes `institutional-ux.ts`, `security-config-labels.ts`.
-- **Backend:** `getAdminSecuritySummary` sin MFA/historial; subtítulos operativos en métricas del dashboard; matriz de acceso sin rutas HTTP en ayuda principal.
+- **Frontend (ya en código):** panel «Indicadores operativos de seguridad», pantalla de configuración con estado operativo de **historial de contraseñas** y **MFA administrativa (TOTP)**, respaldos con diálogos de procedimiento, textos institucionales; y flujo de login con verificación en dos pasos cuando la política lo exige.
+- **Backend:** `getAdminSecuritySummary` ahora expone **passwordReuseHistory** y **adminMfa**; se implementa verificación TOTP para ADMIN y rechazo de reuso de contraseñas según `security_policy.desired_password_history_count`; nuevos endpoints `POST /auth/mfa/*`.
 - **Docs:** nuevo `45-principio-ui-controles-reales.md`; actualizados `17`, `27`, `44`, `25`, `41`, `99`, `docs/README.md`, índice de pantallas mockup.
 - **Referencias:** ISO/IEC 27001, ISO 15489, OWASP ASVS como **diseño**, no certificación en UI.
 

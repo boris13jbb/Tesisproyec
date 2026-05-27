@@ -6,16 +6,20 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { Roles } from './decorators/roles.decorator';
-import { AuthService } from './auth.service';
+import { AuthService, type LoginSuccessPayload } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
+import { MfaSetupChallengeDto } from './dto/mfa-setup-challenge.dto';
+import { MfaSetupConfirmDto } from './dto/mfa-setup-confirm.dto';
+import { MfaVerifyLoginDto } from './dto/mfa-verify-login.dto';
 import { UpdateSecurityPolicyDto } from './dto/security-policy.dto';
 import { Permissions } from './decorators/permissions.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -58,6 +62,57 @@ export class AuthController {
       ip: ipFromForwarded ?? req.ip,
       userAgent: typeof ua === 'string' ? ua : undefined,
     });
+    if ('mfaRequired' in result && result.mfaRequired) {
+      return {
+        mfaRequired: true,
+        challengeToken: result.challengeToken,
+        email: result.email,
+      };
+    }
+    if ('mfaSetupRequired' in result && result.mfaSetupRequired) {
+      return {
+        mfaSetupRequired: true,
+        setupChallengeToken: result.setupChallengeToken,
+        email: result.email,
+      };
+    }
+    const session = result as LoginSuccessPayload;
+    const name = this.cookieName();
+    res.cookie(name, session.refreshToken, {
+      httpOnly: true,
+      secure: this.config.get('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: this.refreshMaxAgeMs(),
+    });
+    return {
+      accessToken: session.accessToken,
+      user: session.user,
+    };
+  }
+
+  @Post('mfa/verify-login')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 12, ttl: 10 * 60_000 } })
+  async verifyMfaLogin(
+    @Body() dto: MfaVerifyLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipFromForwarded =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    const ua = req.headers['user-agent'];
+    const result = await this.authService.completeLoginAfterMfa(
+      dto.challengeToken,
+      dto.code,
+      {
+        ip: ipFromForwarded ?? req.ip,
+        userAgent: typeof ua === 'string' ? ua : undefined,
+      },
+    );
     const name = this.cookieName();
     res.cookie(name, result.refreshToken, {
       httpOnly: true,
@@ -66,10 +121,103 @@ export class AuthController {
       path: '/',
       maxAge: this.refreshMaxAgeMs(),
     });
-    return {
-      accessToken: result.accessToken,
-      user: result.user,
-    };
+    return { accessToken: result.accessToken, user: result.user };
+  }
+
+  @Post('mfa/setup/begin-login')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 10 * 60_000 } })
+  beginMfaSetupLogin(@Body() dto: MfaSetupChallengeDto) {
+    return this.authService.beginMfaSetupFromChallenge(dto.setupChallengeToken);
+  }
+
+  @Post('mfa/setup/confirm-login')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 12, ttl: 10 * 60_000 } })
+  async confirmMfaSetupLogin(
+    @Body() dto: MfaSetupConfirmDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!dto.setupChallengeToken?.trim()) {
+      throw new UnauthorizedException();
+    }
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipFromForwarded =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    const ua = req.headers['user-agent'];
+    const result = await this.authService.completeSetupLoginAfterMfa(
+      dto.setupChallengeToken,
+      dto.code,
+      {
+        ip: ipFromForwarded ?? req.ip,
+        userAgent: typeof ua === 'string' ? ua : undefined,
+      },
+    );
+    const name = this.cookieName();
+    res.cookie(name, result.refreshToken, {
+      httpOnly: true,
+      secure: this.config.get('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: this.refreshMaxAgeMs(),
+    });
+    return { accessToken: result.accessToken, user: result.user };
+  }
+
+  @Get('mfa/status')
+  @UseGuards(JwtAuthGuard)
+  mfaStatus(@Req() req: Request & { user: JwtRequestUser }) {
+    return this.authService.getMyMfaStatus(req.user.id);
+  }
+
+  @Post('mfa/setup/begin')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  beginMfaSetup(@Req() req: Request & { user: JwtRequestUser }) {
+    return this.authService.beginMyMfaSetup(req.user.id, req.user.email);
+  }
+
+  @Post('mfa/setup/confirm')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  confirmMfaSetup(
+    @Body() dto: MfaSetupConfirmDto,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipFromForwarded =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    const ua = req.headers['user-agent'];
+    return this.authService.confirmMyMfaSetup(req.user.id, dto.code, {
+      ip: ipFromForwarded ?? req.ip,
+      userAgent: typeof ua === 'string' ? ua : undefined,
+      email: req.user.email,
+    });
+  }
+
+  @Post('mfa/disable')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  disableMfa(
+    @Body() dto: MfaSetupConfirmDto,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipFromForwarded =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    const ua = req.headers['user-agent'];
+    return this.authService.disableMyMfa(req.user.id, dto.code, {
+      ip: ipFromForwarded ?? req.ip,
+      userAgent: typeof ua === 'string' ? ua : undefined,
+      email: req.user.email,
+    });
   }
 
   @Post('refresh')

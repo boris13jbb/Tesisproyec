@@ -14,6 +14,8 @@ import {
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { MfaTotpService } from './mfa-totp.service';
+import { PasswordPolicyService } from './password-policy.service';
 import type { JwtRequestUser } from './request-user';
 
 export type AdminSecuritySummary = {
@@ -21,6 +23,14 @@ export type AdminSecuritySummary = {
   passwordPolicy: {
     minLength: number;
     enforcedOnUserCreate: boolean;
+  };
+  passwordReuseHistory: {
+    enabled: boolean;
+    retainCount: number;
+  };
+  adminMfa: {
+    requiredForAdmin: boolean;
+    algorithm: 'TOTP';
   };
   accountLockout: {
     enabled: boolean;
@@ -38,6 +48,29 @@ export type AdminSecuritySummary = {
     fileUpload: { maxMegabytes: number; mimeAllowlistEnforced: boolean };
   };
 };
+
+export type LoginSuccessPayload = {
+  accessToken: string;
+  refreshToken: string;
+  user: ReturnType<AuthService['sanitizeUser']>;
+};
+
+export type LoginMfaRequiredPayload = {
+  mfaRequired: true;
+  challengeToken: string;
+  email: string;
+};
+
+export type LoginMfaSetupRequiredPayload = {
+  mfaSetupRequired: true;
+  setupChallengeToken: string;
+  email: string;
+};
+
+export type LoginResponsePayload =
+  | LoginSuccessPayload
+  | LoginMfaRequiredPayload
+  | LoginMfaSetupRequiredPayload;
 
 export type SecurityPolicyRecord = {
   schemaVersion: 1;
@@ -67,6 +100,8 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly passwordPolicy: PasswordPolicyService,
+    private readonly mfaTotp: MfaTotpService,
   ) {}
 
   private clampInt(
@@ -105,7 +140,7 @@ export class AuthService {
           1,
           365,
         ),
-        desiredPasswordHistoryCount: 0,
+        desiredPasswordHistoryCount: 5,
         desiredAdminStepUpAuth: false,
         notes: null,
         updatedByUserId: null,
@@ -349,7 +384,7 @@ export class AuthService {
   async login(
     dto: LoginDto,
     client?: { ip?: string | null; userAgent?: string | null },
-  ) {
+  ): Promise<LoginResponsePayload> {
     const email = dto.email.toLowerCase().trim();
     const now = new Date();
     const auditCtxBase = {
@@ -443,6 +478,111 @@ export class AuthService {
       },
     });
 
+    const mustMfa = await this.mfaTotp.adminMustUseMfa(user);
+    if (mustMfa) {
+      const totpState = await this.mfaTotp.getTotpState(user.id);
+      if (totpState.enabled) {
+        const { challengeToken } = await this.mfaTotp.createLoginChallenge(
+          user.id,
+          'LOGIN',
+          auditCtxBase,
+        );
+        return {
+          mfaRequired: true as const,
+          challengeToken,
+          email: user.email,
+        };
+      }
+      const { challengeToken } = await this.mfaTotp.createLoginChallenge(
+        user.id,
+        'SETUP',
+        auditCtxBase,
+      );
+      return {
+        mfaSetupRequired: true as const,
+        setupChallengeToken: challengeToken,
+        email: user.email,
+      };
+    }
+
+    return this.issueAuthSession(user, auditCtxBase);
+  }
+
+  async completeLoginAfterMfa(
+    challengeToken: string,
+    code: string,
+    client?: { ip?: string | null; userAgent?: string | null },
+  ): Promise<LoginSuccessPayload> {
+    const { user, challengeId } = await this.mfaTotp.verifyLoginChallenge(
+      challengeToken,
+      code,
+      client,
+    );
+    await this.mfaTotp.consumeChallenge(challengeId);
+    return this.issueAuthSession(user, {
+      ip: client?.ip ?? null,
+      userAgent: client?.userAgent ?? null,
+      actorUserId: user.id,
+      actorEmail: user.email,
+    });
+  }
+
+  async completeSetupLoginAfterMfa(
+    setupChallengeToken: string,
+    code: string,
+    client?: { ip?: string | null; userAgent?: string | null },
+  ): Promise<LoginSuccessPayload> {
+    const { user, challengeId } = await this.mfaTotp.confirmSetupLogin(
+      setupChallengeToken,
+      code,
+      client,
+    );
+    await this.mfaTotp.consumeChallenge(challengeId);
+    return this.issueAuthSession(user, {
+      ip: client?.ip ?? null,
+      userAgent: client?.userAgent ?? null,
+      actorUserId: user.id,
+      actorEmail: user.email,
+    });
+  }
+
+  async beginMfaSetupFromChallenge(setupChallengeToken: string) {
+    const row = await this.prisma.mfaLoginChallenge.findUnique({
+      where: {
+        tokenHash: this.hashOpaqueToken(setupChallengeToken.trim()),
+      },
+      include: { user: { select: { email: true, activo: true } } },
+    });
+    if (
+      !row ||
+      row.purpose !== 'SETUP' ||
+      row.expiresAt < new Date() ||
+      !row.user.activo
+    ) {
+      throw new UnauthorizedException();
+    }
+    return this.mfaTotp.beginSetupForChallenge(
+      setupChallengeToken,
+      row.user.email,
+    );
+  }
+
+  private async issueAuthSession(
+    user: {
+      id: string;
+      email: string;
+      nombres: string | null;
+      apellidos: string | null;
+      activo: boolean;
+      roles: { role: { codigo: string; nombre: string } }[];
+    },
+    auditCtx: {
+      ip?: string | null;
+      userAgent?: string | null;
+      actorUserId?: string | null;
+      actorEmail?: string | null;
+    },
+  ): Promise<LoginSuccessPayload> {
     const accessToken = await this.jwtService.signAsync(
       { sub: user.id, email: user.email },
       this.accessSignOptions(),
@@ -470,7 +610,8 @@ export class AuthService {
       context: {
         actorUserId: user.id,
         actorEmail: user.email,
-        ...auditCtxBase,
+        ip: auditCtx.ip ?? null,
+        userAgent: auditCtx.userAgent ?? null,
       },
     });
 
@@ -658,7 +799,7 @@ export class AuthService {
     email: string;
     nombres: string | null;
     apellidos: string | null;
-    dependenciaId: string | null;
+    dependenciaId?: string | null;
     activo: boolean;
     roles: { role: { codigo: string; nombre: string } }[];
   }) {
@@ -667,7 +808,7 @@ export class AuthService {
       email: user.email,
       nombres: user.nombres,
       apellidos: user.apellidos,
-      dependenciaId: user.dependenciaId,
+      dependenciaId: user.dependenciaId ?? null,
       roles: user.roles.map((ur) => ({
         codigo: ur.role.codigo,
         nombre: ur.role.nombre,
@@ -829,6 +970,12 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
+    await this.passwordPolicy.assertPasswordNotReused(
+      row.userId,
+      input.newPassword,
+      row.user.passwordHash,
+    );
+
     const passwordHash = await argon2.hash(input.newPassword);
 
     await this.prisma.$transaction([
@@ -850,6 +997,11 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+
+    await this.passwordPolicy.recordPasswordChange(
+      row.userId,
+      row.user.passwordHash,
+    );
 
     await this.audit.log({
       action: 'AUTH_PASSWORD_RESET_CONFIRM_OK',
@@ -980,17 +1132,29 @@ export class AuthService {
   /**
    * Lectura de políticas operativas efectivas (sin secretos). Solo consumo UI ADMIN.
    */
-  getAdminSecuritySummary(): AdminSecuritySummary {
+  async getAdminSecuritySummary(): Promise<AdminSecuritySummary> {
     const refreshDaysRaw = Number(this.config.get('JWT_REFRESH_DAYS', 7));
     const refreshSessionDays = Number.isFinite(refreshDaysRaw)
       ? Math.min(365, Math.max(1, Math.floor(refreshDaysRaw)))
       : 7;
+
+    const historyCount =
+      await this.passwordPolicy.getEffectivePasswordHistoryCount();
+    const mfaRequired = await this.mfaTotp.isAdminMfaRequiredByPolicy();
 
     return {
       schemaVersion: 1,
       passwordPolicy: {
         minLength: AuthService.USER_PASSWORD_MIN_LENGTH,
         enforcedOnUserCreate: true,
+      },
+      passwordReuseHistory: {
+        enabled: historyCount > 0,
+        retainCount: historyCount,
+      },
+      adminMfa: {
+        requiredForAdmin: mfaRequired,
+        algorithm: 'TOTP',
       },
       accountLockout: {
         enabled: true,
@@ -1008,5 +1172,35 @@ export class AuthService {
         fileUpload: { maxMegabytes: 50, mimeAllowlistEnforced: true },
       },
     };
+  }
+
+  async getMyMfaStatus(userId: string) {
+    const state = await this.mfaTotp.getTotpState(userId);
+    const required = await this.mfaTotp.isAdminMfaRequiredByPolicy();
+    return {
+      enabled: state.enabled,
+      pending: state.pending,
+      adminPolicyRequiresMfa: required,
+    };
+  }
+
+  beginMyMfaSetup(userId: string, email: string) {
+    return this.mfaTotp.beginSetupForAuthenticatedUser(userId, email);
+  }
+
+  confirmMyMfaSetup(
+    userId: string,
+    code: string,
+    context?: { ip?: string; userAgent?: string; email?: string },
+  ) {
+    return this.mfaTotp.confirmSetup(userId, code, context);
+  }
+
+  disableMyMfa(
+    userId: string,
+    code: string,
+    context?: { ip?: string; userAgent?: string; email?: string },
+  ) {
+    return this.mfaTotp.disableTotp(userId, code, context);
   }
 }

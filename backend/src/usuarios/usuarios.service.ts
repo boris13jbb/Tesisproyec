@@ -12,6 +12,7 @@ import { AuditService } from '../auditoria/audit.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
+import { PasswordPolicyService } from '../auth/password-policy.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 
@@ -43,17 +44,22 @@ export type CreateUsuarioResult = UsuarioResponse & {
 
 @Injectable()
 export class UsuariosService {
-  private readonly allowedDirectPermCodes = new Set<string>(ALL_PERMISSION_CODES);
+  private readonly allowedDirectPermCodes = new Set<string>(
+    ALL_PERMISSION_CODES,
+  );
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly passwordPolicy: PasswordPolicyService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
   ) {}
 
   /** Resuelve IDs de `permissions` para códigos directos; valida catálogo y filas en BD. */
-  private async resolveDirectPermissionIds(codesInput: string[]): Promise<string[]> {
+  private async resolveDirectPermissionIds(
+    codesInput: string[],
+  ): Promise<string[]> {
     const unique = Array.from(
       new Set(codesInput.map((c) => c.trim()).filter(Boolean)),
     );
@@ -240,10 +246,7 @@ export class UsuariosService {
           data: roles.map((r) => ({ userId: user.id, roleId: r.id })),
         });
 
-        if (
-          directPermIdsCreate !== null &&
-          directPermIdsCreate.length > 0
-        ) {
+        if (directPermIdsCreate !== null && directPermIdsCreate.length > 0) {
           await tx.userPermission.createMany({
             data: directPermIdsCreate.map((permissionId) => ({
               userId: user.id,
@@ -413,6 +416,7 @@ export class UsuariosService {
       select: {
         id: true,
         email: true,
+        passwordHash: true,
         nombres: true,
         apellidos: true,
         dependenciaId: true,
@@ -428,6 +432,13 @@ export class UsuariosService {
     }
 
     const email = dto.email ? dto.email.toLowerCase().trim() : undefined;
+    if (dto.password) {
+      await this.passwordPolicy.assertPasswordNotReused(
+        id,
+        dto.password,
+        existing.passwordHash,
+      );
+    }
     const passwordHash = dto.password
       ? await argon2.hash(dto.password, { type: argon2.argon2id })
       : undefined;
@@ -531,6 +542,13 @@ export class UsuariosService {
         });
       });
 
+      if (dto.password) {
+        await this.passwordPolicy.recordPasswordChange(
+          id,
+          existing.passwordHash,
+        );
+      }
+
       const updatedSanitized = this.sanitize(updated);
 
       if (
@@ -597,7 +615,7 @@ export class UsuariosService {
   ): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, activo: true },
+      select: { id: true, activo: true, passwordHash: true },
     });
     if (!user) {
       throw new NotFoundException();
@@ -608,9 +626,16 @@ export class UsuariosService {
       );
     }
 
+    await this.passwordPolicy.assertPasswordNotReused(
+      id,
+      newPassword,
+      user.passwordHash,
+    );
+
     const passwordHash = await argon2.hash(newPassword, {
       type: argon2.argon2id,
     });
+    await this.passwordPolicy.recordPasswordChange(id, user.passwordHash);
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id },
