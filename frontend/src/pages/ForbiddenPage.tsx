@@ -9,8 +9,8 @@ export function ForbiddenPage() {
         No tiene permiso para acceder a este recurso. Si cree que es un error, contacte al
         administrador del sistema.
       </Typography>
-      <Typography variant="overline" color="text.secondary" sx={{ mb: 2, letterSpacing: 1, display: 'block' }}>
-        Código 403
+      <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+        Si necesita este acceso, solicítelo al administrador del sistema documental.
       </Typography>
       <Button component={RouterLink} to="/" variant="contained" color="primary" fullWidth size="large">
         Volver al inicio

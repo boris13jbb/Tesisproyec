@@ -11,11 +11,13 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { PageHeader } from '../components/PageHeader';
+import { formatUserActivityLabel } from '../constants/audit-actions';
+import { getApiErrorMessage } from '../utils/api-error-message';
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
 
@@ -101,15 +103,6 @@ function formatLastLogin(iso: string | null): string {
   }).format(d);
 }
 
-/** Evita mostrar códigos técnicos de auditoría si el API aún no envió etiqueta amigable. */
-function activityLabelForUser(label: string, action: string): string {
-  if (label.trim() && label !== action) return label.trim();
-  if (/^[A-Z][A-Z0-9_]+$/.test(action)) {
-    return 'Actividad registrada en el sistema';
-  }
-  return label.trim() || 'Actividad en el sistema';
-}
-
 function formatActivityTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -177,6 +170,16 @@ export function PerfilUsuarioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const visibleActivity = useMemo(() => {
+    if (!profile?.activity?.length) return [];
+    return profile.activity
+      .map((item) => ({
+        ...item,
+        displayLabel: formatUserActivityLabel(item.label, item.action),
+      }))
+      .filter((item) => item.displayLabel.length > 0);
+  }, [profile?.activity]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -187,9 +190,14 @@ export function PerfilUsuarioPage() {
         if (!cancelled) {
           setProfile(data);
         }
-      } catch {
+      } catch (e: unknown) {
         if (!cancelled) {
-          setError('No se pudo cargar el perfil. Intenta de nuevo en unos segundos.');
+          setError(
+            getApiErrorMessage(
+              e,
+              'No se pudo cargar el perfil. Intenta de nuevo en unos segundos.',
+            ),
+          );
           setProfile(null);
         }
       } finally {
@@ -380,13 +388,13 @@ export function PerfilUsuarioPage() {
                   subtitle="Últimas acciones que realizó en el sistema"
                 />
                 <Box sx={{ pl: 0.5 }}>
-                  {profile.activity.length === 0 ? (
+                  {visibleActivity.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">
                       Sin actividad registrada recientemente.
                     </Typography>
                   ) : (
                     <Stack component="ol" sx={{ listStyle: 'none', m: 0, p: 0 }}>
-                      {profile.activity.map((item, idx) => (
+                      {visibleActivity.map((item, idx) => (
                         <Box
                           component="li"
                           key={item.id}
@@ -394,10 +402,10 @@ export function PerfilUsuarioPage() {
                             display: 'flex',
                             gap: 1.5,
                             position: 'relative',
-                            pb: idx < profile.activity.length - 1 ? 2.25 : 0,
+                            pb: idx < visibleActivity.length - 1 ? 2.25 : 0,
                             pl: 0.5,
                             '&::before':
-                              idx < profile.activity.length - 1
+                              idx < visibleActivity.length - 1
                                 ? {
                                     content: '""',
                                     position: 'absolute',
@@ -431,7 +439,7 @@ export function PerfilUsuarioPage() {
                           </Box>
                           <Box sx={{ minWidth: 0 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                              {activityLabelForUser(item.label, item.action)}
+                              {item.displayLabel}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {formatActivityTime(item.at)}

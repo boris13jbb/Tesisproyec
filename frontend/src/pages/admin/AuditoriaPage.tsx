@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { isAxiosError } from 'axios';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -27,7 +26,12 @@ import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
-import { AUDIT_ACTION_FILTER_OPTIONS, AUDIT_ACTION_LABEL_LOOKUP } from '../../constants/audit-actions';
+import {
+  AUDIT_ACTION_FILTER_OPTIONS,
+  formatAuditActionLabel,
+  formatAuditResultLabel,
+} from '../../constants/audit-actions';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 
 type AuditRow = {
   id: string;
@@ -148,35 +152,26 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 function AuditResultChip({ row }: { row: AuditRow }) {
-  const res = String(row.result ?? '').toUpperCase();
   const metaReason = parseAuditMeta(row.metaJson)?.reason;
-
+  const label = formatAuditResultLabel(row.result, metaReason);
+  const res = String(row.result ?? '').toUpperCase();
   const chipLabelSx = { '& .MuiChip-label': { px: 1.25 } } as const;
 
-  if (res === 'FAIL' && metaReason === 'ACCOUNT_LOCKED') {
-    return (
-      <Chip
-        size="small"
-        label="Bloqueado"
-        sx={{ bgcolor: '#ffebee', color: '#b71c1c', fontWeight: 600, ...chipLabelSx }}
-      />
-    );
-  }
   if (res === 'OK') {
     return (
-      <Chip size="small" label="Correcto" sx={{ bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 600, ...chipLabelSx }} />
+      <Chip size="small" label={label} sx={{ bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 600, ...chipLabelSx }} />
     );
   }
   if (res === 'FAIL') {
     return (
-      <Chip size="small" label="Fallido" sx={{ bgcolor: '#ffebee', color: '#b71c1c', fontWeight: 600, ...chipLabelSx }} />
+      <Chip size="small" label={label} sx={{ bgcolor: '#ffebee', color: '#b71c1c', fontWeight: 600, ...chipLabelSx }} />
     );
   }
 
   return (
     <Chip
       size="small"
-      label={res || '—'}
+      label={label}
       sx={{ bgcolor: 'rgba(15,39,108,0.06)', color: 'text.secondary', fontWeight: 600, ...chipLabelSx }}
     />
   );
@@ -252,8 +247,7 @@ export function AuditoriaPage() {
     return p;
   }, [appliedAction, appliedActorUserId, appliedFrom, appliedTo, urlActionFilter]);
 
-  const actionUiLabel = (code: string): string =>
-    AUDIT_ACTION_LABEL_LOOKUP[code] ?? code;
+  const actionUiLabel = (code: string): string => formatAuditActionLabel(code);
 
   const documentUiLabel = useCallback((r: AuditRow): { text: string; title: string } => {
     const httpRoute = auditHttpRouteLabel(r.metaJson);
@@ -329,14 +323,9 @@ export function AuditoriaPage() {
         setTotal(typeof body?.total === 'number' ? body.total : list.length);
       } catch (e: unknown) {
         if (cancelled) return;
-        let msg = 'No se pudo cargar la auditoría.';
-        if (isAxiosError(e)) {
-          const st = e.response?.status;
-          if (st === 401) msg = 'Sesión no válida o expirada. Vuelve a iniciar sesión.';
-          else if (st === 403) msg = 'Solo ADMINISTRADOR puede consultar auditoría.';
-          else if (typeof e.message === 'string' && e.message.trim()) msg = e.message.trim();
-        }
-        setError(msg);
+        setError(
+          getApiErrorMessage(e, 'No se pudo cargar la auditoría.'),
+        );
         setRows([]);
         setTotal(0);
       } finally {
@@ -467,19 +456,17 @@ export function AuditoriaPage() {
 
       {(urlActionFilter ?? appliedAction) === 'AUTHZ_FORBIDDEN' ? (
         <Alert severity="info" sx={{ mb: { xs: 2, md: 2 }, borderRadius: 2 }}>
-          Está viendo <strong>accesos denegados por permisos (HTTP 403)</strong> con sesión iniciada, no el
-          bloqueo de login por demasiados intentos. Para confirmar el límite de peticiones en{' '}
-          <code>/auth/login</code>, filtre por{' '}
-          <strong>Límite de peticiones (HTTP 429)</strong> o use <strong>Todas</strong> y busque eventos con código{' '}
-          <code>AUTH_RATE_LIMITED</code>.
+          Está viendo <strong>accesos denegados por permisos</strong> con sesión iniciada, no el bloqueo de
+          login por demasiados intentos. Para confirmar el límite de peticiones en el inicio de sesión,
+          filtre por <strong>Demasiados intentos (límite temporal)</strong> o use <strong>Todas las acciones</strong>.
         </Alert>
       ) : null}
 
       {(urlActionFilter ?? appliedAction) === 'AUTH_RATE_LIMITED' ? (
         <Alert severity="warning" sx={{ mb: { xs: 2, md: 2 }, borderRadius: 2 }}>
-          Estos eventos confirman el <strong>rate limit</strong> del servidor (HTTP 429). Espere unos 10 minutos o
-          reinicie el backend en desarrollo antes de volver a intentar login. La columna «Documento / recurso» muestra
-          la ruta bloqueada (p. ej. <code>POST /api/v1/auth/login</code>).
+          Estos eventos confirman el <strong>límite temporal de intentos</strong> del servidor. Espere unos 10
+          minutos o reinicie el backend en desarrollo antes de volver a intentar login. La columna «Documento /
+          recurso» indica la ruta afectada (solo referencia técnica para soporte).
         </Alert>
       ) : null}
 

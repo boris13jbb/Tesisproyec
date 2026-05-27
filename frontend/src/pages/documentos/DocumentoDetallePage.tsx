@@ -42,6 +42,7 @@ import {
   documentoEstadoSchema,
   labelDocumentoEstado,
 } from '../../constants/documento-estado';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
@@ -605,12 +606,10 @@ export function DocumentoDetallePage() {
       setAccessUserIds(payload.userIds ?? []);
       setAccessRoleCodigos(payload.roleCodigos ?? []);
       setAccessUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
-    } catch (e) {
-      if (isAxiosError(e) && e.response?.status === 403) {
-        setAccessError('No tiene permiso para administrar el acceso del documento (DOC_ACCESS_MANAGE).');
-      } else {
-        setAccessError('No se pudo cargar la configuración de acceso del documento.');
-      }
+    } catch (e: unknown) {
+      setAccessError(
+        getApiErrorMessage(e, 'No se pudo cargar la configuración de acceso del documento.'),
+      );
       setAccessUsers([]);
     } finally {
       setAccessLoading(false);
@@ -620,7 +619,9 @@ export function DocumentoDetallePage() {
   const saveAccess = useCallback(async () => {
     if (!id) return;
     if (!canManageDocAccess) {
-      setAccessError('No tiene permiso para guardar el acceso del documento (DOC_ACCESS_MANAGE).');
+      setAccessError(
+        'No tiene permiso para administrar quién puede ver o editar este documento.',
+      );
       return;
     }
     setAccessError(null);
@@ -634,12 +635,8 @@ export function DocumentoDetallePage() {
       };
       await apiClient.put(`/documentos/${id}/access`, payload);
       setAccessOk('Acceso actualizado. El cambio es efectivo inmediatamente en listados/detalle/archivos.');
-    } catch (e) {
-      if (isAxiosError(e) && e.response?.status === 403) {
-        setAccessError('No tiene permiso para guardar el acceso del documento (DOC_ACCESS_MANAGE).');
-      } else {
-        setAccessError('No se pudo guardar el acceso del documento.');
-      }
+    } catch (e: unknown) {
+      setAccessError(getApiErrorMessage(e, 'No se pudo guardar el acceso del documento.'));
     } finally {
       setAccessSaveLoading(false);
     }

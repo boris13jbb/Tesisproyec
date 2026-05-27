@@ -41,7 +41,6 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { isAxiosError } from 'axios';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { PageHeader } from '../../components/PageHeader';
@@ -51,6 +50,7 @@ import {
   type AccessMatrixReferencia,
 } from '../../constants/roles-access-matrix';
 import { formatUltimoIngreso } from '../../utils/formatUltimoIngreso';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
 const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
@@ -104,13 +104,7 @@ const ROLE_OPTIONS = [
 ] as const;
 
 function mensajeErrorApi(err: unknown, fallback: string): string {
-  if (isAxiosError(err) && err.response?.data) {
-    const d = err.response.data as { message?: string | string[] };
-    const m = d.message;
-    if (Array.isArray(m)) return m.join(' ');
-    if (typeof m === 'string' && m.trim()) return m;
-  }
-  return fallback;
+  return getApiErrorMessage(err, fallback);
 }
 
 /** Encabezado corto matriz — códigos reales igual que en JWT/RBAC. */

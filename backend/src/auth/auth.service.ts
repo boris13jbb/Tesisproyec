@@ -5,6 +5,12 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { AuditService } from '../auditoria/audit.service';
+import {
+  PROFILE_AUDIT_SKIP,
+  parseAuditMetaJson,
+  profileActivityLabel,
+  profileDocumentoIdFromMeta,
+} from '../auditoria/audit-action-labels.util';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -861,129 +867,11 @@ export class AuthService {
     return { ok: true };
   }
 
-  private static parseAuditMetaJson(
-    metaJson: string | null,
-  ): Record<string, unknown> {
-    if (!metaJson) {
-      return {};
-    }
-    try {
-      const v = JSON.parse(metaJson) as unknown;
-      return v !== null && typeof v === 'object'
-        ? (v as Record<string, unknown>)
-        : {};
-    } catch {
-      return {};
-    }
-  }
-
-  private profileDocumentoIdFromRow(
-    meta: Record<string, unknown>,
-  ): string | null {
-    const raw = meta.documentoId;
-    return typeof raw === 'string' && raw.length > 0 ? raw : null;
-  }
-
-  private profileReportKindLabel(kind: unknown): string {
-    if (kind === 'documentos') return 'documentos';
-    if (kind === 'auditoria') return 'auditoría';
-    if (kind === 'pendientes_revision') return 'pendientes de revisión';
-    return 'informe';
-  }
-
-  private profileActivityLabel(
-    row: {
-      action: string;
-      resourceType: string | null;
-      resourceId: string | null;
-      metaJson: string | null;
-    },
-    codigoById: Map<string, string>,
-  ): string | null {
-    const meta = AuthService.parseAuditMetaJson(row.metaJson);
-    const docIdDirect =
-      this.profileDocumentoIdFromRow(meta) ??
-      (row.resourceType === 'Documento' && row.resourceId
-        ? row.resourceId
-        : null);
-    const codigo = docIdDirect ? codigoById.get(docIdDirect) : undefined;
-
-    switch (row.action) {
-      case 'AUTH_LOGIN_OK':
-        return 'Inició sesión correctamente';
-      case 'AUTH_LOGOUT':
-        return 'Cerró sesión';
-      case 'DOC_FILE_UPLOADED':
-        return codigo
-          ? `Cargó documento ${codigo}`
-          : 'Cargó un archivo en un documento';
-      case 'DOC_FILE_DOWNLOADED':
-        return codigo
-          ? `Consultó documento ${codigo}`
-          : 'Consultó un documento (descarga/visualización)';
-      case 'DOC_FILE_DELETED':
-        return codigo
-          ? `Eliminó un archivo del documento ${codigo}`
-          : 'Eliminó un archivo documental';
-      case 'DOC_STATE_CHANGED':
-        return codigo
-          ? `Actualizó documento ${codigo}`
-          : 'Actualizó un documento';
-      case 'DOC_SUBMITTED_FOR_REVIEW':
-        return codigo
-          ? `Envió a revisión el documento ${codigo}`
-          : 'Envió un documento a revisión';
-      case 'DOC_REVIEW_RESOLVED':
-        return codigo
-          ? `Resolvió la revisión del documento ${codigo}`
-          : 'Resolvió una revisión documental';
-      case 'REPORT_EXPORTED':
-        return `Exportó reporte (${this.profileReportKindLabel(meta.kind)})`;
-      case 'USER_UPDATED':
-        return 'Su cuenta fue actualizada por un administrador';
-      case 'USER_PASSWORD_RESET':
-        return 'Contraseña restablecida por administración';
-      case 'AUTH_PASSWORD_RESET_CONFIRM_OK':
-        return 'Restableció su contraseña';
-      case 'AUTH_PASSWORD_RESET_REQUEST':
-        return 'Solicitó restablecer contraseña';
-      case 'BACKUP_VERIFIED':
-        return 'Registró verificación de respaldo institucional';
-      case 'DOC_ACCESS_UPDATED':
-        return codigo
-          ? `Actualizó el acceso al documento ${codigo}`
-          : 'Actualizó el acceso a un documento';
-      case 'USER_CREATED':
-        return 'Su cuenta fue creada en el sistema';
-      default:
-        return null;
-    }
-  }
-
   /**
    * Perfil enriquecido del usuario autenticado + actividad reciente desde auditoría
    * (solo lecturas propias, sin exponer IPs ni metadatos sensibles más allá del necesario para la etiqueta).
    */
   async getMyProfile(viewer: JwtRequestUser) {
-    /** Eventos técnicos o administrativos que no deben mostrarse en el perfil del usuario final. */
-    const PROFILE_AUDIT_SKIP = [
-      'AUTH_REFRESH_OK',
-      'AUTH_REFRESH_FAIL',
-      'AUTH_RATE_LIMITED',
-      'AUTHZ_FORBIDDEN',
-      'CLIENT_WEB_VITAL_LCP',
-      'DASHBOARD_ALERT_ACK',
-      'SECURITY_POLICY_UPDATED',
-      'ROLE_PERMISSIONS_UPDATED',
-      'USER_INVITE_MAIL_SENT',
-      'USER_INVITE_MAIL_SKIP',
-      'USER_INVITE_MAIL_FAIL',
-      'USER_DIRECT_PERMISSIONS_UPDATED',
-      'AUTH_PASSWORD_RESET_MAIL_FAIL',
-      'AUTH_PASSWORD_RESET_MAIL_SKIP',
-      'AUTH_PASSWORD_RESET_CONFIRM_FAIL',
-    ] as const;
-
     const user = await this.prisma.user.findUnique({
       where: { id: viewer.id },
       select: {
@@ -1039,8 +927,8 @@ export class AuthService {
 
     const docIds = new Set<string>();
     for (const row of rawLogs) {
-      const meta = AuthService.parseAuditMetaJson(row.metaJson);
-      const fromMeta = this.profileDocumentoIdFromRow(meta);
+      const meta = parseAuditMetaJson(row.metaJson);
+      const fromMeta = profileDocumentoIdFromMeta(meta);
       if (fromMeta) {
         docIds.add(fromMeta);
       }
@@ -1060,7 +948,7 @@ export class AuthService {
 
     const activity = rawLogs
       .map((row) => {
-        const label = this.profileActivityLabel(row, codigoById);
+        const label = profileActivityLabel(row, codigoById);
         if (!label) return null;
         return {
           id: row.id,

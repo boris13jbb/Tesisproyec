@@ -31,7 +31,6 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { isAxiosError } from 'axios';
 import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -44,6 +43,7 @@ import {
   documentoEstadoSchema,
 } from '../../constants/documento-estado';
 import { apiClient } from '../../api/client';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
 import { PageHeader } from '../../components/PageHeader';
@@ -555,13 +555,7 @@ export function DocumentosPage() {
       createCodigoUsuarioRef.current = false;
       await load();
     } catch (err: unknown) {
-      if (isAxiosError(err) && err.response?.data) {
-        const d = err.response.data as { message?: string | string[] };
-        const m = d.message;
-        setError(Array.isArray(m) ? m.join(' ') : (m ?? 'No se pudo crear.'));
-      } else {
-        setError('No se pudo crear.');
-      }
+      setError(getApiErrorMessage(err, 'No se pudo crear el documento.'));
     }
   });
 

@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../api/client';
 import { AuthLayout } from '../layouts/AuthLayout';
+import { getApiErrorMessage } from '../utils/api-error-message';
 
 const schema = z.object({
   email: z.string().min(1, 'Correo requerido').email('Correo no válido'),
@@ -39,8 +40,10 @@ export function ForgotPasswordPage() {
       setDebugToken(
         typeof res.data.debugToken === 'string' ? res.data.debugToken : null,
       );
-    } catch {
-      setError('No se pudo completar la solicitud. Intente nuevamente más tarde.');
+    } catch (err: unknown) {
+      setError(
+        getApiErrorMessage(err, 'No se pudo completar la solicitud. Intente nuevamente más tarde.'),
+      );
     }
   };
 

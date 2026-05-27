@@ -6,6 +6,7 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../api/client';
 import { AuthLayout } from '../layouts/AuthLayout';
+import { getApiErrorMessage } from '../utils/api-error-message';
 
 const schema = z.object({
   token: z.string().min(1, 'Token requerido'),
@@ -38,9 +39,12 @@ export function ResetPasswordPage() {
         newPassword: data.newPassword,
       });
       setDone(true);
-    } catch {
+    } catch (err: unknown) {
       setError(
-        'No fue posible restablecer la contraseña. El enlace puede haber expirado o ser inválido.',
+        getApiErrorMessage(
+          err,
+          'No fue posible restablecer la contraseña. El enlace puede haber expirado o ser inválido.',
+        ),
       );
     }
   };

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '../auth/useAuth';
+import { getApiErrorMessage } from '../utils/api-error-message';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Correo requerido').email('Correo no válido'),
@@ -39,9 +40,12 @@ export function LoginPage() {
     try {
       await login(data.email, data.password);
       await navigate('/', { replace: true });
-    } catch {
+    } catch (err: unknown) {
       setError(
-        'No fue posible iniciar sesión. Verifique sus datos o intente más tarde.',
+        getApiErrorMessage(
+          err,
+          'No fue posible iniciar sesión. Verifique su correo y contraseña.',
+        ),
       );
     }
   };
