@@ -33,7 +33,6 @@ export function LoginPage() {
   const [mfaBusy, setMfaBusy] = useState(false);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
-  const [setupOtpauthUrl, setSetupOtpauthUrl] = useState<string | null>(null);
 
   const {
     register,
@@ -79,7 +78,6 @@ export function LoginPage() {
         setChallengeToken(loginRes.challengeToken);
         setSetupChallengeToken(null);
         setSetupSecret(null);
-        setSetupOtpauthUrl(null);
         setMfaCode('');
         return;
       }
@@ -94,15 +92,13 @@ export function LoginPage() {
         setMfaCode('');
         setSetupBusy(true);
         setSetupSecret(null);
-        setSetupOtpauthUrl(null);
         try {
-          const { data: setupBegin } = await apiClient.post<{
-            otpauthUrl: string;
-            secret: string;
-          }>('/auth/mfa/setup/begin-login', {
-            setupChallengeToken: loginRes.setupChallengeToken,
-          });
-          setSetupOtpauthUrl(setupBegin.otpauthUrl);
+          const { data: setupBegin } = await apiClient.post<{ secret: string }>(
+            '/auth/mfa/setup/begin-login',
+            {
+              setupChallengeToken: loginRes.setupChallengeToken,
+            },
+          );
           setSetupSecret(setupBegin.secret);
         } finally {
           setSetupBusy(false);
@@ -451,15 +447,6 @@ export function LoginPage() {
                         size="small"
                         disabled={setupBusy}
                       />
-                      <TextField
-                        label="URL otpauth (referencia)"
-                        value={setupOtpauthUrl ?? ''}
-                        placeholder="Generando…"
-                        fullWidth
-                        margin="normal"
-                        size="small"
-                        disabled={setupBusy}
-                      />
                       {setupBusy ? (
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                           Preparando enrolamiento…
@@ -503,7 +490,6 @@ export function LoginPage() {
                       setChallengeToken(null);
                       setSetupChallengeToken(null);
                       setSetupSecret(null);
-                      setSetupOtpauthUrl(null);
                       setMfaCode('');
                       setError(null);
                     }}
