@@ -88,7 +88,7 @@ export function ResetPasswordPage() {
           <Button
             type="submit"
             variant="contained"
-            color="primary"
+            color="secondary"
             fullWidth
             size="large"
             sx={{ mt: 2 }}

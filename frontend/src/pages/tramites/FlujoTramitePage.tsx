@@ -6,7 +6,6 @@ import {
   CardActionArea,
   Chip,
   CircularProgress,
-  Container,
   IconButton,
   Link,
   Stack,
@@ -17,6 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { EmptyState } from '../../components/EmptyState';
+import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import {
   labelDocumentoEstado,
@@ -86,10 +86,9 @@ const KANBAN_COLUMNAS: {
 const REGLA_NEGOCIO_TEAL = '#2D8A99';
 
 const paperWrapSx = {
-  borderRadius: 3,
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
-  bgcolor: 'background.paper',
+  ...listSurfaceSx,
+  p: { xs: 2, sm: 2.5 },
+  overflow: 'hidden',
 } as const;
 
 function formatHoraActualizacion(iso: Date): string {
@@ -143,7 +142,7 @@ export function FlujoTramitePage() {
   );
 
   return (
-    <Container maxWidth={false} sx={{ maxWidth: 1440, mx: 'auto' }}>
+    <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Flujo de trámite"
         description={
@@ -221,7 +220,7 @@ export function FlujoTramitePage() {
             </Typography>
           ) : null}
 
-          <Box sx={{ ...paperWrapSx, p: { xs: 2, sm: 2.5 }, overflow: 'hidden' }}>
+          <Box sx={paperWrapSx}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
               Datos según tu sesión y reglas de visibilidad institucional; cada expediente aparece solo en una
               columna (su estado vigente).
@@ -368,6 +367,6 @@ export function FlujoTramitePage() {
           </Box>
         </>
       )}
-    </Container>
+    </Box>
   );
 }

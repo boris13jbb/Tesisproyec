@@ -18,16 +18,14 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import { apiClient } from '../../api/client';
+import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
 
 const paperCardSx = {
-  bgcolor: '#fff',
-  borderRadius: 3,
+  ...listSurfaceSx,
   p: { xs: 2, md: 2.75 },
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
 };
 
 const BAR_PALETTE = ['#0f766e', '#16a34a', '#ea580c', '#0891b2', '#dc2626', '#7c3aed'];
@@ -353,16 +351,14 @@ export function ReportesInstitucionalesPage() {
           <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', lg: 'flex-end' } }}>
             <Button
               variant="contained"
+              color="secondary"
               onClick={handleGenerar}
               sx={{
                 width: '100%',
-                bgcolor: INSTITUTIONAL_TEAL,
                 fontWeight: 800,
                 textTransform: 'none',
                 borderRadius: 2,
                 py: 1.1,
-                boxShadow: 'none',
-                '&:hover': { bgcolor: INSTITUTIONAL_TEAL, filter: 'brightness(0.96)' },
               }}
             >
               Generar

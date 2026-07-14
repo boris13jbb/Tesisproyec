@@ -196,15 +196,15 @@ La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + *
 
 ## 6. Catálogos (solo ADMIN)
 
-Los catálogos son requisitos para registrar documentos correctamente.
+Los catálogos son requisitos para registrar documentos correctamente. En todas estas pantallas el alta está en la **cabecera** (botón teal), los filtros en una **tarjeta de filtros**, y el estado se muestra como chip **Activo** / **Inactivo**.
 
 ### 6.1 Dependencias
 
 Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md).
 
 1. Menú → **Catálogos → Dependencias**
-2. Opcional: marque **Incluir inactivas** para ver dependencias dadas de baja lógica.
-3. **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
+2. Opcional: en **Filtros**, marque **Incluir inactivas** para ver dependencias dadas de baja lógica.
+3. En la cabecera, **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
 4. **Editar:** cambie nombre, descripción o desmarque **Activa** para desactivar (el código no se modifica).
 
 ### 6.2 Cargos
@@ -212,8 +212,8 @@ Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md).
 Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md).
 
 1. Menú → **Catálogos → Cargos**
-2. Opcional: **Incluir inactivos** para ver cargos desactivados.
-3. **Nuevo cargo:** código (único), nombre, **dependencia opcional** (*Sin asignar* si no aplica), descripción → **Guardar**.
+2. Opcional: en **Filtros**, **Incluir inactivos** para ver cargos desactivados.
+3. En la cabecera, **Nuevo cargo:** código (único), nombre, **dependencia opcional** (*Sin asignar* si no aplica), descripción → **Guardar**.
 4. **Editar:** nombre, dependencia, descripción y **Activo** (el código no se modifica).
 
 ### 6.3 Tipos documentales
@@ -221,8 +221,8 @@ Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md).
 Guía detallada: [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documentales.md).
 
 1. Menú → **Catálogos → Tipos documentales**
-2. Opcional: **Incluir inactivos** para ver tipos desactivados.
-3. **Nuevo tipo:** código (único, ej. `MEMO`), nombre (ej. Memorando) y descripción opcional → **Guardar**.
+2. Opcional: en **Filtros**, **Incluir inactivos** para ver tipos desactivados.
+3. En la cabecera, **Nuevo tipo:** código (único, ej. `MEMO`), nombre (ej. Memorando) y descripción opcional → **Guardar**.
 4. **Editar:** nombre, descripción y **Activo** (el código no se modifica).
 
 ### 6.4 Series y Subseries
@@ -233,15 +233,15 @@ Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
 **Series**
 
 1. Menú → **Catálogos → Series**
-2. Opcional: **Incluir inactivas**.
-3. **Nueva serie:** código único (ej. `ADM`), nombre y descripción → **Guardar**.
+2. Opcional: en **Filtros**, **Incluir inactivas**.
+3. En la cabecera, **Nueva serie:** código único (ej. `ADM`), nombre y descripción → **Guardar**.
 4. **Editar:** nombre, descripción y **Activa** (el código no se modifica).
 
 **Subseries**
 
 1. Menú → **Catálogos → Subseries**
-2. Filtro **Serie** (*Todas* o una serie) y opcional **Incluir inactivas**.
-3. **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
+2. En **Filtros**: **Serie** (*Todas* o una serie) y opcional **Incluir inactivas**.
+3. En la cabecera, **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
 4. **Editar:** puede cambiar **serie** padre, nombre, descripción y **Activa** (el código de subserie no se modifica).
 
 **Resultado esperado**
@@ -375,7 +375,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
    - **Confidencialidad** (por defecto Interno)
 4. Selecciona un **archivo** permitido (PDF, imagen JPG/PNG/WEBP u Office DOCX/XLSX) (máx 50 MB).
 5. Verifica que el panel **Validaciones automáticas** marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
-6. Presiona **Guardar documento**.
+6. Presiona **Guardar documento** (botón teal de la cabecera de formulario / acción principal).
 
 **Resultado esperado**
 - El documento aparece en el listado y se puede abrir el detalle.

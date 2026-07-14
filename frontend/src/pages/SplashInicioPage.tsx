@@ -153,8 +153,8 @@ export function SplashInicioPage() {
             sx={{
               flex: 1,
               width: '100%',
-              display: 'flex',
-              justifyContent: { xs: 'flex-start', md: 'flex-end' },
+              display: { xs: 'none', sm: 'flex' },
+              justifyContent: { sm: 'flex-start', md: 'flex-end' },
             }}
           >
             <Box

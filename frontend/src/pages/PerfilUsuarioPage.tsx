@@ -5,7 +5,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Container,
   Grid,
   Paper,
   Stack,
@@ -15,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { listSurfaceSx } from '../components/listSurfaces';
 import { PageHeader } from '../components/PageHeader';
 import { formatUserActivityLabel } from '../constants/audit-actions';
 import { getApiErrorMessage } from '../utils/api-error-message';
@@ -22,11 +22,8 @@ import { getApiErrorMessage } from '../utils/api-error-message';
 const INSTITUTIONAL_TEAL = '#2D8A99';
 
 const paperCardSx = {
-  bgcolor: '#fff',
-  borderRadius: 3,
+  ...listSurfaceSx,
   p: { xs: 2, md: 2.75 },
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
   height: '100%',
 };
 
@@ -219,7 +216,7 @@ export function PerfilUsuarioPage() {
   const headerRole = data ? primaryRoleLabel(data) : user?.roles[0]?.nombre ?? 'Usuario';
 
   return (
-    <Container maxWidth="lg">
+    <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Perfil de usuario"
         description="GADPR-LM · Sistema de Gestión Documental"
@@ -477,6 +474,6 @@ export function PerfilUsuarioPage() {
           </Grid>
         </>
       ) : null}
-    </Container>
+    </Box>
   );
 }

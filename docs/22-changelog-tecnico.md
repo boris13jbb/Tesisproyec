@@ -24,6 +24,25 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-07-13 — UI/UX pantallas edge + responsive shell
+
+- **404 / 403:** iconografía y CTA secondary.
+- **Recuperar / Restablecer / Nuevo documento:** CTAs teal del tema y superficies `listSurfaceSx`.
+- **Splash:** decoración oculta en móvil estrecho.
+- **MainLayout:** padding responsive y ancho de contenido hasta 1360px en `xl`.
+
+### 2026-07-13 — UI/UX resto de módulos (shell unificado)
+
+- **Superficies:** Clasificación, Trámites, Perfil, Reportes, Respaldos y Configuración usan `listSurfaceSx` (y tablas `listTableContainerSx` donde aplica).
+- **Layout:** se eliminó `Container` duplicado respecto al shell principal; CTAs críticos pasan a `color="secondary"` (teal del tema).
+- Sin cambio de lógica de negocio ni de endpoints.
+
+### 2026-07-13 — UI/UX catálogos y detalle documental
+
+- **Catálogos:** Dependencias, Series, Subseries, Tipos documentales y Cargos usan `FilterPanel`/`ListPanel`/`ActivoChip`; CTAs en cabecera; estado como chip.
+- **Detalle documento:** superficies alineadas a `listSurfaceSx`; layout sin `Container` duplicado respecto al shell.
+- Magic Patterns sin créditos en esta iteración; se reutilizó el sistema visual ya definido.
+
 ### 2026-07-13 — UI/UX listados densos (FilterPanel / ListPanel)
 
 - **Componentes:** `FilterPanel`, `ListPanel`, `listSurfaces` para unificar filtros y tablas.

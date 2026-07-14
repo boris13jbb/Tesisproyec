@@ -9,7 +9,6 @@ import {
   Box,
   CircularProgress,
   Collapse,
-  Container,
   Grid,
   IconButton,
   Link,
@@ -31,6 +30,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
+import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { labelNivelConfidencialidad } from '../../constants/confidencialidad';
 
@@ -68,9 +68,7 @@ const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
 const INSTITUTIONAL_NAVY = '#1A2B3C';
 
 const paperCardSx = {
-  borderRadius: 3,
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+  ...listSurfaceSx,
 } as const;
 
 const CONSERVACION_SIN_MODELO_DATOS =
@@ -266,7 +264,7 @@ export function ClasificacionDocumentalPage() {
   };
 
   return (
-    <Container maxWidth="lg">
+    <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Cuadro de clasificación documental"
         description={
@@ -584,7 +582,7 @@ export function ClasificacionDocumentalPage() {
                   relacionadas). Retención y destino final <strong>no</strong> existen como campos en base de datos: se muestran
                   como pendientes sin inventar plazos.
                 </Typography>
-                <TableContainer sx={{ mt: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                <TableContainer sx={{ mt: 2, ...listTableContainerSx, overflowX: 'auto' }}>
                   <Table size="small" aria-label="Tabla de retención por serie">
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'grey.50' }}>
@@ -632,6 +630,6 @@ export function ClasificacionDocumentalPage() {
           </Grid>
         </Grid>
       )}
-    </Container>
+    </Box>
   );
 }

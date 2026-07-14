@@ -280,7 +280,7 @@ export function TiposDocumentalesPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>
@@ -329,7 +329,7 @@ export function TiposDocumentalesPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>

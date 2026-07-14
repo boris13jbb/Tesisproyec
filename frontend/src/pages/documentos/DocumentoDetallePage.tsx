@@ -8,7 +8,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -46,6 +45,7 @@ import { getApiErrorMessage } from '../../utils/api-error-message';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
+import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { useRegisterBreadcrumbDetail } from '../../layouts/useBreadcrumbDetail';
 
@@ -257,9 +257,7 @@ const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
 const INSTITUTIONAL_NAVY = '#1A2B3C';
 
 const paperCardSx = {
-  borderRadius: 3,
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+  ...listSurfaceSx,
 } as const;
 
 function SectionHeader({
@@ -1021,7 +1019,7 @@ export function DocumentoDetallePage() {
 
   return (
     <>
-      <Container maxWidth="lg">
+      <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
         <PageHeader
           title={doc ? `Documento ${doc.codigo}` : 'Documento'}
           description={
@@ -1841,7 +1839,7 @@ export function DocumentoDetallePage() {
             </Grid>
           </Box>
         )}
-      </Container>
+      </Box>
 
       <Dialog
         open={rejectMotivoOpen}

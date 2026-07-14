@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -13,7 +12,6 @@ import {
   FormControlLabel,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Table,
   TableBody,
@@ -29,7 +27,11 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { ActivoChip } from '../../components/ActivoChip';
 import { EmptyState } from '../../components/EmptyState';
+import { FilterPanel } from '../../components/FilterPanel';
+import { ListPanel } from '../../components/ListPanel';
+import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -181,7 +183,7 @@ export function SubseriesPage() {
 
   return (
     <>
-      <Container maxWidth="lg">
+      <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
         <PageHeader
           title="Subseries"
           description={
@@ -189,101 +191,115 @@ export function SubseriesPage() {
               Catálogo jerárquico bajo series. Alta y edición requieren rol <strong>ADMIN</strong>.
             </>
           }
-        />
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={incluirInactivos}
-              onChange={(_, c) => setIncluirInactivos(c)}
-            />
+          actions={
+            isAdmin ? (
+              <Button variant="contained" color="secondary" onClick={() => setCreateOpen(true)}>
+                Nueva subserie
+              </Button>
+            ) : undefined
           }
-          label="Incluir inactivas"
         />
-        <FormControl sx={{ minWidth: 260 }}>
-          <InputLabel id="serie-filter">Serie</InputLabel>
-          <Select
-            labelId="serie-filter"
-            label="Serie"
-            value={serieFilter}
-            onChange={(e) => setSerieFilter(String(e.target.value))}
-          >
-            <MenuItem value="">
-              <em>Todas</em>
-            </MenuItem>
-            {series.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.codigo} — {s.nombre}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {isAdmin && (
-          <Button variant="contained" onClick={() => setCreateOpen(true)}>
-            Nueva subserie
-          </Button>
-        )}
-      </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Serie</TableCell>
-              <TableCell>Código</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                Descripción
-              </TableCell>
-              <TableCell>Activa</TableCell>
-              {isAdmin && <TableCell align="right">Acciones</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5}>Cargando…</TableCell>
-              </TableRow>
-            )}
-            {!loading &&
-              rows.map((row) => (
-                <TableRow key={row.id} hover>
-                  <TableCell>
-                    {row.serie.codigo} — {row.serie.nombre}
-                  </TableCell>
-                  <TableCell>{row.codigo}</TableCell>
-                  <TableCell>{row.nombre}</TableCell>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        <FilterPanel title="Filtros" description="Filtre por serie y registre si incluye inactivas.">
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={incluirInactivos}
+                  onChange={(_, c) => setIncluirInactivos(c)}
+                  size="small"
+                />
+              }
+              label="Incluir inactivas"
+            />
+            <FormControl size="small" sx={{ minWidth: 260 }}>
+              <InputLabel id="serie-filter">Serie</InputLabel>
+              <Select
+                labelId="serie-filter"
+                label="Serie"
+                value={serieFilter}
+                onChange={(e) => setSerieFilter(String(e.target.value))}
+              >
+                <MenuItem value="">
+                  <em>Todas</em>
+                </MenuItem>
+                {series.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.codigo} — {s.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </FilterPanel>
+
+        <ListPanel
+          badge="SS"
+          title="Listado de subseries"
+          subtitle={`${rows.length} registro${rows.length === 1 ? '' : 's'} según filtros`}
+          loading={loading}
+        >
+          <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
+            <Table size="small" aria-label="Subseries">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Serie</TableCell>
+                  <TableCell>Código</TableCell>
+                  <TableCell>Nombre</TableCell>
                   <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                    {row.descripcion ?? '—'}
+                    Descripción
                   </TableCell>
-                  <TableCell>{row.activo ? 'Sí' : 'No'}</TableCell>
-                  {isAdmin && (
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => openEdit(row)}>
-                        Editar
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell>Estado</TableCell>
+                  {isAdmin && <TableCell align="right">Acciones</TableCell>}
                 </TableRow>
-              ))}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5} sx={{ py: 0 }}>
-                  <EmptyState dense title="No hay subseries en este listado." />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      </Container>
+              </TableHead>
+              <TableBody>
+                {loading && (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 6 : 5}>Cargando…</TableCell>
+                  </TableRow>
+                )}
+                {!loading &&
+                  rows.map((row) => (
+                    <TableRow key={row.id} hover>
+                      <TableCell>
+                        {row.serie.codigo} — {row.serie.nombre}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{row.codigo}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        {row.descripcion ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <ActivoChip activo={row.activo} />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell align="right">
+                          <Button size="small" variant="outlined" onClick={() => openEdit(row)}>
+                            Editar
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                {!loading && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 6 : 5} sx={{ py: 0 }}>
+                      <EmptyState dense title="No hay subseries en este listado." />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </ListPanel>
+      </Box>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Nueva subserie</DialogTitle>
@@ -323,7 +339,7 @@ export function SubseriesPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>
@@ -371,7 +387,7 @@ export function SubseriesPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>

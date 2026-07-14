@@ -199,7 +199,7 @@ export function CargosPage() {
 
   return (
     <>
-      <Container maxWidth="lg">
+      <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
         <PageHeader
           title="Cargos"
           description={
@@ -208,95 +208,99 @@ export function CargosPage() {
               <strong>ADMIN</strong>.
             </>
           }
-        />
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      <Box
-        sx={{
-          mb: 2,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 2,
-          alignItems: 'center',
-        }}
-      >
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={incluirInactivos}
-              onChange={(_, c) => setIncluirInactivos(c)}
-            />
+          actions={
+            isAdmin ? (
+              <Button variant="contained" color="secondary" onClick={() => setCreateOpen(true)}>
+                Nuevo cargo
+              </Button>
+            ) : undefined
           }
-          label="Incluir inactivos"
         />
-        {isAdmin && (
-          <Button variant="contained" onClick={() => setCreateOpen(true)}>
-            Nuevo cargo
-          </Button>
-        )}
-      </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Código</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                Dependencia
-              </TableCell>
-              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                Descripción
-              </TableCell>
-              <TableCell>Activo</TableCell>
-              {isAdmin && <TableCell align="right">Acciones</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell colSpan={colCount}>Cargando…</TableCell>
-              </TableRow>
-            )}
-            {!loading &&
-              rows.map((row) => (
-                <TableRow key={row.id} hover>
-                  <TableCell>{row.codigo}</TableCell>
-                  <TableCell>{row.nombre}</TableCell>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        <FilterPanel title="Filtros" description="Controle la visibilidad de registros inactivos.">
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={incluirInactivos}
+                onChange={(_, c) => setIncluirInactivos(c)}
+                size="small"
+              />
+            }
+            label="Incluir inactivos"
+          />
+        </FilterPanel>
+
+        <ListPanel
+          badge="C"
+          title="Listado de cargos"
+          subtitle={`${rows.length} registro${rows.length === 1 ? '' : 's'} según filtros`}
+          loading={loading}
+        >
+          <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
+            <Table size="small" aria-label="Cargos">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Código</TableCell>
+                  <TableCell>Nombre</TableCell>
                   <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                    {row.dependencia
-                      ? `${row.dependencia.codigo} — ${row.dependencia.nombre}`
-                      : '—'}
+                    Dependencia
                   </TableCell>
                   <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                    {row.descripcion ?? '—'}
+                    Descripción
                   </TableCell>
-                  <TableCell>{row.activo ? 'Sí' : 'No'}</TableCell>
-                  {isAdmin && (
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => openEdit(row)}>
-                        Editar
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell>Estado</TableCell>
+                  {isAdmin && <TableCell align="right">Acciones</TableCell>}
                 </TableRow>
-              ))}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={colCount} sx={{ py: 0 }}>
-                  <EmptyState dense title="No hay cargos en este listado." />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      </Container>
+              </TableHead>
+              <TableBody>
+                {loading && (
+                  <TableRow>
+                    <TableCell colSpan={colCount}>Cargando…</TableCell>
+                  </TableRow>
+                )}
+                {!loading &&
+                  rows.map((row) => (
+                    <TableRow key={row.id} hover>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{row.codigo}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        {row.dependencia
+                          ? `${row.dependencia.codigo} — ${row.dependencia.nombre}`
+                          : '—'}
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        {row.descripcion ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <ActivoChip activo={row.activo} />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell align="right">
+                          <Button size="small" variant="outlined" onClick={() => openEdit(row)}>
+                            Editar
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                {!loading && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={colCount} sx={{ py: 0 }}>
+                      <EmptyState dense title="No hay cargos en este listado." />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </ListPanel>
+      </Box>
 
       <Dialog
         open={createOpen}
@@ -358,7 +362,7 @@ export function CargosPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>
@@ -433,7 +437,7 @@ export function CargosPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>

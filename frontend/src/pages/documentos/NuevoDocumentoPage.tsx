@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Chip,
-  Container,
   FormControl,
   Grid,
   InputLabel,
@@ -26,6 +25,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
@@ -374,7 +374,7 @@ export function NuevoDocumentoPage() {
   };
 
   return (
-    <Container maxWidth="lg">
+    <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Nuevo documento digitalizado"
         description="Carga de archivo, metadatos, clasificación y validación de seguridad."
@@ -400,15 +400,7 @@ export function NuevoDocumentoPage() {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 3,
-              border: '1px solid rgba(15, 23, 42, 0.08)',
-              boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
-              p: 2.5,
-            }}
-          >
+          <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 2 }}>
               <Box
                 aria-hidden
@@ -614,13 +606,9 @@ export function NuevoDocumentoPage() {
                   <Button
                     type="submit"
                     variant="contained"
+                    color="secondary"
                     disabled={saving}
-                    sx={{
-                      borderRadius: 3,
-                      px: 3,
-                      bgcolor: '#1E7C89',
-                      '&:hover': { bgcolor: '#196C77' },
-                    }}
+                    sx={{ borderRadius: 3, px: 3 }}
                   >
                     {saving ? 'Guardando…' : 'Guardar documento'}
                   </Button>
@@ -640,15 +628,7 @@ export function NuevoDocumentoPage() {
 
         <Grid size={{ xs: 12, md: 5 }}>
           <Stack spacing={2}>
-            <Paper
-              elevation={0}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid rgba(15, 23, 42, 0.08)',
-                boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
-                p: 2.5,
-              }}
-            >
+            <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 2 }}>
                 <Box
                   aria-hidden
@@ -724,15 +704,7 @@ export function NuevoDocumentoPage() {
               </Box>
             </Paper>
 
-            <Paper
-              elevation={0}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid rgba(15, 23, 42, 0.08)',
-                boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
-                p: 2.5,
-              }}
-            >
+            <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 1.5 }}>
                 <Box
                   aria-hidden
@@ -787,7 +759,7 @@ export function NuevoDocumentoPage() {
           </Stack>
         </Grid>
       </Grid>
-    </Container>
+    </Box>
   );
 }
 

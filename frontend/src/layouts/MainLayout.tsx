@@ -141,14 +141,14 @@ function LayoutBreadcrumbs() {
     <Breadcrumbs
       aria-label="Ruta de navegación"
       sx={{
-        mb: 2.5,
-        px: 1.5,
-        py: 1,
+        mb: { xs: 2, sm: 2.5 },
+        px: { xs: 1, sm: 1.5 },
+        py: { xs: 0.75, sm: 1 },
         borderRadius: 2,
         bgcolor: 'rgba(30, 58, 95, 0.03)',
         border: '1px solid',
         borderColor: 'divider',
-        '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap' },
+        '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap', rowGap: 0.5 },
       }}
     >
       {crumbs.map((c, i) => {
@@ -592,13 +592,20 @@ export function MainLayout() {
             flexGrow: 1,
             width: { md: `calc(100% - ${drawerWidth}px)` },
             minWidth: 0,
-            pb: 5,
-            px: { xs: 2, sm: 3 },
+            pb: { xs: 6, md: 5 },
+            px: { xs: 1.5, sm: 2.5, md: 3 },
             pt: 0,
           }}
         >
           <Toolbar />
-          <Box sx={{ maxWidth: 1280, mx: 'auto', width: '100%', pt: 2 }}>
+          <Box
+            sx={{
+              maxWidth: { xs: '100%', xl: 1360 },
+              mx: 'auto',
+              width: '100%',
+              pt: { xs: 1.5, sm: 2 },
+            }}
+          >
             <LayoutBreadcrumbs />
             <Outlet />
           </Box>

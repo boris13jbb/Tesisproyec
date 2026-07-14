@@ -4,6 +4,8 @@
 **Ámbito:** Interfaz y experiencia de usuario alineadas con **ISO/IEC 27001:2022**, **ISO 15489** y **OWASP ASVS** como **referencia de diseño** (no certificación en pantalla).  
 **Uso:** Referencia para implementación en frontend (MUI + React), pruebas con usuarios y sustento de tesis.
 
+> **Nota 2026-07-13:** el shell, listados, catálogos, trámites, clasificación, perfil y pantallas de administración admin comparten tokens (`listSurfaceSx`), cabeceras `PageHeader` y acento secondary teal del tema MUI.
+
 ---
 
 ## 0. Principio obligatorio — solo controles reales

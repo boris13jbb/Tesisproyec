@@ -17,16 +17,14 @@ import {
   SECURITY_CONFIG_COPY,
 } from '../../constants/security-config-labels';
 import { PageHeader } from '../../components/PageHeader';
+import { listSurfaceSx } from '../../components/listSurfaces';
 import { getApiErrorMessage } from '../../utils/api-error-message';
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
 
 const paperCardSx = {
-  bgcolor: '#fff',
-  borderRadius: 3,
+  ...listSurfaceSx,
   p: { xs: 2, md: 2.75 },
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
 };
 
 type AdminSecuritySummary = {
@@ -276,16 +274,14 @@ function AuthenticationStatusPanel(props: {
 
       <Button
         variant="contained"
+        color="secondary"
         onClick={() => void saveReview()}
         disabled={saveBusy}
         sx={{
           mt: 2,
           textTransform: 'none',
           fontWeight: 800,
-          bgcolor: INSTITUTIONAL_TEAL,
           borderRadius: 2,
-          boxShadow: 'none',
-          '&:hover': { bgcolor: INSTITUTIONAL_TEAL, filter: 'brightness(0.97)' },
         }}
       >
         {saveBusy ? SECURITY_CONFIG_COPY.savingReviewButton : SECURITY_CONFIG_COPY.saveReviewButton}

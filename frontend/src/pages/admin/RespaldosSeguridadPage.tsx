@@ -31,6 +31,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { isAxiosError } from 'axios';
 import { apiClient } from '../../api/client';
+import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
@@ -61,11 +62,8 @@ type DashboardBackupOverview = {
 };
 
 const paperCardSx = {
-  bgcolor: '#fff',
-  borderRadius: 3,
+  ...listSurfaceSx,
   p: { xs: 2, md: 2.75 },
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
 };
 
 function formatLastVerificationHeadline(iso: string | null): {
@@ -537,9 +535,10 @@ export function RespaldosSeguridadPage() {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <Button
             variant="contained"
+            color="secondary"
             disabled={backupRegBusy}
             onClick={() => void submitVerification()}
-            sx={{ bgcolor: INSTITUTIONAL_TEAL, fontWeight: 800, '&:hover': { bgcolor: '#257a86' } }}
+            sx={{ fontWeight: 800 }}
           >
             {backupRegBusy ? 'Guardando…' : 'Registrar verificación en el sistema'}
           </Button>
@@ -648,7 +647,7 @@ export function RespaldosSeguridadPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Verificaciones de respaldo registradas en auditoría (hasta 50 más recientes)
           </Typography>
-          <TableContainer sx={{ overflowX: 'auto' }}>
+          <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 480 }}>
               <TableHead sx={{ '& th': { fontWeight: 800, bgcolor: '#f9fafc' } }}>
                 <TableRow>
