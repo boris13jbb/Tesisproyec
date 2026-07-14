@@ -240,8 +240,8 @@ export function PerfilUsuarioPage() {
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
               <Avatar
                 sx={{
-                  bgcolor: INSTITUTIONAL_TEAL,
-                  color: '#fff',
+                  bgcolor: 'secondary.main',
+                  color: 'secondary.contrastText',
                   width: 40,
                   height: 40,
                   fontWeight: 800,
@@ -298,8 +298,8 @@ export function PerfilUsuarioPage() {
                     sx={{
                       width: 96,
                       height: 96,
-                      bgcolor: INSTITUTIONAL_TEAL,
-                      color: '#fff',
+                      bgcolor: 'secondary.main',
+                      color: 'secondary.contrastText',
                       fontSize: 34,
                       fontWeight: 800,
                     }}
@@ -363,13 +363,12 @@ export function PerfilUsuarioPage() {
                   component={RouterLink}
                   to="/recuperar"
                   variant="contained"
+                  color="secondary"
                   fullWidth
                   sx={{
                     mt: 3,
                     py: 1.25,
                     fontWeight: 800,
-                    bgcolor: INSTITUTIONAL_TEAL,
-                    '&:hover': { bgcolor: '#257a86' },
                   }}
                 >
                   Cambiar contraseña
@@ -430,7 +429,7 @@ export function PerfilUsuarioPage() {
                                 width: 12,
                                 height: 12,
                                 borderRadius: '50%',
-                                bgcolor: INSTITUTIONAL_TEAL,
+                                bgcolor: 'secondary.main',
                               }}
                             />
                           </Box>

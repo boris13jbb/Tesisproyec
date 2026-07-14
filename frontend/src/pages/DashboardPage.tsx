@@ -8,7 +8,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Container,
   Grid,
   LinearProgress,
   Paper,
@@ -34,6 +33,7 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { useDashboardLcpReporting } from '../perf/useDashboardLcpReporting';
+import { listSurfaceSx } from '../components/listSurfaces';
 import { PageHeader } from '../components/PageHeader';
 import { labelDocumentoEstado } from '../constants/documento-estado';
 import {
@@ -94,8 +94,6 @@ const INTRANET_CHIP_SX = {
   fontWeight: 800,
   letterSpacing: 0.4,
 } as const;
-
-const KPI_TEAL = '#2D8A99';
 
 function initialsFromUser(email: string, nombres?: string | null, apellidos?: string | null): string {
   const joined = `${nombres ?? ''} ${apellidos ?? ''}`.trim();
@@ -618,7 +616,7 @@ export function DashboardPage() {
   }, [generatedAt]);
 
   return (
-    <Container maxWidth="lg">
+    <Box>
       <PageHeader
         title="Panel principal"
         description="GADPR-LM · Sistema de Gestión Documental · Indicadores en tiempo real desde la base de datos."
@@ -667,8 +665,8 @@ export function DashboardPage() {
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
               <Avatar
                 sx={{
-                  bgcolor: KPI_TEAL,
-                  color: '#fff',
+                  bgcolor: 'secondary.main',
+                  color: 'secondary.contrastText',
                   width: 40,
                   height: 40,
                   fontWeight: 800,
@@ -829,9 +827,7 @@ export function DashboardPage() {
           <Paper
             elevation={0}
             sx={{
-              borderRadius: 3,
-              border: '1px solid rgba(15, 23, 42, 0.08)',
-              boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+              ...listSurfaceSx,
               overflow: 'hidden',
             }}
           >
@@ -941,9 +937,7 @@ export function DashboardPage() {
             <Paper
               elevation={0}
               sx={{
-                borderRadius: 3,
-                border: '1px solid rgba(15, 23, 42, 0.08)',
-                boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+                ...listSurfaceSx,
                 p: 2.5,
                 height: '100%',
               }}
@@ -1092,6 +1086,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       )}
-    </Container>
+    </Box>
   );
 }

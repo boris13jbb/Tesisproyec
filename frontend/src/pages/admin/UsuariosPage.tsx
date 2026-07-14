@@ -742,13 +742,12 @@ export function UsuariosPage() {
               {isAdmin ? (
                 <Button
                   variant="contained"
+                  color="secondary"
                   fullWidth
                   sx={{
                     textTransform: 'none',
                     fontWeight: 800,
-                    bgcolor: INSTITUTIONAL_TEAL,
                     py: 1.15,
-                    '&:hover': { bgcolor: '#257a87' },
                   }}
                   onClick={() => {
                     setInviteNotice(null);

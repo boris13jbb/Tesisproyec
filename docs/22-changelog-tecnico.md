@@ -24,6 +24,11 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-07-13 — UI/UX Dashboard + CTAs al tema secondary
+
+- **Dashboard:** sin `Container` duplicado; paneles con `listSurfaceSx`; avatar con `secondary.main`.
+- **Detalle documento / Usuarios / Perfil / Respaldos:** CTAs y acentos críticos usan `color="secondary"` (o token del tema) en lugar de hex hardcodeados en botones.
+
 ### 2026-07-13 — UI/UX pantallas edge + responsive shell
 
 - **404 / 403:** iconografía y CTA secondary.

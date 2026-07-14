@@ -254,7 +254,6 @@ function estadoVisualizationColor(estado: string):
 
 const INSTITUTIONAL_TEAL = '#2D8A99';
 const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
-const INSTITUTIONAL_NAVY = '#1A2B3C';
 
 const paperCardSx = {
   ...listSurfaceSx,
@@ -1466,6 +1465,7 @@ export function DocumentoDetallePage() {
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                               <Button
                                 variant="contained"
+                                color="secondary"
                                 disabled={accessSaveLoading || accessLoading || !id}
                                 onClick={() => void saveAccess()}
                                 sx={{ textTransform: 'none', fontWeight: 800 }}
@@ -1508,13 +1508,10 @@ export function DocumentoDetallePage() {
                       >
                         <Button
                           variant="contained"
+                          color="secondary"
                           component="label"
                           disabled={uploading || docArchivado}
-                          sx={{
-                            textTransform: 'none',
-                            bgcolor: INSTITUTIONAL_TEAL,
-                            '&:hover': { bgcolor: '#257a87' },
-                          }}
+                          sx={{ textTransform: 'none' }}
                         >
                           {uploading ? 'Subiendo…' : 'Subir archivo'}
                           <input
@@ -1656,25 +1653,19 @@ export function DocumentoDetallePage() {
                     >
                       <Button
                         variant="contained"
+                        color="secondary"
                         disabled={!archivoUltimaVersion}
                         onClick={() => archivoUltimaVersion && void onDownload(archivoUltimaVersion)}
-                        sx={{
-                          textTransform: 'none',
-                          bgcolor: INSTITUTIONAL_TEAL,
-                          '&:hover': { bgcolor: '#257a87' },
-                        }}
+                        sx={{ textTransform: 'none' }}
                       >
                         Descargar
                       </Button>
                       {canEditDocumento && (
                         <Button
                           variant="contained"
+                          color="primary"
                           onClick={openEdit}
-                          sx={{
-                            textTransform: 'none',
-                            bgcolor: INSTITUTIONAL_NAVY,
-                            '&:hover': { bgcolor: '#142030' },
-                          }}
+                          sx={{ textTransform: 'none' }}
                         >
                           Editar
                         </Button>
@@ -1755,7 +1746,7 @@ export function DocumentoDetallePage() {
                                     width: 10,
                                     height: 10,
                                     borderRadius: '50%',
-                                    bgcolor: INSTITUTIONAL_TEAL,
+                                    bgcolor: 'secondary.main',
                                     flexShrink: 0,
                                     zIndex: 1,
                                     boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
@@ -2062,7 +2053,7 @@ export function DocumentoDetallePage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={() => void onEdit()}>
+          <Button variant="contained" color="secondary" onClick={() => void onEdit()}>
             Guardar
           </Button>
         </DialogActions>
