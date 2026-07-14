@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-07-13 — Subida de adjuntos: solo PDF
+
+- **Backend:** whitelist MIME limitada a `application/pdf`; validación de extensión `.pdf` y firma de contenido `%PDF`.
+- **Frontend:** selectores de archivo y mensajes en Nuevo documento / Detalle documentan solo PDF.
+- **Docs:** `13-modulo-archivos.md`, manual `27`.
+
 ### 2026-07-13 — UI/UX Dashboard + CTAs al tema secondary
 
 - **Dashboard:** sin `Container` duplicado; paneles con `listSurfaceSx`; avatar con `secondary.main`.

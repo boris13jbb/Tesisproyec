@@ -105,7 +105,7 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 
 ## Reglas de negocio
 
-- **RB-Arch-01 (whitelist)**: solo se admiten tipos MIME/extensiones permitidas (lista blanca).
+- **RB-Arch-01 (whitelist)**: solo se admiten archivos **PDF** (extensión `.pdf`, MIME `application/pdf` y firma de contenido `%PDF`).
 - **RB-Arch-02 (tamaño)**: máximo **10MB** por archivo (configurable).
 - **RB-Arch-03 (anti-IDOR)**: `archivoId` debe pertenecer al `documentoId` de la ruta.
 - **RB-Arch-04 (versionado)**: si existe un archivo activo con `originalName`, el siguiente subido crea `version+1`; nunca sobrescribe binarios previos.
@@ -114,8 +114,8 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 
 ## Validaciones (server-side)
 
-- **MIME real**: validar contra la detección/valor admitido; no confiar solo en extensión.
-- **Extensión**: coherencia con MIME permitido.
+- **MIME / contenido**: validar contra la lista blanca (**solo PDF**); comprobar firma `%PDF` en el buffer (no confiar solo en extensión ni en el MIME declarado por el cliente).
+- **Extensión**: debe ser `.pdf`.
 - **Nombre seguro**: normalización/sanitización para evitar path traversal y caracteres peligrosos.
 - **Tamaño**: rechazar payloads > límite.
 - **Documento existente**: no permitir subir a documentos inexistentes o inactivos (si aplica).

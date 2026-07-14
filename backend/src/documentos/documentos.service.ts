@@ -810,15 +810,30 @@ export class DocumentosService {
     });
   }
 
+  /** Solo PDF institucional (MIME declarado). */
   private allowedMimes(): Set<string> {
-    return new Set([
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
-    ]);
+    return new Set(['application/pdf']);
+  }
+
+  private assertPdfUpload(file: Express.Multer.File): void {
+    const original = (file.originalname || '').trim().toLowerCase();
+    if (!original.endsWith('.pdf')) {
+      throw new BadRequestException(
+        'Solo se permiten archivos PDF (.pdf)',
+      );
+    }
+    const mime = (file.mimetype || '').trim().toLowerCase();
+    if (mime && !this.allowedMimes().has(mime)) {
+      throw new BadRequestException(
+        `Tipo de archivo no permitido (${file.mimetype || 'desconocido'}). Solo PDF.`,
+      );
+    }
+    const head = file.buffer?.subarray(0, 5)?.toString('latin1') ?? '';
+    if (!head.startsWith('%PDF')) {
+      throw new BadRequestException(
+        'El contenido no corresponde a un PDF válido',
+      );
+    }
   }
 
   private sanitizeName(name: string): string {
@@ -849,14 +864,10 @@ export class DocumentosService {
         'Archivo requerido (campo multipart: file)',
       );
     }
-    if (!file.mimetype || !this.allowedMimes().has(file.mimetype)) {
-      throw new BadRequestException(
-        `Tipo de archivo no permitido (${file.mimetype || 'desconocido'})`,
-      );
-    }
     if (!file.buffer || !file.buffer.length) {
       throw new BadRequestException('Archivo vacío');
     }
+    this.assertPdfUpload(file);
 
     const safeOriginal = this.sanitizeName(file.originalname || 'archivo');
     const nextVersion =

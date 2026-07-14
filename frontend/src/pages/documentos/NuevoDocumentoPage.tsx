@@ -41,16 +41,9 @@ type SubserieOption = {
 type DependenciaOption = { id: string; codigo: string; nombre: string };
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024; // Backend: multer limits.fileSize = 50MB
-// Debe reflejar DocumentosService.allowedMimes() (backend).
-const ALLOWED_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'docx', 'xlsx'] as const;
-const ALLOWED_MIMES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
-] as const;
+// Debe reflejar DocumentosService (solo PDF).
+const ALLOWED_EXTS = ['pdf'] as const;
+const ALLOWED_MIMES = ['application/pdf'] as const;
 
 const createSchema = z.object({
   codigo: z
@@ -268,8 +261,10 @@ export function NuevoDocumentoPage() {
   const selectedExt = file ? fileExt(file.name) : '';
   const extPermitted =
     !!file && (ALLOWED_EXTS as readonly string[]).includes(selectedExt);
+  // Algunos navegadores envían type vacío; en ese caso basta la extensión .pdf (el backend valida firma %PDF).
   const mimePermitted =
-    !!file && (ALLOWED_MIMES as readonly string[]).includes(file.type);
+    !!file &&
+    (file.type === '' || (ALLOWED_MIMES as readonly string[]).includes(file.type));
   const sizeOk = !!file && file.size > 0 && file.size <= MAX_FILE_BYTES;
   const nameSafe = !!file && isFilenameSafe(file.name);
 
@@ -323,7 +318,7 @@ export function NuevoDocumentoPage() {
     }
     if (!extPermitted || !mimePermitted) {
       setSubmitError(
-        'Tipo de archivo no permitido. Use PDF, imagen (JPG/PNG/WEBP) o documento Office (DOCX/XLSX).',
+        'Tipo de archivo no permitido. Solo se admite PDF (.pdf).',
       );
       return;
     }
@@ -650,7 +645,7 @@ export function NuevoDocumentoPage() {
                     Archivo digital
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    PDF, imágenes y Office permitidos
+                    Solo PDF (.pdf), máx. 50 MB
                   </Typography>
                 </Box>
               </Stack>
@@ -687,7 +682,7 @@ export function NuevoDocumentoPage() {
                   Arrastre el archivo aquí o seleccione
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  Tamaño máximo: 50 MB · Validación automática
+                  Tamaño máximo: 50 MB · Solo PDF · Validación automática
                 </Typography>
                 {file ? (
                   <Typography variant="body2" sx={{ mt: 1.5 }}>
@@ -698,7 +693,7 @@ export function NuevoDocumentoPage() {
                   ref={fileInputRef}
                   type="file"
                   hidden
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx"
+                  accept=".pdf,application/pdf"
                   onChange={(e) => onFileSelected(e.target.files?.item(0) ?? null)}
                 />
               </Box>

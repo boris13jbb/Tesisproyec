@@ -373,7 +373,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
    - **Estado inicial** (**Registrado** o **Borrador**)
    - **Dependencia propietaria** (opcional; puede venir desde su perfil)
    - **Confidencialidad** (por defecto Interno)
-4. Selecciona un **archivo** permitido (PDF, imagen JPG/PNG/WEBP u Office DOCX/XLSX) (máx 50 MB).
+4. Selecciona un **archivo PDF** (`.pdf`) (máx 50 MB). Otros formatos (imágenes, DOCX, XLSX, etc.) son rechazados.
 5. Verifica que el panel **Validaciones automáticas** marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
 6. Presiona **Guardar documento** (botón teal de la cabecera de formulario / acción principal).
 
@@ -393,7 +393,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 
 La pantalla se organiza en dos columnas (en escritorio):
 
-- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF** o **imagen** (JPG, PNG o WebP), descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). Para **DOCX**, **XLSX** u otros tipos debe usarse **Descargar** (el navegador no integra vista previa de Office aquí). Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales**: **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
+- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales**: **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
 - **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; dependencia; **Conservación** si no está parametrizada en datos (valor «—») y texto explicativo. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 
@@ -440,7 +440,7 @@ Cuando está **En revisión**:
 
 1. Dentro del detalle del documento, en **Vista previa**, ubica **Archivos digitales**.
 2. Presiona **Subir archivo**.
-3. Selecciona un archivo permitido (máx 50MB).
+3. Selecciona un **PDF** (`.pdf`, máx 50MB).
 
 **Resultado esperado**
 - El archivo aparece como `v1` (o `v2`, `v3` si ya existía el mismo nombre).

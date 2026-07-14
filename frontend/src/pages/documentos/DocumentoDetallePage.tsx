@@ -1517,7 +1517,7 @@ export function DocumentoDetallePage() {
                           <input
                             type="file"
                             hidden
-                            accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,application/pdf,image/*"
+                            accept=".pdf,application/pdf"
                             onChange={(e) => {
                               const f = e.target.files?.[0];
                               e.currentTarget.value = '';
@@ -1532,12 +1532,19 @@ export function DocumentoDetallePage() {
                                 );
                                 return;
                               }
+                              const name = f.name.trim().toLowerCase();
+                              const mimeOk =
+                                f.type === '' || f.type === 'application/pdf';
+                              if (!name.endsWith('.pdf') || !mimeOk) {
+                                setError('Solo se permiten archivos PDF (.pdf).');
+                                return;
+                              }
                               void onUpload(f);
                             }}
                           />
                         </Button>
                         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
-                          Permitidos: PDF, JPG/PNG/WEBP, DOCX, XLSX · Máx{' '}
+                          Solo PDF (.pdf) · Máx{' '}
                           {Math.round(MAX_FILE_UPLOAD_BYTES / (1024 * 1024))} MB
                           {docArchivado &&
                             ' · Archivado: no cargas ni eliminaciones.'}

@@ -259,7 +259,7 @@ Si no cumples eso, la entrada **no se muestra** (pero la API también rechazarí
 | **Estado inicial** | **Registrado** o **Borrador** (únicos permitidos al crear). |
 | **Dependencia propietaria** | Puede prellenarse desde la dependencia de tu usuario. |
 | **Confidencialidad** | Por defecto *Interno*; define quién podrá ver el expediente después. |
-| **Archivo adjunto** | PDF, imágenes u Office (DOCX/XLSX); límite ~50 MB; validación de extensión/MIME. |
+| **Archivo adjunto** | Solo **PDF** (`.pdf`); límite ~50 MB; validación de extensión, MIME y firma `%PDF`. |
 | **Validaciones automáticas** | Panel que indica si extensión, nombre y metadatos cumplen reglas antes de guardar. |
 
 #### Cómo funciona el guardado
