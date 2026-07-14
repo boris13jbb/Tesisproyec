@@ -4,7 +4,6 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
-import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
@@ -18,12 +17,14 @@ import TablePagination from '@mui/material/TablePagination';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select, { type SelectChangeEvent } from '@mui/material/Select';
-import CircularProgress from '@mui/material/CircularProgress';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
+import { FilterPanel } from '../../components/FilterPanel';
+import { ListPanel } from '../../components/ListPanel';
+import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import {
@@ -62,17 +63,6 @@ type AuditoriaPagedResponse = {
   pageSize: number;
   total: number;
   items: AuditRow[];
-};
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
-
-const paperCardSx = {
-  bgcolor: '#fff',
-  borderRadius: 3,
-  p: { xs: 2, md: 2.75 },
-  mb: { xs: 2, md: 2.25 },
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
 };
 
 function todayIso(): string {
@@ -470,12 +460,28 @@ export function AuditoriaPage() {
         </Alert>
       ) : null}
 
-      {/* Filtros (diseño 10 · tarjeta superior) */}
-      <Paper elevation={1} sx={paperCardSx}>
-        <Typography variant="subtitle1" sx={{ mb: { xs: 1.75, md: 2 }, fontWeight: 700 }}>
-          Criterios de consulta
-        </Typography>
-
+      {/* Filtros */}
+      <FilterPanel
+        title="Criterios de consulta"
+        description="Filtre por usuario, tipo de acción y rango de fechas. Luego pulse Consultar."
+        actions={
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'flex-end' }}
+          >
+            <Button variant="contained" color="secondary" onClick={handleConsultar}>
+              Consultar
+            </Button>
+            <Button variant="outlined" size="small" onClick={() => void onExportExcel()}>
+              Exportar Excel
+            </Button>
+            <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
+              Exportar PDF
+            </Button>
+          </Stack>
+        }
+      >
         <Box
           sx={{
             display: 'flex',
@@ -560,76 +566,37 @@ export function AuditoriaPage() {
             slotProps={{ inputLabel: { shrink: true } }}
             sx={{ flex: '1 1 160px', minWidth: { xs: '100%', sm: 160 } }}
           />
-
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{
-              ml: { xs: 0, md: 'auto' },
-              alignItems: { xs: 'stretch', sm: 'center' },
-              flexShrink: 0,
-            }}
-          >
-            <Button
-              variant="contained"
-              onClick={handleConsultar}
-              sx={{
-                whiteSpace: 'nowrap',
-                fontWeight: 700,
-                borderRadius: 999,
-                px: 2.75,
-                py: 1,
-                textTransform: 'none',
-                bgcolor: INSTITUTIONAL_TEAL,
-                boxShadow: 'none',
-                '&:hover': { bgcolor: INSTITUTIONAL_TEAL, filter: 'brightness(0.97)' },
-              }}
-            >
-              Consultar
-            </Button>
-            <Button variant="outlined" size="small" onClick={() => void onExportExcel()}>
-              Exportar Excel
-            </Button>
-            <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
-              Exportar PDF
-            </Button>
-          </Stack>
         </Box>
-      </Paper>
+      </FilterPanel>
 
-      {/* Tabla */}
-      <Paper elevation={1} sx={paperCardSx}>
-        <Stack direction="row" spacing={1.5} sx={{ mb: 2, alignItems: 'flex-start' }}>
-          <Box
-            sx={{
-              width: 42,
-              height: 42,
-              borderRadius: 1.25,
-              bgcolor: `${INSTITUTIONAL_TEAL}29`,
-              color: INSTITUTIONAL_TEAL,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
+      <ListPanel
+        badge="A"
+        title="Eventos registrados"
+        subtitle="Registros de auditoría con trazabilidad de actor, acción, resultado y recurso."
+        loading={loading}
+        footer={
+          <TablePagination
+            component="div"
+            count={total}
+            rowsPerPage={pageSize}
+            rowsPerPageOptions={[10, 20, 50]}
+            labelRowsPerPage="Filas"
+            labelDisplayedRows={({ from, to, count }) =>
+              `${from}–${to} de ${count !== -1 ? count : `más de ${to}`}`
+            }
+            page={page}
+            onPageChange={(_e, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(e) => {
+              setPage(0);
+              setPageSize(parseInt(e.target.value, 10));
             }}
-            aria-hidden
-          >
-            A
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-              Eventos registrados
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Registros desde <code>audit_logs</code>; el código de expediente se obtiene del catálogo de documentos cuando el evento está vinculado a un documento o incluye <code>documentoId</code> en metadatos.
-            </Typography>
-          </Box>
-          {loading ? <CircularProgress size={22} aria-label="Cargando auditoría" /> : null}
-        </Stack>
-
-        <TableContainer sx={{ overflowX: 'auto' }}>
+            sx={{ borderTop: '1px solid', borderColor: 'divider', mt: -1 }}
+          />
+        }
+      >
+        <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
           <Table size="medium" sx={{ minWidth: 920 }}>
-            <TableHead sx={{ '& th': { fontWeight: 800, bgcolor: '#f9fafc' } }}>
+            <TableHead>
               <TableRow>
                 <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>Fecha / hora</TableCell>
                 <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>Usuario</TableCell>
@@ -716,22 +683,7 @@ export function AuditoriaPage() {
             </TableBody>
           </Table>
         </TableContainer>
-
-        <TablePagination
-          component="div"
-          count={total}
-          rowsPerPage={pageSize}
-          rowsPerPageOptions={[10, 20, 50]}
-          labelRowsPerPage="Filas"
-          labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count !== -1 ? count : `más de ${to}`}`}
-          page={page}
-          onPageChange={(_e, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => {
-            setPage(0);
-            setPageSize(parseInt(e.target.value, 10));
-          }}
-        />
-      </Paper>
+      </ListPanel>
     </>
   );
 }

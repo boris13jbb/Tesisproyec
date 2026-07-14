@@ -199,17 +199,33 @@ function KpiCard({
       sx={{
         borderRadius: 3,
         border: '1px solid rgba(15, 23, 42, 0.08)',
-        boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)',
-        p: 2,
+        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
+        p: 2.25,
         height: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 3,
+          bgcolor: accentColor,
+          opacity: 0.85,
+        },
         ...(interactive
           ? {
               cursor: 'pointer',
-              transition: 'box-shadow 120ms ease, transform 120ms ease',
-              '&:hover': { boxShadow: '0 16px 38px rgba(15, 23, 42, 0.12)' },
+              transition: 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease',
+              '&:hover': {
+                boxShadow: '0 14px 32px rgba(15, 23, 42, 0.10)',
+                transform: 'translateY(-1px)',
+                borderColor: 'rgba(30, 124, 137, 0.28)',
+              },
               '&:focus-visible': {
                 outline: '2px solid',
-                outlineColor: 'primary.main',
+                outlineColor: 'secondary.main',
                 outlineOffset: 2,
               },
             }

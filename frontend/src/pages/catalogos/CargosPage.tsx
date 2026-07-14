@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -13,7 +12,6 @@ import {
   FormControlLabel,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Table,
   TableBody,
@@ -29,7 +27,11 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { ActivoChip } from '../../components/ActivoChip';
 import { EmptyState } from '../../components/EmptyState';
+import { FilterPanel } from '../../components/FilterPanel';
+import { ListPanel } from '../../components/ListPanel';
+import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 type DepOption = {

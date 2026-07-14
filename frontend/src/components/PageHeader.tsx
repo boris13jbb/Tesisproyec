@@ -18,14 +18,21 @@ export type PageHeaderProps = {
  */
 export function PageHeader({ title, description, actions, backTo }: PageHeaderProps) {
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box
+      sx={{
+        mb: 3,
+        pb: 2.5,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
       {backTo ? (
         <Button
           component={RouterLink}
           to={backTo.to}
           startIcon={<ArrowBackIcon fontSize="small" />}
           size="small"
-          sx={{ mb: 1 }}
+          sx={{ mb: 1.25, ml: -0.5 }}
         >
           {backTo.label ?? 'Volver'}
         </Button>
@@ -40,20 +47,33 @@ export function PageHeader({ title, description, actions, backTo }: PageHeaderPr
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.2,
+            }}
+          >
             {title}
           </Typography>
           {description != null &&
             (typeof description === 'string' ? (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.75, maxWidth: 720, lineHeight: 1.5 }}
+              >
                 {description}
               </Typography>
             ) : (
               <Box
                 sx={{
-                  mt: 0.5,
+                  mt: 0.75,
                   color: 'text.secondary',
                   typography: 'body2',
+                  maxWidth: 720,
                 }}
               >
                 {description}
@@ -68,6 +88,7 @@ export function PageHeader({ title, description, actions, backTo }: PageHeaderPr
               gap: 1,
               justifyContent: { xs: 'flex-start', sm: 'flex-end' },
               flexShrink: 0,
+              alignItems: 'center',
             }}
           >
             {actions}

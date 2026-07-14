@@ -1,6 +1,6 @@
 # Diseño UI/UX — Sistema web institucional de gestión documental (SGD-GADPR-LM)
 
-**Versión:** 1.1 (**coherencia con implementación revisada:** 2026-05-27; detalle funcional en `27`, `45`, snapshot `docs/README.md`)  
+**Versión:** 1.2 (**coherencia con implementación revisada:** 2026-07-13; detalle funcional en `27`, `45`, snapshot `docs/README.md`)  
 **Ámbito:** Interfaz y experiencia de usuario alineadas con **ISO/IEC 27001:2022**, **ISO 15489** y **OWASP ASVS** como **referencia de diseño** (no certificación en pantalla).  
 **Uso:** Referencia para implementación en frontend (MUI + React), pruebas con usuarios y sustento de tesis.
 
@@ -48,7 +48,8 @@ Shell tipo aplicación profesional: **barra superior** + **navegación lateral**
 |-----|------------------|-----|
 | Primario | `#1E3A5F` | Botón principal, app bar, foco |
 | Primario hover | `#2A5082` | Hover |
-| Fondo app | `#F5F7FA` | Fondo detrás del contenido |
+| Secundario / acento | `#1E7C89` (`#2D8A99` light) | Navegación activa, CTAs de acceso, badges |
+| Fondo app | `#F4F7FA` | Fondo detrás del contenido |
 | Superficie | `#FFFFFF` | Tarjetas, drawer |
 | Borde | `#E2E8F0` | Divisores, bordes de card |
 | Texto principal | `#0F172A` | Títulos y cuerpo |
@@ -102,7 +103,12 @@ Sustituir el primario por **color de marca** si la institución lo define; mante
 
 ### Navegación superior
 
-Logo / nombre del sistema, **usuario** y **cerrar sesión** (o menú de cuenta). Opcional: búsqueda global cuando exista endpoint.
+Logo / nombre del sistema, chip de **sesión activa**, **avatar + correo** y menú de cuenta (**Mi perfil**, **Cerrar sesión**). Opcional: búsqueda global cuando exista endpoint.
+
+### Implementación y diseño de referencia (2026-07-13)
+
+- Código productivo: `frontend/src/theme/appTheme.ts`, `layouts/MainLayout.tsx`, componentes compartidos.
+- Boceto Magic Patterns (inspiración visual, no código desplegado): https://www.magicpatterns.com/c/xoklbb3nsdlvg6bvn6x8c5
 
 ### Breadcrumbs
 

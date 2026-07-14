@@ -55,12 +55,13 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 
 1. En **Correo o usuario**, escribe tu correo institucional.
 2. En **Contraseña**, escribe tu contraseña.
-3. (Opcional) Marca **Mantener sesión en este equipo** si estás en un equipo confiable.
+3. Si olvidó la contraseña, use **¿Olvidó su contraseña?** para el flujo de recuperación.
 4. Presiona **Ingresar al sistema**.
 
 **Resultado esperado**
 - El sistema te redirige al **Panel principal**.
-- En la barra superior verás tu correo y la indicación de **sesión activa**.
+- En la barra superior verás tu **avatar** (iniciales), correo y la chip **Sesión activa**.
+- En el menú lateral verás la marca **SGD** y la sección **Principal** con la ruta activa resaltada en acento teal.
 
 **Posibles fallos**
 - **“Credenciales inválidas…”**: correo/contraseña incorrectos, usuario inactivo o **cuenta temporalmente bloqueada** tras repetidos errores de contraseña (el mismo mensaje se usa a propósito; el administrador puede revisar **`AUTH_LOGIN_FAIL`** / **`ACCOUNT_LOCKED`** en Auditoría). Tras restablecer contraseña el bloqueo se limpia.
@@ -72,7 +73,7 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 
 ### 2.3 Perfil de usuario (datos y actividad)
 
-1. Tras iniciar sesión, en la barra superior presiona tu **correo** para abrir el menú de cuenta.
+1. Tras iniciar sesión, en la barra superior presiona tu **avatar / correo** para abrir el menú de cuenta.
 2. Elige **Mi perfil**. También puedes abrir directamente la ruta **`/perfil`**.
 3. Revisa **Información personal** (correo, rol principal, área/dependencia si está asignada, estado y **último ingreso** preferentemente desde el campo **`ultimoLoginAt`**, con respaldo por último **`AUTH_LOGIN_OK`** en auditoría cuando el campo sea nulo).
 4. En **Actividad reciente** verás las últimas acciones en lenguaje claro (por ejemplo «Inició sesión correctamente», «Cargó documento EXP-…»). No se muestran códigos técnicos ni métricas internas del sistema.
@@ -199,25 +200,49 @@ Los catálogos son requisitos para registrar documentos correctamente.
 
 ### 6.1 Dependencias
 
+Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md).
+
 1. Menú → **Catálogos → Dependencias**
-2. Crea/edita una dependencia (código único y nombre).
+2. Opcional: marque **Incluir inactivas** para ver dependencias dadas de baja lógica.
+3. **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
+4. **Editar:** cambie nombre, descripción o desmarque **Activa** para desactivar (el código no se modifica).
 
 ### 6.2 Cargos
 
+Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md).
+
 1. Menú → **Catálogos → Cargos**
-2. Crea/edita un cargo y (opcionalmente) asígnalo a una dependencia.
+2. Opcional: **Incluir inactivos** para ver cargos desactivados.
+3. **Nuevo cargo:** código (único), nombre, **dependencia opcional** (*Sin asignar* si no aplica), descripción → **Guardar**.
+4. **Editar:** nombre, dependencia, descripción y **Activo** (el código no se modifica).
 
 ### 6.3 Tipos documentales
 
+Guía detallada: [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documentales.md).
+
 1. Menú → **Catálogos → Tipos documentales**
-2. Crea/edita tipos (ej. MEMO, OFICIO).
+2. Opcional: **Incluir inactivos** para ver tipos desactivados.
+3. **Nuevo tipo:** código (único, ej. `MEMO`), nombre (ej. Memorando) y descripción opcional → **Guardar**.
+4. **Editar:** nombre, descripción y **Activo** (el código no se modifica).
 
 ### 6.4 Series y Subseries
 
+Guía de **Series:** [50-catalogo-series.md](./50-catalogo-series.md).  
+Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
+
+**Series**
+
 1. Menú → **Catálogos → Series**
-2. Crea series.
-3. Menú → **Catálogos → Subseries**
-4. Crea subseries y vincúlalas a una serie.
+2. Opcional: **Incluir inactivas**.
+3. **Nueva serie:** código único (ej. `ADM`), nombre y descripción → **Guardar**.
+4. **Editar:** nombre, descripción y **Activa** (el código no se modifica).
+
+**Subseries**
+
+1. Menú → **Catálogos → Subseries**
+2. Filtro **Serie** (*Todas* o una serie) y opcional **Incluir inactivas**.
+3. **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
+4. **Editar:** puede cambiar **serie** padre, nombre, descripción y **Activa** (el código de subserie no se modifica).
 
 **Resultado esperado**
 - Los catálogos quedan disponibles para el registro documental.
@@ -234,7 +259,7 @@ Los catálogos son requisitos para registrar documentos correctamente.
 
 ### 7.2 Buscar documentos (simple y avanzada)
 
-Los filtros se organizan en **tarjeta** y se **adaptan al ancho de pantalla** (en móviles los campos se apilan; en escritorio pueden mostrarse en varias columnas). La **tabla** puede mostrar **scroll horizontal** en pantallas estrechas: desplázate lateralmente para ver todas las columnas.
+Los filtros se organizan en **tarjeta de filtros** unificada y se **adaptan al ancho de pantalla** (en móviles los campos se apilan; en escritorio pueden mostrarse en varias columnas). Las acciones principales (**Nuevo documento**, exportar Excel/PDF si aplica) aparecen en la **cabecera** de la página. La **tabla** puede mostrar **scroll horizontal** en pantallas estrechas: desplázate lateralmente para ver todas las columnas.
 
 En la barra de filtros puedes usar:
 - Texto libre (`q`): coincide con **código**, **asunto**, **descripción**, **dependencia** del documento (nombre o código), **usuario que registró** (correo, nombres o apellidos), **tipo documental** y **clasificación** (subserie o serie).
@@ -334,7 +359,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 
 ### 7.4 Crear documento (solo ADMIN)
 
-1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, botón **Nuevo documento** si está visible.
+1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, el botón **Nuevo documento** en la cabecera de la página (si tiene permiso `DOC_CREATE` o es ADMIN).
 2. Los desplegables (**tipo**, **serie**, **clasificación**, **dependencia**) muestran el **catálogo real del servidor**. El sistema puede **prellenar su dependencia** si su usuario tiene dependencia en perfil y ésta existe en catálogo. Si hay un solo tipo documental o una sola serie o una sola subserie aplicable en el árbol, puede seleccionarse automáticamente al cargarse el catálogo.
 3. Completa:
    - **Código (único)**: el servidor **asigna automáticamente** el siguiente correlativo si no lo modifica. La pantalla puede mostrar una **vista previa** (también con **Correlativo servidor**). La convención depende de lo ya registrado: si existen códigos en forma **simple** (`PREFIJO-0001`, `PREFIJO-0002`…), se continúa esa serie; si no, puede usarse el formato **anual** (`PREFIJO-AÑO-00001`…). Solo **ADMIN** puede fijar un código distinto escribiéndolo en el formulario. El prefijo se configura con `DOCUMENTO_CODIGO_PREFIX` en el backend (`DOC` por defecto).

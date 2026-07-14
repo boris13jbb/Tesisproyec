@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import { Alert, Box, Button, Checkbox, Container, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
@@ -356,38 +356,19 @@ export function LoginPage() {
                     {...register('password')}
                   />
 
-                  <Stack
-                    direction="row"
-                    sx={{
-                      mt: 1.25,
-                      mb: 2,
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <Checkbox size="small" />
-                      <Typography variant="caption" color="text.secondary">
-                        Mantener sesión en este equipo
-                      </Typography>
-                    </Stack>
+                  <Box sx={{ mt: 1, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
                     <Button component={RouterLink} to="/recuperar" variant="text" size="small">
-                      ¿Olvidó su llave?
+                      ¿Olvidó su contraseña?
                     </Button>
-                  </Stack>
+                  </Box>
 
                   <Button
                     type="submit"
                     variant="contained"
+                    color="secondary"
                     fullWidth
                     size="large"
-                    sx={{
-                      mt: 0.5,
-                      borderRadius: 3,
-                      py: 1.3,
-                      bgcolor: '#1E7C89',
-                      '&:hover': { bgcolor: '#196C77' },
-                    }}
+                    sx={{ mt: 0.5, borderRadius: 3, py: 1.3 }}
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? 'Ingresando…' : 'Ingresar al sistema'}
@@ -458,24 +439,28 @@ export function LoginPage() {
                   <TextField
                     label="Código de 6 dígitos"
                     value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value.replace(/\\D/g, '').slice(0, 6))}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     fullWidth
                     margin="normal"
+                    slotProps={{
+                      htmlInput: {
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*',
+                        maxLength: 6,
+                        autoComplete: 'one-time-code',
+                        'aria-label': 'Código de verificación de 6 dígitos',
+                      },
+                    }}
                   />
 
                   <Button
                     type="submit"
                     variant="contained"
+                    color="secondary"
                     fullWidth
                     size="large"
                     disabled={mfaBusy || setupBusy}
-                    sx={{
-                      mt: 1,
-                      borderRadius: 3,
-                      py: 1.3,
-                      bgcolor: '#1E7C89',
-                      '&:hover': { bgcolor: '#196C77' },
-                    }}
+                    sx={{ mt: 1, borderRadius: 3, py: 1.3 }}
                   >
                     {mfaBusy ? 'Verificando…' : step === 'MFA_REQUIRED' ? 'Confirmar código' : 'Finalizar configuración'}
                   </Button>

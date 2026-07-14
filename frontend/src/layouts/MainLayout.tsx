@@ -15,10 +15,13 @@ import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import {
   AppBar,
+  Avatar,
   Box,
   Breadcrumbs,
+  Chip,
   Divider,
   Drawer,
   IconButton,
@@ -30,6 +33,7 @@ import {
   ListSubheader,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -43,7 +47,7 @@ import { getBreadcrumbsForPath } from '../nav/breadcrumbs';
 import { BreadcrumbDetailProvider } from './BreadcrumbDetailProvider';
 import { useBreadcrumbDetail } from './useBreadcrumbDetail';
 
-const drawerWidth = 260;
+const drawerWidth = 272;
 
 const navItems: { to: string; label: string; icon: ReactNode }[] = [
   { to: '/', label: 'Inicio', icon: <HomeOutlinedIcon fontSize="small" /> },
@@ -116,6 +120,16 @@ const adminNav: { to: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
+function initialsFromEmail(email: string | undefined): string {
+  if (!email) return 'U';
+  const local = email.split('@')[0] ?? email;
+  const parts = local.split(/[._-]/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return local.slice(0, 2).toUpperCase();
+}
+
 function LayoutBreadcrumbs() {
   const location = useLocation();
   const { labelsByPath } = useBreadcrumbDetail();
@@ -124,12 +138,24 @@ function LayoutBreadcrumbs() {
   });
 
   return (
-    <Breadcrumbs aria-label="Ruta de navegación" sx={{ mb: 2 }}>
+    <Breadcrumbs
+      aria-label="Ruta de navegación"
+      sx={{
+        mb: 2.5,
+        px: 1.5,
+        py: 1,
+        borderRadius: 2,
+        bgcolor: 'rgba(30, 58, 95, 0.03)',
+        border: '1px solid',
+        borderColor: 'divider',
+        '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap' },
+      }}
+    >
       {crumbs.map((c, i) => {
         const last = i === crumbs.length - 1;
         if (last || !c.to) {
           return (
-            <Typography key={`${c.label}-${i}`} color="text.primary" variant="body2">
+            <Typography key={`${c.label}-${i}`} color="text.primary" variant="body2" sx={{ fontWeight: 600 }}>
               {c.label}
             </Typography>
           );
@@ -140,7 +166,7 @@ function LayoutBreadcrumbs() {
             component={RouterLink}
             to={c.to}
             underline="hover"
-            color="inherit"
+            color="text.secondary"
             variant="body2"
           >
             {c.label}
@@ -148,6 +174,48 @@ function LayoutBreadcrumbs() {
         );
       })}
     </Breadcrumbs>
+  );
+}
+
+function BrandBlock() {
+  return (
+    <Box
+      sx={{
+        px: 2,
+        py: 2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+      }}
+    >
+      <Box
+        aria-hidden
+        sx={{
+          width: 40,
+          height: 40,
+          borderRadius: 2,
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: 'secondary.main',
+          color: 'common.white',
+          fontWeight: 800,
+          fontSize: '0.8rem',
+          letterSpacing: 0.4,
+          flexShrink: 0,
+          boxShadow: '0 4px 12px rgba(30, 124, 137, 0.28)',
+        }}
+      >
+        SGD
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.15, color: 'primary.main' }}>
+          SGD-GADPR-LM
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+          Gestión documental
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 
@@ -192,227 +260,350 @@ export function MainLayout() {
     void navigate(to);
   };
 
+  const isSelected = (to: string, exact = false) => {
+    if (exact || to === '/') {
+      return location.pathname === to;
+    }
+    return location.pathname === to || location.pathname.startsWith(`${to}/`);
+  };
+
   const drawer = (
-    <Box sx={{ width: drawerWidth, pt: 1 }} role="navigation" aria-label="Menú principal">
-      <Typography variant="subtitle2" sx={{ px: 2, py: 1, color: 'text.secondary' }}>
-        Menú
-      </Typography>
+    <Box
+      sx={{
+        width: drawerWidth,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+      role="navigation"
+      aria-label="Menú principal"
+    >
+      <BrandBlock />
       <Divider />
-      <List dense>
-        {navItems.map((item) => (
-          <ListItemButton
-            key={item.to}
-            selected={
-              item.to === '/'
-                ? location.pathname === '/'
-                : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
-            }
-            onClick={() => handleNav(item.to)}
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+        <List dense disablePadding>
+          <ListSubheader
+            component="div"
+            sx={{
+              bgcolor: 'transparent',
+              lineHeight: 2.2,
+              color: 'text.secondary',
+              fontWeight: 700,
+              fontSize: '0.7rem',
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              px: 2.5,
+            }}
           >
-            <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
-          </ListItemButton>
-        ))}
-        {canCreateDocumento && (
-          <ListItemButton
-            key="/documentos/nuevo"
-            selected={location.pathname === '/documentos/nuevo'}
-            onClick={() => handleNav('/documentos/nuevo')}
-          >
-            <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
-              <AddOutlinedIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText
-              primary="Nuevo documento"
-              slotProps={{ primary: { variant: 'body2' } }}
-            />
-          </ListItemButton>
-        )}
-        {isAdmin && (
-          <>
-            <ListSubheader
-              component="div"
-              sx={{ bgcolor: 'transparent', lineHeight: 2, color: 'text.secondary' }}
+            Principal
+          </ListSubheader>
+          {navItems.map((item) => (
+            <ListItemButton
+              key={item.to}
+              selected={isSelected(item.to, item.to === '/')}
+              onClick={() => handleNav(item.to)}
             >
-              Administración
-            </ListSubheader>
-            {adminNav.map((item) => (
-              <ListItemButton
-                key={item.to}
-                selected={
-                  location.pathname === item.to ||
-                  location.pathname.startsWith(`${item.to}/`)
-                }
-                onClick={() => handleNav(item.to)}
-              >
-                <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  slotProps={{ primary: { variant: 'body2' } }}
-                />
-              </ListItemButton>
-            ))}
-            <ListSubheader
-              component="div"
-              sx={{ bgcolor: 'transparent', lineHeight: 2, color: 'text.secondary' }}
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
+            </ListItemButton>
+          ))}
+          {canCreateDocumento && (
+            <ListItemButton
+              key="/documentos/nuevo"
+              selected={location.pathname === '/documentos/nuevo'}
+              onClick={() => handleNav('/documentos/nuevo')}
             >
-              Catálogos
-            </ListSubheader>
-            {catalogNav.map((item) => (
-              <ListItemButton
-                key={item.to}
-                selected={location.pathname === item.to}
-                onClick={() => handleNav(item.to)}
+              <ListItemIcon>
+                <AddOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Nuevo documento"
+                slotProps={{ primary: { variant: 'body2' } }}
+              />
+            </ListItemButton>
+          )}
+          {isAdmin && (
+            <>
+              <ListSubheader
+                component="div"
+                sx={{
+                  bgcolor: 'transparent',
+                  lineHeight: 2.2,
+                  color: 'text.secondary',
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  letterSpacing: 0.6,
+                  textTransform: 'uppercase',
+                  px: 2.5,
+                  mt: 1,
+                }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
-              </ListItemButton>
-            ))}
-          </>
-        )}
-      </List>
+                Administración
+              </ListSubheader>
+              {adminNav.map((item) => (
+                <ListItemButton
+                  key={item.to}
+                  selected={isSelected(item.to)}
+                  onClick={() => handleNav(item.to)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{ primary: { variant: 'body2' } }}
+                  />
+                </ListItemButton>
+              ))}
+              <ListSubheader
+                component="div"
+                sx={{
+                  bgcolor: 'transparent',
+                  lineHeight: 2.2,
+                  color: 'text.secondary',
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  letterSpacing: 0.6,
+                  textTransform: 'uppercase',
+                  px: 2.5,
+                  mt: 1,
+                }}
+              >
+                Catálogos
+              </ListSubheader>
+              {catalogNav.map((item) => (
+                <ListItemButton
+                  key={item.to}
+                  selected={location.pathname === item.to}
+                  onClick={() => handleNav(item.to)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
+                </ListItemButton>
+              ))}
+            </>
+          )}
+        </List>
+      </Box>
+      <Box sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.secondary">
+          Intranet institucional · Acceso controlado
+        </Typography>
+      </Box>
     </Box>
   );
 
   return (
     <BreadcrumbDetailProvider>
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar
-        position="fixed"
-        elevation={0}
-        sx={{
-          zIndex: (t) => t.zIndex.drawer + 1,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-          borderBottom: 1,
-          borderColor: 'primary.dark',
-        }}
-      >
-        <Toolbar>
-          {!isMdUp && (
-            <IconButton
-              color="inherit"
-              edge="start"
-              aria-label="Abrir menú de navegación"
-              onClick={() => setMobileOpen(true)}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            SGD-GADPR-LM
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{ mr: 2, display: { xs: 'none', md: 'block' }, opacity: 0.9 }}
-          >
-            Sesión activa
-          </Typography>
-          <Typography
-            component="button"
-            type="button"
-            variant="body2"
-            onClick={(e) => setUserMenuAnchor(e.currentTarget)}
-            sx={{
-              color: 'inherit',
-              background: 'none',
-              border: '1px solid rgba(255,255,255,0.35)',
-              borderRadius: 1,
-              cursor: 'pointer',
-              font: 'inherit',
-              px: 1.5,
-              py: 0.5,
-              maxWidth: 220,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            title={user?.email ?? ''}
-          >
-            {user?.email}
-          </Typography>
-          <Menu
-            anchorEl={userMenuAnchor}
-            open={Boolean(userMenuAnchor)}
-            onClose={() => setUserMenuAnchor(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          >
-            <MenuItem disabled sx={{ opacity: '1 !important', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <Typography variant="caption" color="text.secondary">
-                Conectado como
+        <AppBar
+          position="fixed"
+          elevation={0}
+          sx={{
+            zIndex: (t) => t.zIndex.drawer + 1,
+            width: { md: `calc(100% - ${drawerWidth}px)` },
+            ml: { md: `${drawerWidth}px` },
+            borderBottom: '1px solid',
+            borderColor: 'primary.dark',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
+          }}
+        >
+          <Toolbar sx={{ gap: 1.5, minHeight: { xs: 56, sm: 64 } }}>
+            {!isMdUp && (
+              <IconButton
+                color="inherit"
+                edge="start"
+                aria-label="Abrir menú de navegación"
+                onClick={() => setMobileOpen(true)}
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="subtitle1" component="div" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                SGD-GADPR-LM
               </Typography>
-              <Typography variant="body2">{user?.email}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Roles: {user?.roles.map((r) => r.codigo).join(', ') || '—'}
+              <Typography
+                variant="caption"
+                sx={{ opacity: 0.8, display: { xs: 'none', sm: 'block' } }}
+              >
+                Sistema de gestión documental
               </Typography>
-            </MenuItem>
-            <MenuItem component={RouterLink} to="/perfil" onClick={() => setUserMenuAnchor(null)}>
-              Mi perfil
-            </MenuItem>
-            <Divider />
-            <MenuItem
-              onClick={() => {
-                setUserMenuAnchor(null);
-                void logout();
+            </Box>
+            <Chip
+              size="small"
+              label="Sesión activa"
+              sx={{
+                display: { xs: 'none', sm: 'inline-flex' },
+                bgcolor: 'rgba(255,255,255,0.14)',
+                color: 'common.white',
+                fontWeight: 700,
+                border: '1px solid rgba(255,255,255,0.22)',
+              }}
+            />
+            <Box
+              component="button"
+              type="button"
+              onClick={(e) => setUserMenuAnchor(e.currentTarget)}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(userMenuAnchor)}
+              aria-label="Menú de cuenta"
+              title={user?.email ?? ''}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 1,
+                maxWidth: 260,
+                color: 'inherit',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.22)',
+                borderRadius: 999,
+                cursor: 'pointer',
+                font: 'inherit',
+                px: 1,
+                py: 0.5,
+                transition: 'background-color 120ms ease',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
               }}
             >
-              Cerrar sesión
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  bgcolor: 'secondary.main',
+                }}
+              >
+                {initialsFromEmail(user?.email)}
+              </Avatar>
+              <Typography
+                variant="body2"
+                sx={{
+                  display: { xs: 'none', md: 'block' },
+                  maxWidth: 160,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 600,
+                }}
+              >
+                {user?.email}
+              </Typography>
+              <KeyboardArrowDownIcon sx={{ fontSize: 18, opacity: 0.9 }} />
+            </Box>
+            <Menu
+              anchorEl={userMenuAnchor}
+              open={Boolean(userMenuAnchor)}
+              onClose={() => setUserMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    mt: 1,
+                    minWidth: 240,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    boxShadow: 4,
+                  },
+                },
+              }}
+            >
+              <MenuItem
+                disabled
+                sx={{ opacity: '1 !important', flexDirection: 'column', alignItems: 'flex-start', py: 1.5 }}
+              >
+                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', width: '100%' }}>
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      fontSize: '0.85rem',
+                      fontWeight: 800,
+                      bgcolor: 'secondary.main',
+                    }}
+                  >
+                    {initialsFromEmail(user?.email)}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Conectado como
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, wordBreak: 'break-word' }}>
+                      {user?.email}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Roles: {user?.roles.map((r) => r.codigo).join(', ') || '—'}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </MenuItem>
+              <Divider />
+              <MenuItem component={RouterLink} to="/perfil" onClick={() => setUserMenuAnchor(null)}>
+                Mi perfil
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setUserMenuAnchor(null);
+                  void logout();
+                }}
+              >
+                Cerrar sesión
+              </MenuItem>
+            </Menu>
+          </Toolbar>
+        </AppBar>
 
-      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
+        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              display: { xs: 'block', md: 'none' },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            }}
+          >
+            {drawer}
+          </Drawer>
+          <Drawer
+            variant="permanent"
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              '& .MuiDrawer-paper': {
+                boxSizing: 'border-box',
+                width: drawerWidth,
+                borderRight: 1,
+                borderColor: 'divider',
+              },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        </Box>
+
+        <Box
+          component="main"
+          className="page-fade-enter"
+          key={location.pathname}
           sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            flexGrow: 1,
+            width: { md: `calc(100% - ${drawerWidth}px)` },
+            minWidth: 0,
+            pb: 5,
+            px: { xs: 2, sm: 3 },
+            pt: 0,
           }}
         >
           <Toolbar />
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: 1,
-              borderColor: 'divider',
-            },
-          }}
-          open
-        >
-          <Toolbar />
-          {drawer}
-        </Drawer>
+          <Box sx={{ maxWidth: 1280, mx: 'auto', width: '100%', pt: 2 }}>
+            <LayoutBreadcrumbs />
+            <Outlet />
+          </Box>
+        </Box>
       </Box>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          minWidth: 0,
-          pb: 4,
-          px: { xs: 2, sm: 3 },
-        }}
-      >
-        <Toolbar />
-        <LayoutBreadcrumbs />
-        <Outlet />
-      </Box>
-    </Box>
     </BreadcrumbDetailProvider>
   );
 }

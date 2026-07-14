@@ -197,7 +197,8 @@ Cada **tarjeta** muestra: código del documento, tipo documental, asunto resumid
 ### 2.4 Clasificación
 
 **Ruta:** `/clasificacion`  
-**Pantalla:** Cuadro de clasificación documental (`ClasificacionDocumentalPage`).
+**Pantalla:** Cuadro de clasificación documental (`ClasificacionDocumentalPage`).  
+**Guía ampliada (usuario):** [46-cuadro-clasificacion-documental.md](./46-cuadro-clasificacion-documental.md).
 
 #### Qué hay en esta sección
 
@@ -515,7 +516,8 @@ Los catálogos son **datos maestros**: deben existir **antes** de registrar docu
 
 ### 4.1 Dependencias
 
-**Ruta:** `/catalogos/dependencias`
+**Ruta:** `/catalogos/dependencias`  
+**Guía ampliada (usuario):** [47-catalogo-dependencias.md](./47-catalogo-dependencias.md).
 
 #### Qué representa
 
@@ -536,7 +538,8 @@ Unidades organizativas del GADPR-LM (direcciones, áreas, parroquialización int
 
 ### 4.2 Cargos
 
-**Ruta:** `/catalogos/cargos`
+**Ruta:** `/catalogos/cargos`  
+**Guía ampliada (usuario):** [48-catalogo-cargos.md](./48-catalogo-cargos.md).
 
 #### Qué representa
 
@@ -556,7 +559,8 @@ Puestos o funciones del servidor público (secretario, técnico, etc.).
 
 ### 4.3 Tipos documentales
 
-**Ruta:** `/catalogos/tipos-documentales`
+**Ruta:** `/catalogos/tipos-documentales`  
+**Guía ampliada (usuario):** [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documentales.md).
 
 #### Qué representa
 
@@ -577,7 +581,8 @@ Tipologías del documento administrativo: memorando, oficio, informe, acta, etc.
 
 ### 4.4 Series
 
-**Ruta:** `/catalogos/series`
+**Ruta:** `/catalogos/series`  
+**Guía ampliada (usuario):** [50-catalogo-series.md](./50-catalogo-series.md).
 
 #### Qué representa
 
@@ -598,7 +603,8 @@ Nivel superior del **cuadro de clasificación archivística** (fondos o series d
 
 ### 4.5 Subseries
 
-**Ruta:** `/catalogos/subseries`
+**Ruta:** `/catalogos/subseries`  
+**Guía ampliada (usuario):** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
 
 #### Qué representa
 

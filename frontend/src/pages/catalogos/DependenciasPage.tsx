@@ -9,8 +9,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
-  Container,
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -25,7 +23,11 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { ActivoChip } from '../../components/ActivoChip';
 import { EmptyState } from '../../components/EmptyState';
+import { FilterPanel } from '../../components/FilterPanel';
+import { ListPanel } from '../../components/ListPanel';
+import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 export type DependenciaRow = {
@@ -149,7 +151,7 @@ export function DependenciasPage() {
 
   return (
     <>
-      <Container maxWidth="lg">
+      <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
         <PageHeader
           title="Dependencias"
           description={
@@ -158,83 +160,91 @@ export function DependenciasPage() {
               <strong>ADMIN</strong>.
             </>
           }
-        />
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={incluirInactivos}
-              onChange={(_, c) => setIncluirInactivos(c)}
-            />
+          actions={
+            isAdmin ? (
+              <Button variant="contained" color="secondary" onClick={() => setCreateOpen(true)}>
+                Nueva dependencia
+              </Button>
+            ) : undefined
           }
-          label="Incluir inactivas"
         />
-        {isAdmin && (
-          <Button variant="contained" onClick={() => setCreateOpen(true)}>
-            Nueva dependencia
-          </Button>
-        )}
-      </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Código</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                Descripción
-              </TableCell>
-              <TableCell>Activa</TableCell>
-              {isAdmin && <TableCell align="right">Acciones</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4}>
-                  Cargando…
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading &&
-              rows.map((row) => (
-                <TableRow key={row.id} hover>
-                  <TableCell>{row.codigo}</TableCell>
-                  <TableCell>{row.nombre}</TableCell>
-                  <TableCell
-                    sx={{ display: { xs: 'none', md: 'table-cell' } }}
-                  >
-                    {row.descripcion ?? '—'}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        <FilterPanel title="Filtros" description="Controle la visibilidad de registros inactivos.">
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={incluirInactivos}
+                onChange={(_, c) => setIncluirInactivos(c)}
+                size="small"
+              />
+            }
+            label="Incluir inactivas"
+          />
+        </FilterPanel>
+
+        <ListPanel
+          badge="D"
+          title="Listado de dependencias"
+          subtitle={`${rows.length} registro${rows.length === 1 ? '' : 's'} según filtros`}
+          loading={loading}
+        >
+          <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
+            <Table size="small" aria-label="Dependencias">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Código</TableCell>
+                  <TableCell>Nombre</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    Descripción
                   </TableCell>
-                  <TableCell>{row.activo ? 'Sí' : 'No'}</TableCell>
-                  {isAdmin && (
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => openEdit(row)}>
-                        Editar
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell>Estado</TableCell>
+                  {isAdmin && <TableCell align="right">Acciones</TableCell>}
                 </TableRow>
-              ))}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
-                  <EmptyState dense title="No hay dependencias en este listado." />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      </Container>
+              </TableHead>
+              <TableBody>
+                {loading && (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 5 : 4}>Cargando…</TableCell>
+                  </TableRow>
+                )}
+                {!loading &&
+                  rows.map((row) => (
+                    <TableRow key={row.id} hover>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{row.codigo}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        {row.descripcion ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <ActivoChip activo={row.activo} />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell align="right">
+                          <Button size="small" variant="outlined" onClick={() => openEdit(row)}>
+                            Editar
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                {!loading && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
+                      <EmptyState dense title="No hay dependencias en este listado." />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </ListPanel>
+      </Box>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Nueva dependencia</DialogTitle>
@@ -263,7 +273,7 @@ export function DependenciasPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>
@@ -310,7 +320,7 @@ export function DependenciasPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" color="secondary">
               Guardar
             </Button>
           </DialogActions>

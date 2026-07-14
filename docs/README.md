@@ -52,9 +52,15 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [06-modulo-usuarios.md](./06-modulo-usuarios.md) | Usuarios |
 | [07-modulo-roles-permisos.md](./07-modulo-roles-permisos.md) | Roles y permisos |
 | [08-modulo-dependencias.md](./08-modulo-dependencias.md) | Dependencias |
+| [47-catalogo-dependencias.md](./47-catalogo-dependencias.md) | **Catálogo Dependencias** — listado, alta, edición y baja lógica (`/catalogos/dependencias`) |
 | [09-modulo-cargos.md](./09-modulo-cargos.md) | Cargos |
+| [48-catalogo-cargos.md](./48-catalogo-cargos.md) | **Catálogo Cargos** — listado, dependencia opcional, alta/edición (`/catalogos/cargos`) |
 | [10-modulo-tipos-documentales.md](./10-modulo-tipos-documentales.md) | Tipos documentales |
+| [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documentales.md) | **Catálogo Tipos documentales** — MEMO, OFICIO, alta/edición (`/catalogos/tipos-documentales`) |
 | [11-modulo-series-subseries.md](./11-modulo-series-subseries.md) | Series y subseries |
+| [50-catalogo-series.md](./50-catalogo-series.md) | **Catálogo Series** — cuadro de clasificación, nivel superior (`/catalogos/series`) |
+| [51-catalogo-subseries.md](./51-catalogo-subseries.md) | **Catálogo Subseries** — clasificación en documentos, filtro por serie (`/catalogos/subseries`) |
+| [46-cuadro-clasificacion-documental.md](./46-cuadro-clasificacion-documental.md) | **Cuadro de clasificación** — árbol, ficha y tabla de retención (`/clasificacion`) |
 | [12-modulo-documentos.md](./12-modulo-documentos.md) | Registro documental |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |

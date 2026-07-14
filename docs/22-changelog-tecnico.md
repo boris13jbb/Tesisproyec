@@ -24,6 +24,19 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-07-13 — UI/UX listados densos (FilterPanel / ListPanel)
+
+- **Componentes:** `FilterPanel`, `ListPanel`, `listSurfaces` para unificar filtros y tablas.
+- **Páginas:** Documentos (acciones en cabecera, CTA teal), Auditoría y Usuarios alineados al shell institucional.
+- **Boceto Magic Patterns:** [SGD Listado Documentos UX](https://www.magicpatterns.com/c/xoy8fivnvwyodazdcpk5zs).
+
+### 2026-07-13 — UI/UX shell institucional (Magic Patterns + Context7 MUI)
+
+- **Frontend:** tema MUI reforzado (tokens navy/teal, overrides de navegación, inputs, cards, focus); shell `MainLayout` con marca SGD, menú agrupado, avatar de cuenta y breadcrumbs; login sin control fantasma «Mantener sesión»; MFA con `slotProps.htmlInput` (MUI v9); `PageHeader` / `EmptyState` / `AuthLayout` / KPI dashboard refinados.
+- **Docs:** manual `27` y guía `25` (v1.2) alineados.
+- **Diseño de referencia Magic Patterns:** [SGD-GADPR-LM Shell UX](https://www.magicpatterns.com/c/xoklbb3nsdlvg6bvn6x8c5) (inspiración; implementación productiva en MUI del repo).
+- **Referencias:** Context7 Material UI (theming / slotProps v9); ISO 27001 / ASVS en UX de sesión visible y controles reales.
+
 ### 2026-05-27 — Documentación y UI: solo controles reales y exigibles
 
 - **Principio:** interfaz sin promesas de certificación ISO, sin políticas futuras editables ni botones que no ejecutan (restore remoto, «Guardar política» sin efecto en runtime).

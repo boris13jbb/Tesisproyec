@@ -1,5 +1,5 @@
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import { Box, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
 export type EmptyStateProps = {
@@ -20,36 +20,66 @@ export type EmptyStateProps = {
  * Estado vacío institucional reutilizable (tablas, listas, paneles).
  */
 export function EmptyState({ title, description, action, dense }: EmptyStateProps) {
-  return (
-    <Box
-      sx={{
-        py: dense ? 2 : 4,
-        px: dense ? 1 : 2,
-        textAlign: 'center',
-        maxWidth: dense ? 'none' : 420,
-        mx: dense ? 0 : 'auto',
-      }}
-    >
+  const content = (
+    <>
       {!dense && (
-        <InboxOutlinedIcon
-          sx={{ fontSize: 44, color: 'action.disabled', mb: 1.5 }}
+        <Box
           aria-hidden
-        />
+          sx={{
+            width: 64,
+            height: 64,
+            mx: 'auto',
+            mb: 1.75,
+            borderRadius: 3,
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: 'rgba(30, 124, 137, 0.10)',
+            color: 'secondary.dark',
+          }}
+        >
+          <InboxOutlinedIcon sx={{ fontSize: 30 }} />
+        </Box>
       )}
       <Typography
         variant={dense ? 'body2' : 'subtitle1'}
-        color="text.secondary"
+        color="text.primary"
         component="p"
-        sx={{ mb: description || action ? 0.5 : 0, m: 0 }}
+        sx={{ mb: description || action ? 0.5 : 0, m: 0, fontWeight: 700 }}
       >
         {title}
       </Typography>
       {description ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: action ? 1.5 : 0 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: action ? 2 : 0 }}>
           {description}
         </Typography>
       ) : null}
-      {action ? <Box sx={{ mt: 1 }}>{action}</Box> : null}
-    </Box>
+      {action ? <Box sx={{ mt: 0.5 }}>{action}</Box> : null}
+    </>
+  );
+
+  if (dense) {
+    return (
+      <Box sx={{ py: 2, px: 1, textAlign: 'center' }}>
+        {content}
+      </Box>
+    );
+  }
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        py: 4.5,
+        px: 3,
+        textAlign: 'center',
+        maxWidth: 440,
+        mx: 'auto',
+        borderRadius: 3,
+        bgcolor: 'rgba(30, 58, 95, 0.02)',
+        borderStyle: 'dashed',
+      }}
+    >
+      {content}
+    </Paper>
   );
 }

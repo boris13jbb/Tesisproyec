@@ -21,9 +21,9 @@ export function AuthLayout({ children, title }: AuthLayoutProps) {
         justifyContent: 'center',
         py: 4,
         px: 2,
-        backgroundColor: 'grey.50',
-        backgroundImage: (theme) =>
-          `linear-gradient(165deg, ${theme.palette.grey[100]} 0%, ${theme.palette.primary.dark}12 45%, ${theme.palette.grey[50]} 100%)`,
+        backgroundColor: '#EAF1F6',
+        backgroundImage:
+          'radial-gradient(900px 420px at 18% 30%, rgba(30, 58, 95, 0.10) 0%, rgba(30, 58, 95, 0) 60%), linear-gradient(165deg, #F4F7FA 0%, #EAF1F6 55%, #F8FAFC 100%)',
       }}
     >
       <Container maxWidth="sm">
@@ -31,21 +31,38 @@ export function AuthLayout({ children, title }: AuthLayoutProps) {
           elevation={0}
           sx={{
             p: { xs: 3, sm: 4 },
-            borderRadius: 2,
-            border: 1,
-            borderColor: 'divider',
-            boxShadow: '0 4px 24px rgba(15, 23, 42, 0.08)',
+            borderRadius: 3,
+            border: '1px solid rgba(15, 23, 42, 0.08)',
+            boxShadow: '0 18px 48px rgba(15, 23, 42, 0.10)',
           }}
         >
-          <Typography
-            variant="subtitle1"
-            color="primary"
-            sx={{ mb: title ? 0.5 : 2, fontWeight: 700, letterSpacing: 0.5 }}
-          >
-            SGD-GADPR-LM
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: title ? 1 : 2.5 }}>
+            <Box
+              aria-hidden
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'secondary.main',
+                color: 'common.white',
+                fontWeight: 800,
+                fontSize: '0.7rem',
+              }}
+            >
+              SGD
+            </Box>
+            <Typography
+              variant="subtitle1"
+              color="primary"
+              sx={{ fontWeight: 800, letterSpacing: 0.2 }}
+            >
+              SGD-GADPR-LM
+            </Typography>
+          </Box>
           {title ? (
-            <Typography variant="h5" component="h1" sx={{ mb: 3, fontWeight: 600 }}>
+            <Typography variant="h5" component="h1" sx={{ mb: 3, fontWeight: 700 }}>
               {title}
             </Typography>
           ) : null}

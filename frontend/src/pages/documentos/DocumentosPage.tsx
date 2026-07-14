@@ -17,7 +17,6 @@ import {
   InputLabel,
   LinearProgress,
   MenuItem,
-  Paper,
   Select,
   Stack,
   Table,
@@ -46,6 +45,9 @@ import { apiClient } from '../../api/client';
 import { getApiErrorMessage } from '../../utils/api-error-message';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
+import { FilterPanel } from '../../components/FilterPanel';
+import { ListPanel } from '../../components/ListPanel';
+import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
@@ -588,17 +590,7 @@ export function DocumentosPage() {
 
   return (
     <>
-      <Box
-        component="main"
-        sx={{
-          width: '100%',
-          maxWidth: 'min(100%, 1420px)',
-          mx: 'auto',
-          px: { xs: 1.5, sm: 2, md: 3 },
-          py: { xs: 2, md: 2.5 },
-          pb: { xs: 6, md: 8 },
-        }}
-      >
+      <Box component="main" sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
         <PageHeader
           title="Bandeja documental"
           description={
@@ -615,6 +607,25 @@ export function DocumentosPage() {
               )}
             </>
           }
+          actions={
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {isAdmin && (
+                <>
+                  <Button variant="outlined" size="small" onClick={() => void onExportExcel()}>
+                    Excel
+                  </Button>
+                  <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
+                    PDF
+                  </Button>
+                </>
+              )}
+              {canCreateDocumento && (
+                <Button variant="contained" color="secondary" size="small" onClick={() => setCreateOpen(true)}>
+                  Nuevo documento
+                </Button>
+              )}
+            </Stack>
+          }
         />
 
         {error && (
@@ -623,23 +634,64 @@ export function DocumentosPage() {
           </Alert>
         )}
 
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-            p: { xs: 1.5, sm: 2 },
-            mb: 2,
-          }}
+        <FilterPanel
+          title="Filtros de búsqueda"
+          description="Combine texto, tipo, estado, serie y rango de fechas. Use «Más filtros» para adjuntos y orden."
+          actions={
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{ alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => setShowAdvancedFilters((v) => !v)}
+                >
+                  {showAdvancedFilters ? 'Ocultar filtros' : 'Más filtros'}
+                </Button>
+                <Button variant="text" size="small" onClick={onClearFilters} disabled={loading}>
+                  Limpiar
+                </Button>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={incluirInactivos}
+                      onChange={(_, c) => setIncluirInactivos(c)}
+                      size="small"
+                    />
+                  }
+                  label="Incluir inactivos"
+                />
+              </Stack>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                {esRevisor && (
+                  <>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="secondary"
+                      onClick={() => void onExportPendientesRevisionExcel()}
+                    >
+                      Pendientes (Excel)
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="secondary"
+                      onClick={() => void onExportPendientesRevisionPdf()}
+                    >
+                      Pendientes (PDF)
+                    </Button>
+                  </>
+                )}
+              </Stack>
+            </Stack>
+          }
         >
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0.08, fontWeight: 700 }}>
-            Filtros de búsqueda
-          </Typography>
           <Box
             sx={{
-              mt: 1.5,
               display: 'flex',
               flexWrap: 'wrap',
               gap: 2,
@@ -751,7 +803,7 @@ export function DocumentosPage() {
 
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               onClick={onApplyFilters}
               disabled={loading}
               fullWidth={isXs}
@@ -764,73 +816,6 @@ export function DocumentosPage() {
               Aplicar filtros
             </Button>
           </Box>
-
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{ mt: 1.5, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => setShowAdvancedFilters((v) => !v)}
-              >
-                {showAdvancedFilters ? 'Ocultar filtros' : 'Más filtros'}
-              </Button>
-              <Button variant="text" size="small" onClick={onClearFilters} disabled={loading}>
-                Limpiar
-              </Button>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={incluirInactivos}
-                    onChange={(_, c) => setIncluirInactivos(c)}
-                    size="small"
-                  />
-                }
-                label="Incluir inactivos"
-              />
-            </Stack>
-
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              {isAdmin && (
-                <>
-                  <Button variant="outlined" size="small" onClick={() => void onExportExcel()}>
-                    Excel
-                  </Button>
-                  <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
-                    PDF
-                  </Button>
-                </>
-              )}
-              {canCreateDocumento && (
-                <Button variant="contained" size="small" onClick={() => setCreateOpen(true)}>
-                  Nuevo documento
-                </Button>
-              )}
-              {esRevisor && (
-                <>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    color="secondary"
-                    onClick={() => void onExportPendientesRevisionExcel()}
-                  >
-                    Pendientes (Excel)
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    color="secondary"
-                    onClick={() => void onExportPendientesRevisionPdf()}
-                  >
-                    Pendientes (PDF)
-                  </Button>
-                </>
-              )}
-            </Stack>
-          </Stack>
 
           <Collapse in={showAdvancedFilters} unmountOnExit>
             <Box sx={{ mt: 2 }}>
@@ -919,57 +904,62 @@ export function DocumentosPage() {
               </Box>
             </Box>
           </Collapse>
-        </Paper>
+        </FilterPanel>
 
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: 2, pb: 1.5 }}>
-            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
-              <Box
-                aria-hidden
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 1.5,
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <DescriptionOutlinedIcon fontSize="small" />
-              </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-                  Listado de documentos
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                  {new Intl.NumberFormat('es-EC').format(total)} resultado
-                  {total === 1 ? '' : 's'} · datos del servidor según filtros y permisos
-                </Typography>
-              </Box>
+        <ListPanel
+          badge={<DescriptionOutlinedIcon fontSize="small" />}
+          title="Listado de documentos"
+          subtitle={`${new Intl.NumberFormat('es-EC').format(total)} resultado${total === 1 ? '' : 's'} · datos del servidor según filtros y permisos`}
+          loading={loading}
+          footer={
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between',
+                pt: 0.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                Página <strong>{page}</strong>
+                {' · '}Mostrando {rows.length === 0 ? 0 : (page - 1) * pageSize + 1}–
+                {(page - 1) * pageSize + rows.length} de {total}
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: 'center', sm: 'flex-end' } }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={page * pageSize >= total || loading || total === 0}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Siguiente
+                </Button>
+              </Stack>
             </Stack>
-          </Box>
-
+          }
+        >
           {loading && (
             <LinearProgress
-              color="primary"
-              sx={{ height: 3 }}
+              color="secondary"
+              sx={{ height: 3, mb: 1.5, borderRadius: 1 }}
               aria-label="Cargando documentos"
             />
           )}
 
           <TableContainer
             sx={{
+              ...listTableContainerSx,
               overflowX: 'auto',
               maxWidth: '100%',
               WebkitOverflowScrolling: 'touch',
@@ -1094,7 +1084,7 @@ export function DocumentosPage() {
                         <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                           <Button
                             variant="contained"
-                            color="primary"
+                            color="secondary"
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1121,49 +1111,7 @@ export function DocumentosPage() {
               </TableBody>
             </Table>
           </TableContainer>
-
-          <Box
-            sx={{
-              px: { xs: 1.5, sm: 2 },
-              py: 1.5,
-              borderTop: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              alignItems: { xs: 'stretch', sm: 'center' },
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-              Página <strong>{page}</strong>
-              {' · '}Mostrando {rows.length === 0 ? 0 : (page - 1) * pageSize + 1}–
-              {(page - 1) * pageSize + rows.length} de {total}
-            </Typography>
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ justifyContent: { xs: 'center', sm: 'flex-end' } }}
-            >
-              <Button
-                variant="outlined"
-                color="primary"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <Button
-                variant="outlined"
-                color="primary"
-                disabled={page * pageSize >= total || loading || total === 0}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Siguiente
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
+        </ListPanel>
 
       </Box>
 

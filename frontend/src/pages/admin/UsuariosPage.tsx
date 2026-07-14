@@ -14,7 +14,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
@@ -45,6 +44,7 @@ import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
+import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import {
   buildLocalAccessMatrixFallback,
   type AccessMatrixReferencia,
@@ -57,9 +57,7 @@ const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
 const INSTITUTIONAL_NAVY = '#1A2B3C';
 
 const paperCardSx = {
-  borderRadius: 3,
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  boxShadow: '0 14px 46px rgba(15, 23, 42, 0.08)',
+  ...listSurfaceSx,
 } as const;
 
 type Dependencia = { id: string; codigo: string; nombre: string; activo: boolean };
@@ -506,7 +504,7 @@ export function UsuariosPage() {
   const usuariosActivos = useMemo(() => items.filter((u) => u.activo).length, [items]);
 
   return (
-    <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 4, md: 5 } }}>
+    <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Administración de identidades"
         description={
@@ -626,9 +624,7 @@ export function UsuariosPage() {
           ) : (
             <TableContainer
               sx={{
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
+                ...listTableContainerSx,
                 maxHeight: { xs: 420, md: 560 },
                 overflow: 'auto',
               }}
@@ -1377,6 +1373,6 @@ export function UsuariosPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 }
