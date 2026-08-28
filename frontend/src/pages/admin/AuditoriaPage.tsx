@@ -20,6 +20,7 @@ import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { FilterPanel } from '../../components/FilterPanel';
@@ -29,6 +30,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import {
   AUDIT_ACTION_FILTER_OPTIONS,
+  auditResultChipColor,
   formatAuditActionLabel,
   formatAuditResultLabel,
 } from '../../constants/audit-actions';
@@ -145,24 +147,14 @@ function AuditResultChip({ row }: { row: AuditRow }) {
   const metaReason = parseAuditMeta(row.metaJson)?.reason;
   const label = formatAuditResultLabel(row.result, metaReason);
   const res = String(row.result ?? '').toUpperCase();
-  const chipLabelSx = { '& .MuiChip-label': { px: 1.25 } } as const;
-
-  if (res === 'OK') {
-    return (
-      <Chip size="small" label={label} sx={{ bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 600, ...chipLabelSx }} />
-    );
-  }
-  if (res === 'FAIL') {
-    return (
-      <Chip size="small" label={label} sx={{ bgcolor: '#ffebee', color: '#b71c1c', fontWeight: 600, ...chipLabelSx }} />
-    );
-  }
 
   return (
     <Chip
       size="small"
       label={label}
-      sx={{ bgcolor: 'rgba(15,39,108,0.06)', color: 'text.secondary', fontWeight: 600, ...chipLabelSx }}
+      color={auditResultChipColor(row.result)}
+      variant={res === 'OK' ? 'filled' : 'outlined'}
+      sx={{ fontWeight: 800 }}
     />
   );
 }
@@ -570,7 +562,7 @@ export function AuditoriaPage() {
       </FilterPanel>
 
       <ListPanel
-        badge="A"
+        badge={<FactCheckOutlinedIcon fontSize="small" />}
         title="Eventos registrados"
         subtitle="Registros de auditoría con trazabilidad de actor, acción, resultado y recurso."
         loading={loading}
@@ -597,13 +589,13 @@ export function AuditoriaPage() {
         <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
           <Table size="medium" sx={{ minWidth: 920 }}>
             <TableHead>
-              <TableRow>
-                <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>Fecha / hora</TableCell>
-                <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>Usuario</TableCell>
-                <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>Acción</TableCell>
-                <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>Documento / recurso</TableCell>
-                <TableCell sx={{ py: { xs: 1.05, md: 1 } }}>IP / equipo</TableCell>
-                <TableCell align="center" sx={{ py: { xs: 1.05, md: 1 } }}>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
+                <TableCell sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>Fecha / hora</TableCell>
+                <TableCell sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>Usuario</TableCell>
+                <TableCell sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>Acción</TableCell>
+                <TableCell sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>Documento / recurso</TableCell>
+                <TableCell sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>IP / equipo</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>
                   Resultado
                 </TableCell>
               </TableRow>
@@ -653,7 +645,11 @@ export function AuditoriaPage() {
                     </TableCell>
                     <TableCell sx={{ verticalAlign: 'top' }}>
                       <Tooltip title={<Typography variant="caption">Código: {r.action}</Typography>}>
-                        <Typography variant="body2" component="span" sx={{ cursor: 'help', borderBottom: '1px dashed rgba(0,0,0,0.2)' }}>
+                        <Typography
+                          variant="body2"
+                          component="span"
+                          sx={{ cursor: 'help', borderBottom: '1px dashed', borderColor: 'divider' }}
+                        >
                           {actionUiLabel(String(r.action))}
                         </Typography>
                       </Tooltip>

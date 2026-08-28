@@ -302,12 +302,12 @@ Dos grandes áreas en la misma página (diseño vertical a ancho completo):
 
 | Función | Descripción |
 |---------|-------------|
-| Listado | Tabla con correo, nombre, dependencia, cargo, roles, estado (activo/suspendido), último ingreso. |
+| Listado | Tabla con correo, nombre, dependencia, cargo, roles, estado (activo/suspendido), último ingreso. Encabezado con icono del menú (no letra «U»). |
 | **Crear usuario** | Alta con correo, contraseña temporal, **un rol institucional**, complemento Editor documental opcional, dependencia/cargo, permisos directos e invitación por correo si SMTP está configurado. |
 | **Editar usuario** | Elige **el rol que debe tener** la persona (radios, un solo rol institucional), complemento editor, dependencia, cargo y permisos directos. No se apilan varios roles al pulsar opciones. |
 | **Activar / Desactivar** | Impide login sin borrar historial. |
 | **Restablecer contraseña** | Define nueva contraseña administrativamente. |
-| Chips **Activos / Total** | Resumen rápido del directorio. |
+| Chips **Activos / Total** | Resumen rápido del directorio (chip Activos en verde del tema). |
 
 **B) Matriz rol ↔ permiso (base de datos)**
 
@@ -368,7 +368,8 @@ Visor de la tabla **`audit_logs`**: eventos de **seguridad y administración** d
 
 #### Columnas habituales de la tabla
 
-- Fecha/hora · Usuario (nombre o correo) · Acción · Resultado (OK/FAIL) · Recurso · Documento/código expediente (si se puede resolver) · IP / detalles en metadatos.
+- Fecha/hora · Usuario (nombre o correo) · Acción · Resultado (chip Correcto/No completado según tema) · Recurso · Documento/código expediente (si se puede resolver) · IP / detalles en metadatos.
+- El encabezado del listado usa el mismo icono de **Auditoría** que el menú (no letra «A»).
 
 #### Qué tipo de eventos incluye (ejemplos)
 
@@ -407,7 +408,7 @@ Centro de **continuidad y evidencia de copias** de la base de datos (y opcionalm
 |----------|---------|
 | **Ejecutar mysqldump ahora (manual)** | Lanza backup inmediato vía API (`POST /backup/admin/run-now`); genera `.sql` en carpeta configurada (`BACKUP_OUTPUT_DIR`). |
 | **ZIP de storage** (opcional) | Si `BACKUP_INCLUDE_STORAGE_ZIP=true`, empaqueta adjuntos junto al volcado SQL. |
-| **Historial de verificaciones** | Lista verificaciones registradas (OK/FAIL), origen Manual/Automático, KPI 90 días (código de auditoría `BACKUP_VERIFIED` solo en export técnico). |
+| **Historial de verificaciones** | Lista verificaciones registradas (OK/FAIL con chips del tema: Verificado/Fallido), origen Manual/Automático, KPI 90 días (código de auditoría `BACKUP_VERIFIED` solo en export técnico). |
 | **Registrar verificación manual** | Documenta que una copia fue probada o falló (FAIL exige notas/motivo). |
 | **Programación / próximo respaldo** | Muestra hint textual y expresión cron si el backup automático está activo en el servidor. |
 | **Ver procedimiento de restauración** / **Cómo probar un respaldo** | Diálogos orientativos; la restauración **no** se ejecuta desde el navegador. |
@@ -444,7 +445,7 @@ Módulo de **análisis y exportación agregada** (distinto de los botones Excel/
 | **Área (dependencia)** | Filtro opcional por dependencia propietaria. |
 | **Tipo documental** | Filtro opcional. |
 | **Formato preferido** | Limita botones PDF o XLSX visibles. |
-| **Generar** | Aplica filtros y actualiza gráfico **Documentos por tipo** (hasta 6 tipos con más volumen). |
+| **Generar** | Aplica filtros y actualiza gráfico **Documentos por tipo** (hasta 6 tipos con más volumen; iconos de sección y paleta del tema). |
 | **Inventario PDF / XLSX** | Exporta listado documental según filtros del periodo. |
 | **Actividad por usuario** | PDF de auditoría en el rango de fechas del periodo. |
 | **Trazabilidad por documento** | Enlace/guía hacia detalle del expediente. |
@@ -484,7 +485,7 @@ Panel de **transparencia** de controles de seguridad **en uso** (no es configura
 |--------|-----------|
 | **Autenticación y acceso (solo lectura)** | Valores que el backend **aplica hoy** (`GET /auth/admin/security-summary`): longitud mínima, bloqueo de cuenta, sesión, límite de intentos en login. |
 | **Registrar revisión** | Notas institucionales + `POST /auth/admin/security-policy` → auditoría **`SECURITY_POLICY_UPDATED`** con instantánea de valores verificados (no edita `.env`). |
-| **Protecciones del sistema** | Lista de medidas activas en el despliegue (badge Activa / No activo); detalle ASVS/JWT en tooltip ℹ️. |
+| **Protecciones del sistema** | Lista de medidas activas en el despliegue (chips **Activa** / **No activo** del tema; iconos de sección alineados al menú); detalle ASVS/JWT en tooltip ℹ️. |
 
 #### Cómo funciona (expectativas correctas)
 
@@ -535,6 +536,7 @@ Unidades organizativas del GADPR-LM (direcciones, áreas, parroquialización int
 
 - CRUD vía API `/api/v1/dependencias` (solo ADMIN en UI).
 - Desactivar una dependencia impide usarla en **nuevos** registros según reglas del formulario; documentos históricos conservan la referencia.
+- Presentación alineada al resto de catálogos (icono, chip de código, estado Activo/Inactivo del tema).
 
 ---
 
@@ -556,6 +558,7 @@ Puestos o funciones del servidor público (secretario, técnico, etc.).
 
 - Opcionalmente vinculado a una **dependencia** (FK).
 - Misma lógica de código único y estado activo.
+- Misma presentación visual que Dependencias (icono de cargo, chips).
 
 ---
 
@@ -578,6 +581,7 @@ Tipologías del documento administrativo: memorando, oficio, informe, acta, etc.
 
 - Cada documento enlaza exactamente un `tipo_documental_id`.
 - Los códigos suelen ser cortos (`MEMO`, `OFICIO`) para reportes y exportaciones legibles.
+- Misma presentación visual que el resto de catálogos (icono, chip de código, estado del tema).
 
 ---
 

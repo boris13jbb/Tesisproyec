@@ -97,6 +97,20 @@ export function formatAuditResultLabel(
   return '—';
 }
 
+/** Color de Chip MUI para resultado de auditoría (claro/oscuro). */
+export function auditResultChipColor(
+  result: string | null | undefined,
+): 'success' | 'error' | 'default' {
+  switch (String(result ?? '').toUpperCase()) {
+    case 'OK':
+      return 'success';
+    case 'FAIL':
+      return 'error';
+    default:
+      return 'default';
+  }
+}
+
 /**
  * Texto de actividad en perfil: prioriza `label` del API (frase contextual) y cae a catálogo.
  */

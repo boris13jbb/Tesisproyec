@@ -41,7 +41,8 @@ Si un usuario sin rol ADMIN intenta entrar por URL directa a `/catalogos/depende
 ### 3.1 Encabezado
 
 - **Título:** Dependencias  
-- **Texto:** *«Catálogo de unidades organizativas. La edición y el alta requieren rol **ADMIN**.»*
+- **Texto:** unidades organizativas; rol ADMIN; enlace a **Cargos**.
+- El listado usa icono de dependencia (mismo del menú), no letra «D».
 
 ### 3.2 Controles superiores
 
@@ -54,10 +55,10 @@ Si un usuario sin rol ADMIN intenta entrar por URL directa a `/catalogos/depende
 
 | Columna | Contenido |
 |---------|-----------|
-| **Código** | Identificador corto e **único** (ej. `GADPR-LM`, `SGD`). En el servidor se guarda en **mayúsculas**. |
-| **Nombre** | Denominación completa de la unidad. |
+| **Código** | Identificador corto e **único** (ej. `GADPR-LM`, `SGD`), en chip. En el servidor se guarda en **mayúsculas**. |
+| **Nombre** | Denominación completa de la unidad, con icono. |
 | **Descripción** | Texto opcional (en pantallas anchas; en móvil puede ocultarse la columna). Si no hay valor, se muestra «—». |
-| **Activa** | **Sí** o **No** (baja lógica, no borrado físico). |
+| **Estado** | Chip **Activo** / **Inactivo** (baja lógica, no borrado físico). |
 | **Acciones** | Solo **ADMIN**: enlace **Editar** por fila. |
 
 **Datos de ejemplo (seed de desarrollo):**

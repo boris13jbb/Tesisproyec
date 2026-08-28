@@ -11,16 +11,17 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { apiClient } from '../../api/client';
 import {
   APPLICATION_CONTROL_ROWS,
   SECURITY_CONFIG_COPY,
 } from '../../constants/security-config-labels';
 import { PageHeader } from '../../components/PageHeader';
+import { SectionHeader } from '../../components/SectionHeader';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { getApiErrorMessage } from '../../utils/api-error-message';
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
 
 const paperCardSx = {
   ...listSurfaceSx,
@@ -65,32 +66,14 @@ type SecurityPolicyRecord = {
   updatedBy: { userId: string | null; email: string | null } | null;
 };
 
-function InactivoBadge() {
+function ControlStatusChip({ active }: { active: boolean }) {
   return (
     <Chip
       size="small"
-      label="No activo"
-      sx={{
-        bgcolor: 'rgba(15, 23, 42, 0.06)',
-        color: 'text.secondary',
-        fontWeight: 600,
-        '& .MuiChip-label': { px: 1 },
-      }}
-    />
-  );
-}
-
-function ActivaBadge() {
-  return (
-    <Chip
-      size="small"
-      label="Activa"
-      sx={{
-        bgcolor: '#e8f5e9',
-        color: '#1b5e20',
-        fontWeight: 700,
-        '& .MuiChip-label': { px: 1 },
-      }}
+      label={active ? 'Activa' : 'No activo'}
+      color={active ? 'success' : 'default'}
+      variant={active ? 'filled' : 'outlined'}
+      sx={{ fontWeight: 700, '& .MuiChip-label': { px: 1 } }}
     />
   );
 }
@@ -180,34 +163,13 @@ function AuthenticationStatusPanel(props: {
 
   return (
     <>
-      <Stack direction="row" spacing={1.5} sx={{ mb: 2, alignItems: 'flex-start' }}>
-        <Box
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            bgcolor: `${INSTITUTIONAL_TEAL}29`,
-            color: INSTITUTIONAL_TEAL,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-          }}
-          aria-hidden
-        >
-          S
-        </Box>
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-            {SECURITY_CONFIG_COPY.authPanelTitle}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {SECURITY_CONFIG_COPY.authPanelSubtitle}
-          </Typography>
-        </Box>
-      </Stack>
+      <SectionHeader
+        icon={<SecurityOutlinedIcon fontSize="small" />}
+        title={SECURITY_CONFIG_COPY.authPanelTitle}
+        subtitle={SECURITY_CONFIG_COPY.authPanelSubtitle}
+      />
 
-      <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+      <Alert severity="info" sx={{ mt: 2, mb: 2, borderRadius: 2 }}>
         <Typography variant="body2">{SECURITY_CONFIG_COPY.opsNote}</Typography>
       </Alert>
 
@@ -460,34 +422,13 @@ export function ConfiguracionSeguridadPage() {
           </Paper>
 
           <Paper elevation={1} sx={paperCardSx}>
-            <Stack direction="row" spacing={1.5} sx={{ mb: 2, alignItems: 'flex-start' }}>
-              <Box
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  bgcolor: 'rgba(14,165,233,0.22)',
-                  color: '#0369a1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                }}
-                aria-hidden
-              >
-                A
-              </Box>
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                  {SECURITY_CONFIG_COPY.appPanelTitle}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {SECURITY_CONFIG_COPY.appPanelSubtitle}
-                </Typography>
-              </Box>
-            </Stack>
+            <SectionHeader
+              icon={<SettingsOutlinedIcon fontSize="small" />}
+              title={SECURITY_CONFIG_COPY.appPanelTitle}
+              subtitle={SECURITY_CONFIG_COPY.appPanelSubtitle}
+            />
 
-            <Stack spacing={1.25} sx={{ mt: 0.5 }}>
+            <Stack spacing={1.25} sx={{ mt: 2 }}>
               {APPLICATION_CONTROL_ROWS.map((row, index) => {
                 const active = appControlActive(index);
                 const desc =
@@ -500,7 +441,7 @@ export function ConfiguracionSeguridadPage() {
                       row.title,
                       desc,
                       row.technicalHint,
-                      active ? <ActivaBadge /> : <InactivoBadge />,
+                      <ControlStatusChip active={active} />,
                     )}
                   </Box>
                 );

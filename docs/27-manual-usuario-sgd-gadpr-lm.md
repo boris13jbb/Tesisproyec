@@ -165,7 +165,7 @@ La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + *
 **Los roles** siguen siendo obligatorios (al menos uno): si un rol no tiene permisos en BD, la API puede responder `403` aun con el mismo código de rol en la cuenta.
 
 1. En el menú lateral, entra a **Administración → Usuarios y roles**.
-2. En el directorio, revisa chips **Activos** / **Total** y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
+2. En el directorio, revisa chips **Activos** / **Total** (colores del tema; icono de **Usuarios** en el encabezado del listado) y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
 3. Para crear un usuario:
    - Presiona **Crear usuario**
    - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Rol institucional** (elija **uno**: Usuario, Revisor, Auditor, Consulta o Administrador) y, si aplica, marque **Editor documental (complemento)** para crear/editar documentos y adjuntos sin ser ADMIN. Opcionalmente asigne **Permisos directos** (casillas del catálogo; vacío = solo hereda del rol). El **alcance en API** es la **unión** de permisos del rol (y del complemento si está marcado) + **permisos directos**.
@@ -209,8 +209,9 @@ Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md).
 
 1. Menú → **Catálogos → Dependencias**
 2. Opcional: en **Filtros**, marque **Incluir inactivas** para ver dependencias dadas de baja lógica.
-3. En la cabecera, **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
-4. **Editar:** cambie nombre, descripción o desmarque **Activa** para desactivar (el código no se modifica).
+3. El listado muestra el mismo icono del menú, **código** en chip y estado **Activo/Inactivo**. Enlace a **Cargos**.
+4. En la cabecera, **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
+5. **Editar:** cambie nombre, descripción o desmarque **Activa** para desactivar (el código no se modifica).
 
 ### 6.2 Cargos
 
@@ -218,8 +219,9 @@ Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md).
 
 1. Menú → **Catálogos → Cargos**
 2. Opcional: en **Filtros**, **Incluir inactivos** para ver cargos desactivados.
-3. En la cabecera, **Nuevo cargo:** código (único), nombre, **dependencia opcional** (*Sin asignar* si no aplica), descripción → **Guardar**.
-4. **Editar:** nombre, dependencia, descripción y **Activo** (el código no se modifica).
+3. El listado muestra icono de cargo, código en chip, **dependencia** asociada y estado. Enlace a **Dependencias**.
+4. En la cabecera, **Nuevo cargo:** código (único), nombre, **dependencia opcional** (*Sin asignar* si no aplica), descripción → **Guardar**.
+5. **Editar:** nombre, dependencia, descripción y **Activo** (el código no se modifica).
 
 ### 6.3 Tipos documentales
 
@@ -227,8 +229,9 @@ Guía detallada: [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documen
 
 1. Menú → **Catálogos → Tipos documentales**
 2. Opcional: en **Filtros**, **Incluir inactivos** para ver tipos desactivados.
-3. En la cabecera, **Nuevo tipo:** código (único, ej. `MEMO`), nombre (ej. Memorando) y descripción opcional → **Guardar**.
-4. **Editar:** nombre, descripción y **Activo** (el código no se modifica).
+3. El listado muestra icono de tipo, código en chip y estado. Enlace a **Documentos**.
+4. En la cabecera, **Nuevo tipo:** código (único, ej. `MEMO`), nombre (ej. Memorando) y descripción opcional → **Guardar**.
+5. **Editar:** nombre, descripción y **Activo** (el código no se modifica).
 
 ### 6.4 Series y Subseries
 
@@ -491,7 +494,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 
 1. Menú lateral → **Administración** → **Auditoría** (ruta `/admin/auditoria`).
 2. En **Criterios de consulta** elija **Usuario** (**Todos** o un usuario del listado — el servidor filtra por <code>actor_user_id</code>), **Acción** (**Todas** o una acción concreta, coincidencia exacta con el código en base de datos) y las fechas **Desde / Hasta**.
-3. Pulse **Consultar** para aplicar filtros y cargar la tabla (antes de consultar, los cambios en los campos no actualizan el listado). Opcional: icono **Actualizar** en la cabecera para repetir la consulta con los mismos filtros y página actual.
+3. Pulse **Consultar** para aplicar filtros y cargar la tabla (antes de consultar, los cambios en los campos no actualizan el listado). El listado usa el **icono de auditoría** del menú (no una letra «A») y chips de resultado **Correcto** / **No completado** según el tema. Opcional: icono **Actualizar** en la cabecera para repetir la consulta con los mismos filtros y página actual.
 4. Opcional: **Exportar Excel** o **Exportar PDF** descargan hasta **5000** registros recientes que cumplan **los filtros ya aplicados**.
 
 **Resultado esperado**
@@ -513,7 +516,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 2. El **servidor puede programar mysqldump** (cron dentro del proceso API) usando variables en `backend/.env` (`BACKUP_AUTOMATED_*`, `BACKUP_MYSQLDUMP_PATH`, etc. — véase **`backend/.env.example`**, checklist en **`scripts/README-backups-mysql-xampp.md`** y, para añadir el bloque automáticamente en una copia nueva del repo, **`scripts/configure-local-backups.ps1`**). Tras cambiar `.env`, **reinicie el proceso del backend** para que el cron quede registrado.
 3. **Copia desde la UI:** puede pulsar **Ejecutar mysqldump ahora (manual)**; llama `POST /api/v1/backup/admin/run-now` y escribe artefactos en disco (`BACKUP_OUTPUT_DIR`). Opcionalmente el job incluye un **ZIP de `storage/`** si `BACKUP_INCLUDE_STORAGE_ZIP=true`.
 4. **Restauración** no se ejecuta desde el navegador: sigue siendo procedimiento institucional (MySQL CLI + recuperación de `storage/`).
-5. **Datos en pantalla:** `GET /api/v1/dashboard/admin/backup-overview` (solo ADMIN): historial hasta 50 filas de **`BACKUP_VERIFIED`** (OK o FAIL), columna **Origen** (Manual vs Automático según `meta.source`), KPIs 90 días y señal de cron activo.
+5. **Datos en pantalla:** `GET /api/v1/dashboard/admin/backup-overview` (solo ADMIN): historial hasta 50 filas de **`BACKUP_VERIFIED`** (OK o FAIL), columna **Origen** (Manual vs Automático según `meta.source`), KPIs 90 días y señal de cron activo. Los bloques usan **iconos de sección** (mismo estilo que Auditoría) y chips **Verificado** / **Fallido** según el tema claro/oscuro.
 6. **Registrar verificación manual:** elija **Resultado** OK o **FAIL**; si elige **FAIL**, **Notas** es obligatorio (motivo). Opcional: tipo, tamaño. Genera el mismo tipo de evento de auditoría que el job automático.
 7. **“Próximo respaldo / programación”:** combina `BACKUP_EXPECTED_SCHEDULE_HINT` (texto) y, si el cron automático está activo, la expresión cron configurada.
 8. Diálogos **Restaurar copia** y **Probar respaldo** siguen siendo solo orientación.
@@ -534,7 +537,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 
 1. Menú lateral → **Administración** → **Reportes** (ruta `/admin/reportes`).
 2. Elija **Periodo** (mes), **Área** (dependencia, opcional), **Tipo documental** (opcional) y el **formato preferido** para limitar botones PDF/XLSX.
-3. Pulse **Generar** para aplicar los filtros al gráfico **Documentos por tipo** (máx. 6 tipos con más volumen en el mes) y para las exportaciones de inventario.
+3. Pulse **Generar** para aplicar los filtros al gráfico **Documentos por tipo** (máx. 6 tipos con más volumen en el mes; barras con colores del tema) y para las exportaciones de inventario.
 4. En **Reportes disponibles** puede:
    - Descargar inventario en **PDF / XLSX** (respeta filtros aplicados; el XLSX permite acotar también por **Área** mediante `dependenciaId` en servidor).
    - Descargar **Actividad por usuario** como PDF de **auditoría** (solo rango de fechas del periodo, sin filtro de tipo/área).
@@ -553,7 +556,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 1. Menú lateral → **Administración** → **Configuración** (ruta `/admin/configuracion`).
 2. La pantalla tiene dos columnas:
    - **Autenticación y acceso:** solo muestra valores **que el servidor aplica hoy** (longitud mínima de contraseña, bloqueo de cuenta, sesión, límite de intentos en login). **No** permite cambiar esos valores desde la web; el ajuste técnico corresponde a la configuración del servidor.
-   - **Protecciones del sistema:** medidas activas (validación, sesión segura, archivos, etc.). El icono ℹ️ muestra detalle técnico para soporte.
+   - **Protecciones del sistema:** medidas activas (chips **Activa** / **No activo** del tema; detalle ASVS/JWT en tooltip ℹ️).
 3. Para dejar constancia de una **revisión institucional** (ISO 15489), escriba notas al final de la columna izquierda y pulse **Registrar revisión**.
 4. Debe aparecer el mensaje *Revisión registrada. La constancia quedó en auditoría junto con el estado verificado del servidor.*
 

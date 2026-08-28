@@ -40,7 +40,8 @@ Usuarios sin rol **ADMIN** no deben acceder a esta pantalla por URL (redirecció
 ### 3.1 Encabezado
 
 - **Título:** Cargos  
-- **Texto:** *«Puestos o cargos; opcionalmente asociados a una dependencia. Alta y edición con rol **ADMIN**.»*
+- **Texto:** puestos opcionales a una dependencia; rol ADMIN; enlace a **Dependencias**.
+- El listado usa icono de cargo (mismo del menú), no letra «C».
 
 ### 3.2 Controles superiores
 
@@ -53,11 +54,11 @@ Usuarios sin rol **ADMIN** no deben acceder a esta pantalla por URL (redirecció
 
 | Columna | Contenido |
 |---------|-----------|
-| **Código** | Identificador corto y **único** (ej. `ASIST`, `DIR-GEN`). Se guarda en **mayúsculas** en el servidor. |
-| **Nombre** | Denominación del puesto (ej. *Asistente administrativo (ejemplo)*). |
+| **Código** | Identificador corto y **único** (ej. `ASIST`, `DIR-GEN`), en chip. Se guarda en **mayúsculas** en el servidor. |
+| **Nombre** | Denominación del puesto (ej. *Asistente administrativo (ejemplo)*), con icono. |
 | **Dependencia** | Si el cargo tiene dependencia asociada: `CÓDIGO — Nombre` (ej. `GADPR-LM — Gobierno Autónomo…`). Si no: **—**. En pantallas estrechas la columna puede ocultarse. |
 | **Descripción** | Texto opcional; si no hay valor, **—**. |
-| **Activo** | **Sí** / **No** (baja lógica). |
+| **Estado** | Chip **Activo** / **Inactivo** (baja lógica). |
 | **Acciones** | Solo **ADMIN**: **Editar** por fila. |
 
 **Datos de ejemplo (seed de desarrollo):**

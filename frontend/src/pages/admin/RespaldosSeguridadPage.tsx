@@ -1,4 +1,9 @@
+import BackupOutlinedIcon from '@mui/icons-material/BackupOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
+import SettingsBackupRestoreOutlinedIcon from '@mui/icons-material/SettingsBackupRestoreOutlined';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -31,10 +36,11 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { isAxiosError } from 'axios';
 import { apiClient } from '../../api/client';
+import { ListPanel } from '../../components/ListPanel';
+import { SectionHeader } from '../../components/SectionHeader';
+import { auditResultChipColor } from '../../constants/audit-actions';
 import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
 
 type DashboardBackupVerificationRow = {
   id: string;
@@ -133,31 +139,18 @@ function formatOrigenRow(source: string | null | undefined): string {
   return source;
 }
 
-function LetterTile({
-  letter,
-  bgTint,
-}: {
-  letter: string;
-  bgTint: string;
-}) {
+function BackupEstadoChip({ result }: { result: string }) {
+  const res = String(result ?? '').toUpperCase();
+  const label = res === 'OK' ? 'Verificado' : res === 'FAIL' ? 'Fallido' : result || '—';
+
   return (
-    <Box
-      sx={{
-        width: 42,
-        height: 42,
-        borderRadius: 1.25,
-        bgcolor: bgTint,
-        color: INSTITUTIONAL_TEAL,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 800,
-        flexShrink: 0,
-      }}
-      aria-hidden
-    >
-      {letter}
-    </Box>
+    <Chip
+      size="small"
+      label={label}
+      color={auditResultChipColor(result)}
+      variant={res === 'OK' ? 'filled' : 'outlined'}
+      sx={{ fontWeight: 800 }}
+    />
   );
 }
 
@@ -237,12 +230,16 @@ export function RespaldosSeguridadPage() {
       return {
         headline: 'N/D',
         detail: 'Sin verificaciones de respaldo registradas en los últimos 90 días.',
-        color: '#64748b' as const,
+        color: 'text.secondary' as const,
       };
     }
     const pct = Math.round((100 * ok) / total);
     const color =
-      fail === 0 ? ('#1b5e20' as const) : pct >= 80 ? ('#bf360c' as const) : ('#b71c1c' as const);
+      fail === 0
+        ? ('success.main' as const)
+        : pct >= 80
+          ? ('warning.main' as const)
+          : ('error.main' as const);
     return {
       headline: `${pct}%`,
       detail: `${ok} verificaciones OK · ${fail} fallidas en 90 días (auditoría).`,
@@ -433,10 +430,12 @@ export function RespaldosSeguridadPage() {
       </Alert>
 
       <Paper elevation={0} sx={{ ...paperCardSx, mb: { xs: 2, md: 2.25 } }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-          Copia automática MySQL (servidor)
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.65 }}>
+        <SectionHeader
+          icon={<BackupOutlinedIcon fontSize="small" />}
+          title="Copia automática MySQL (servidor)"
+          subtitle="mysqldump programado o ejecución manual desde esta pantalla"
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1.5, lineHeight: 1.65 }}>
           Requiere <code>BACKUP_MYSQLDUMP_PATH</code> apuntando a <code>mysqldump</code> (p. ej. XAMPP).{' '}
           {overview?.automatedBackup?.enabled ? (
             <>
@@ -463,10 +462,12 @@ export function RespaldosSeguridadPage() {
       </Paper>
 
       <Paper elevation={0} sx={{ ...paperCardSx, mb: { xs: 2, md: 2.25 } }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-          Registro electrónico de verificación
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.65 }}>
+        <SectionHeader
+          icon={<FactCheckOutlinedIcon fontSize="small" />}
+          title="Registro electrónico de verificación"
+          subtitle="Evidencia auditable tras validar mysqldump y/o storage"
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 2, lineHeight: 1.65 }}>
           Tras validar mysqldump y/o la copia de <code style={{ wordBreak: 'break-all' }}>storage/</code>, complete los
           campos opcionales y pulse <strong>Registrar verificación</strong>. Se crea un evento en auditoría que alimenta
           esta pantalla y el panel principal.
@@ -560,47 +561,47 @@ export function RespaldosSeguridadPage() {
         }}
       >
         <Paper elevation={1} sx={{ ...paperCardSx, mb: 0 }}>
-          <Stack direction="row" spacing={1.5} sx={{ mb: 1.5 }}>
-            <LetterTile letter="R" bgTint={`${INSTITUTIONAL_TEAL}29`} />
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Último respaldo verificado
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {overviewError
-                  ? 'No se pudo cargar el resumen de respaldos desde el servidor.'
-                  : overviewLoading
-                    ? 'Cargando…'
-                    : lastCard.detail}
-              </Typography>
-            </Box>
-          </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#1b5e20' }}>
+          <SectionHeader
+            icon={<TaskAltOutlinedIcon fontSize="small" />}
+            title="Último respaldo verificado"
+            subtitle={
+              overviewError
+                ? 'No se pudo cargar el resumen de respaldos desde el servidor.'
+                : overviewLoading
+                  ? 'Cargando…'
+                  : lastCard.detail
+            }
+          />
+          <Typography
+            variant="h5"
+            sx={{
+              mt: 1.5,
+              fontWeight: 800,
+              color: overviewError ? 'text.secondary' : 'success.main',
+            }}
+          >
             {overviewError ? '—' : overviewLoading ? '…' : lastCard.headline}
           </Typography>
         </Paper>
 
         <Paper elevation={1} sx={{ ...paperCardSx, mb: 0 }}>
-          <Stack direction="row" spacing={1.5} sx={{ mb: 1.5 }}>
-            <LetterTile letter="P" bgTint={`${INSTITUTIONAL_TEAL}29`} />
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Próximo respaldo (referencia)
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {overviewError
-                  ? 'Sin datos.'
-                  : overviewLoading
-                    ? 'Cargando…'
-                    : siguienteCard.detail}
-              </Typography>
-            </Box>
-          </Stack>
+          <SectionHeader
+            icon={<ScheduleOutlinedIcon fontSize="small" />}
+            title="Próximo respaldo (referencia)"
+            subtitle={
+              overviewError
+                ? 'Sin datos.'
+                : overviewLoading
+                  ? 'Cargando…'
+                  : siguienteCard.detail
+            }
+          />
           <Typography
             variant="subtitle1"
             sx={{
+              mt: 1.5,
               fontWeight: 800,
-              color: '#1565c0',
+              color: 'secondary.main',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             }}
@@ -610,22 +611,18 @@ export function RespaldosSeguridadPage() {
         </Paper>
 
         <Paper elevation={1} sx={{ ...paperCardSx, mb: 0, gridColumn: { xs: '1', sm: '1 / -1', md: 'auto' } }}>
-          <Stack direction="row" spacing={1.5} sx={{ mb: 1.5 }}>
-            <LetterTile letter="I" bgTint={`${INSTITUTIONAL_TEAL}29`} />
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Integridad (90 días)
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {overviewError
-                  ? 'Sin datos.'
-                  : overviewLoading
-                    ? 'Cargando…'
-                    : integrityCard.detail}
-              </Typography>
-            </Box>
-          </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: integrityCard.color }}>
+          <SectionHeader
+            icon={<FactCheckOutlinedIcon fontSize="small" />}
+            title="Integridad (90 días)"
+            subtitle={
+              overviewError
+                ? 'Sin datos.'
+                : overviewLoading
+                  ? 'Cargando…'
+                  : integrityCard.detail
+            }
+          />
+          <Typography variant="h5" sx={{ mt: 1.5, fontWeight: 800, color: integrityCard.color }}>
             {overviewError ? '—' : overviewLoading ? '…' : integrityCard.headline}
           </Typography>
         </Paper>
@@ -640,22 +637,23 @@ export function RespaldosSeguridadPage() {
           alignItems: 'flex-start',
         }}
       >
-        <Paper elevation={1} sx={paperCardSx}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
-            Historial de respaldos
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Verificaciones de respaldo registradas en auditoría (hasta 50 más recientes)
-          </Typography>
+        <ListPanel
+          badge={<BackupOutlinedIcon fontSize="small" />}
+          title="Historial de respaldos"
+          subtitle="Verificaciones registradas en auditoría (hasta 50 más recientes)"
+          loading={overviewLoading && !overviewError}
+        >
           <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 480 }}>
-              <TableHead sx={{ '& th': { fontWeight: 800, bgcolor: '#f9fafc' } }}>
-                <TableRow>
-                  <TableCell>Fecha</TableCell>
-                  <TableCell>Origen</TableCell>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Tamaño</TableCell>
-                  <TableCell align="center">Estado</TableCell>
+            <Table size="small" sx={{ minWidth: 480 }} aria-label="Historial de verificaciones de respaldo">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 800 }}>Fecha</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Origen</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Tipo</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Tamaño</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800 }}>
+                    Estado
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -692,31 +690,7 @@ export function RespaldosSeguridadPage() {
                       <TableCell>{row.tipoRespaldo?.trim() || '—'}</TableCell>
                       <TableCell>{formatTamanoDisplay(row)}</TableCell>
                       <TableCell align="center">
-                        {row.result === 'OK' ? (
-                          <Chip
-                            size="small"
-                            label="Verificado"
-                            sx={{
-                              bgcolor: '#e8f5e9',
-                              color: '#1b5e20',
-                              fontWeight: 700,
-                              '& .MuiChip-label': { px: 1.25 },
-                            }}
-                          />
-                        ) : row.result === 'FAIL' ? (
-                          <Chip
-                            size="small"
-                            label="Fallido"
-                            sx={{
-                              bgcolor: '#ffebee',
-                              color: '#b71c1c',
-                              fontWeight: 700,
-                              '& .MuiChip-label': { px: 1.25 },
-                            }}
-                          />
-                        ) : (
-                          <Chip size="small" label={row.result || '—'} variant="outlined" />
-                        )}
+                        <BackupEstadoChip result={row.result} />
                       </TableCell>
                     </TableRow>
                   ))
@@ -724,17 +698,15 @@ export function RespaldosSeguridadPage() {
               </TableBody>
             </Table>
           </TableContainer>
-        </Paper>
+        </ListPanel>
 
         <Paper elevation={1} sx={paperCardSx}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
-            Restauración controlada
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Solo administradores autorizados · no se ejecuta desde la interfaz web
-          </Typography>
-
-          <Stack spacing={2} sx={{ mb: 2.5 }}>
+          <SectionHeader
+            icon={<SettingsBackupRestoreOutlinedIcon fontSize="small" />}
+            title="Restauración controlada"
+            subtitle="Solo administradores autorizados · no se ejecuta desde la interfaz web"
+          />
+          <Stack spacing={2} sx={{ mt: 2, mb: 2.5 }}>
             {restorationSteps.map((step, idx) => (
               <Stack key={step} direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
                 <Box

@@ -41,7 +41,8 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 ### 3.1 Encabezado
 
 - **Título:** Tipos documentales  
-- **Texto:** *«Catálogo de tipologías documentales. Alta y edición requieren rol **ADMIN**.»*
+- **Texto:** tipologías documentales; rol ADMIN; enlace a **Documentos**.
+- El listado usa icono de tipo (mismo del menú), no letra «T».
 
 ### 3.2 Controles superiores
 
@@ -54,10 +55,10 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 
 | Columna | Contenido |
 |---------|-----------|
-| **Código** | Identificador corto y **único** (ej. `MEMO`, `OFICIO`). Se guarda en **mayúsculas** en el servidor. |
-| **Nombre** | Denominación legible (ej. *Memorando*, *Oficio*). |
+| **Código** | Identificador corto y **único** (ej. `MEMO`, `OFICIO`), en chip. Se guarda en **mayúsculas** en el servidor. |
+| **Nombre** | Denominación legible (ej. *Memorando*, *Oficio*), con icono. |
 | **Descripción** | Texto opcional; si no hay valor, **—** (en móvil la columna puede ocultarse). |
-| **Activo** | **Sí** / **No** (baja lógica). |
+| **Estado** | Chip **Activo** / **Inactivo** (baja lógica). |
 | **Acciones** | Solo **ADMIN**: **Editar** por fila. |
 
 **Datos de ejemplo (seed de desarrollo):**

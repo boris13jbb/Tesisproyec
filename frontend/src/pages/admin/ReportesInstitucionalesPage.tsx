@@ -17,18 +17,30 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import { useTheme, type Theme } from '@mui/material/styles';
+import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
+import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import { apiClient } from '../../api/client';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
+import { SectionHeader } from '../../components/SectionHeader';
 
 const paperCardSx = {
   ...listSurfaceSx,
   p: { xs: 2, md: 2.75 },
 };
 
-const BAR_PALETTE = ['#0f766e', '#16a34a', '#ea580c', '#0891b2', '#dc2626', '#7c3aed'];
+function chartBarPalette(theme: Theme) {
+  return [
+    theme.palette.secondary.main,
+    theme.palette.success.main,
+    theme.palette.warning.main,
+    theme.palette.info.main,
+    theme.palette.error.main,
+    theme.palette.primary.main,
+  ];
+}
 
 type TipoOption = { id: string; codigo: string; nombre: string; activo?: boolean };
 type DepOption = { id: string; codigo: string; nombre: string; activo: boolean };
@@ -92,6 +104,8 @@ type FormatoPreferido = 'todos' | 'pdf' | 'excel';
 
 export function ReportesInstitucionalesPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const barPalette = useMemo(() => chartBarPalette(theme), [theme]);
   const monthChoices = useMemo(() => buildMonthChoices(), []);
 
   const [dependencias, setDependencias] = useState<DepOption[]>([]);
@@ -267,15 +281,18 @@ export function ReportesInstitucionalesPage() {
 
       {/* Barra filtros */}
       <Paper elevation={1} sx={{ ...paperCardSx, mb: { xs: 2, md: 2.25 } }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
-          Parámetros
-        </Typography>
+        <SectionHeader
+          icon={<TuneOutlinedIcon fontSize="small" />}
+          title="Parámetros"
+          subtitle="Periodo, área, tipo documental y formato de exportación"
+        />
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' },
             gap: 2,
             alignItems: 'flex-end',
+            mt: 2,
           }}
         >
           <FormControl size="small" fullWidth>
@@ -382,29 +399,12 @@ export function ReportesInstitucionalesPage() {
         {/* Gráfico */}
         <Paper elevation={1} sx={{ ...paperCardSx, mb: 0 }}>
           <Stack direction="row" spacing={1.25} sx={{ mb: 2, alignItems: 'flex-start' }}>
-            <Box
-              aria-hidden
-              sx={{
-                width: 42,
-                height: 42,
-                borderRadius: '50%',
-                bgcolor: `${INSTITUTIONAL_TEAL}29`,
-                color: INSTITUTIONAL_TEAL,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-              }}
-            >
-              P
-            </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                Documentos por tipo
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Distribución en el período aplicado · hasta 6 tipos con mayor volumen
-              </Typography>
+              <SectionHeader
+                icon={<BarChartOutlinedIcon fontSize="small" />}
+                title="Documentos por tipo"
+                subtitle="Distribución en el período aplicado · hasta 6 tipos con mayor volumen"
+              />
             </Box>
             {chartLoading ? <CircularProgress size={22} /> : null}
           </Stack>
@@ -436,7 +436,7 @@ export function ReportesInstitucionalesPage() {
                   {bars.map((row, idx) => {
                     const chartH = 160;
                     const barH = Math.max(28, Math.round((row.count / maxCount) * chartH));
-                    const color = BAR_PALETTE[idx % BAR_PALETTE.length];
+                    const color = barPalette[idx % barPalette.length];
                     const label = shortAxisLabel(row.nombre, row.codigo);
                     return (
                       <Stack
@@ -482,34 +482,13 @@ export function ReportesInstitucionalesPage() {
 
         {/* Lista */}
         <Paper elevation={1} sx={{ ...paperCardSx, mb: 0 }}>
-          <Stack direction="row" spacing={1.25} sx={{ mb: 2, alignItems: 'flex-start' }}>
-            <Box
-              aria-hidden
-              sx={{
-                width: 42,
-                height: 42,
-                borderRadius: '50%',
-                bgcolor: `${INSTITUTIONAL_TEAL}29`,
-                color: INSTITUTIONAL_TEAL,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-              }}
-            >
-              D
-            </Box>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                Reportes disponibles
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Exportación con filtros aplicados (documentos); auditoría solo por período temporal
-              </Typography>
-            </Box>
-          </Stack>
+          <SectionHeader
+            icon={<AssessmentOutlinedIcon fontSize="small" />}
+            title="Reportes disponibles"
+            subtitle="Exportación con filtros aplicados (documentos); auditoría solo por período temporal"
+          />
 
-          <Stack divider={<Divider flexItem />} spacing={0}>
+          <Stack divider={<Divider flexItem />} spacing={0} sx={{ mt: 2 }}>
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={1}

@@ -24,6 +24,31 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-28 — Usuarios y roles: iconos de sección y listado unificado
+
+- **Frontend:** `UsuariosPage` elimina `INSTITUTIONAL_TEAL`, letras U/P/M y hex fijos. Directorio en `ListPanel` con `PeopleOutlined`; matrices con `SectionHeader` (`VpnKeyOutlined`, `TableChartOutlined`); chips Activos del tema; botón guardar RBAC `color="secondary"`.
+- **Docs:** manual `27` §5.1, guía de menú `44` §3.1.
+
+### 2026-08-28 — Reportes y Configuración: iconos de sección y chips del tema
+
+- **Frontend:** `ReportesInstitucionalesPage` sustituye letras P/D y hex por `SectionHeader` (parámetros, gráfico, listado) y barras con paleta MUI. `ConfiguracionSeguridadPage` usa `SectionHeader` + `ControlStatusChip` (success/outlined) en lugar de letras S/A y `#e8f5e9`. APIs y flujos sin cambio.
+- **Docs:** manual `27` §12–13, guía de menú `44` §3.4–3.5.
+
+### 2026-08-28 — Respaldos: iconos de sección y chips de verificación
+
+- **Frontend:** `RespaldosSeguridadPage` sustituye letras R/P/I y hex fijos por `SectionHeader`, `ListPanel` con icono de respaldo y `BackupEstadoChip` (`auditResultChipColor`). mysqldump, registro de verificación y diálogos sin cambio.
+- **Docs:** manual `27` §11, guía de menú `44` §3.3.
+
+### 2026-08-28 — Auditoría: icono de listado y chips de resultado
+
+- **Frontend:** `AuditoriaPage` sustituye la letra «A» por `FactCheckOutlinedIcon`; `AuditResultChip` usa `auditResultChipColor` (tema MUI). Filtros, paginación y exportación Excel/PDF sin cambio.
+- **Docs:** manual `27` §10, guía de menú `44` §3.2.
+
+### 2026-08-28 — Catálogos Dependencias, Cargos y Tipos: mismo patrón visual
+
+- **Frontend:** `DependenciasPage`, `CargosPage` y `TiposDocumentalesPage` usan iconos del menú, `CatalogCodigoChip` / `CatalogNombreCell` (también Series/Subseries). CRUD, validaciones y baja lógica sin cambio.
+- **Docs:** manual `27` §6.1–6.3, guías `47`/`48`/`49`, menú `44`.
+
 ### 2026-08-28 — Catálogos Series/Subseries: iconos y chips de tema
 
 - **Frontend:** `SeriesPage` y `SubseriesPage` sustituyen letras «S/SS» por iconos, chips de código y `ActivoChip` con paleta MUI. Formularios, validaciones y baja lógica sin cambio. `ListPanel` usa el mismo fondo de badge que `SectionHeader`.

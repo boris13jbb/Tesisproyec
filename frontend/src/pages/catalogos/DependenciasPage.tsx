@@ -1,3 +1,4 @@
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
@@ -9,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  Link,
   Table,
   TableBody,
   TableCell,
@@ -20,10 +22,12 @@ import {
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Link as RouterLink } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { ActivoChip } from '../../components/ActivoChip';
+import { CatalogCodigoChip, CatalogNombreCell } from '../../components/CatalogListCells';
 import { EmptyState } from '../../components/EmptyState';
 import { FilterPanel } from '../../components/FilterPanel';
 import { ListPanel } from '../../components/ListPanel';
@@ -157,7 +161,11 @@ export function DependenciasPage() {
           description={
             <>
               Catálogo de unidades organizativas. La edición y el alta requieren rol{' '}
-              <strong>ADMIN</strong>.
+              <strong>ADMIN</strong>. Relacionado:{' '}
+              <Link component={RouterLink} to="/catalogos/cargos" underline="hover">
+                Cargos
+              </Link>
+              .
             </>
           }
           actions={
@@ -189,7 +197,7 @@ export function DependenciasPage() {
         </FilterPanel>
 
         <ListPanel
-          badge="D"
+          badge={<BusinessOutlinedIcon fontSize="small" />}
           title="Listado de dependencias"
           subtitle={`${rows.length} registro${rows.length === 1 ? '' : 's'} según filtros`}
           loading={loading}
@@ -197,14 +205,18 @@ export function DependenciasPage() {
           <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
             <Table size="small" aria-label="Dependencias">
               <TableHead>
-                <TableRow>
-                  <TableCell>Código</TableCell>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 800 }}>Código</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Nombre</TableCell>
+                  <TableCell sx={{ fontWeight: 800, display: { xs: 'none', md: 'table-cell' } }}>
                     Descripción
                   </TableCell>
-                  <TableCell>Estado</TableCell>
-                  {isAdmin && <TableCell align="right">Acciones</TableCell>}
+                  <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+                  {isAdmin && (
+                    <TableCell align="right" sx={{ fontWeight: 800 }}>
+                      Acciones
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -216,8 +228,15 @@ export function DependenciasPage() {
                 {!loading &&
                   rows.map((row) => (
                     <TableRow key={row.id} hover>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{row.codigo}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                      <TableCell>
+                        <CatalogCodigoChip codigo={row.codigo} />
+                      </TableCell>
+                      <TableCell>
+                        <CatalogNombreCell
+                          icon={<BusinessOutlinedIcon sx={{ fontSize: 18 }} />}
+                          nombre={row.nombre}
+                        />
+                      </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         {row.descripcion ?? '—'}
                       </TableCell>
@@ -226,7 +245,7 @@ export function DependenciasPage() {
                       </TableCell>
                       {isAdmin && (
                         <TableCell align="right">
-                          <Button size="small" variant="outlined" onClick={() => openEdit(row)}>
+                          <Button size="small" variant="outlined" color="secondary" onClick={() => openEdit(row)}>
                             Editar
                           </Button>
                         </TableCell>

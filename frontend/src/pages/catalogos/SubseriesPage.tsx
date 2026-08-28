@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,7 +15,6 @@ import {
   Link,
   MenuItem,
   Select,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -24,7 +22,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -34,6 +31,7 @@ import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { ActivoChip } from '../../components/ActivoChip';
+import { CatalogCodigoChip, CatalogNombreCell } from '../../components/CatalogListCells';
 import { EmptyState } from '../../components/EmptyState';
 import { FilterPanel } from '../../components/FilterPanel';
 import { ListPanel } from '../../components/ListPanel';
@@ -288,28 +286,16 @@ export function SubseriesPage() {
                   rows.map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell>
-                        <Typography variant="body2">
-                          {row.serie.codigo} — {row.serie.nombre}
-                        </Typography>
+                        {row.serie.codigo} — {row.serie.nombre}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={row.codigo}
-                          sx={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700 }}
+                        <CatalogCodigoChip codigo={row.codigo} />
+                      </TableCell>
+                      <TableCell>
+                        <CatalogNombreCell
+                          icon={<TopicOutlinedIcon sx={{ fontSize: 18 }} />}
+                          nombre={row.nombre}
                         />
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          <TopicOutlinedIcon
-                            sx={{ fontSize: 18, color: 'secondary.main', flexShrink: 0 }}
-                            aria-hidden
-                          />
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {row.nombre}
-                          </Typography>
-                        </Stack>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         {row.descripcion ?? '—'}

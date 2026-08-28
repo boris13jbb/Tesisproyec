@@ -3,7 +3,10 @@ import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
 import {
   Accordion,
   AccordionDetails,
@@ -47,6 +50,8 @@ import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
+import { ListPanel } from '../../components/ListPanel';
+import { SectionHeader } from '../../components/SectionHeader';
 import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import {
   buildLocalAccessMatrixFallback,
@@ -54,10 +59,6 @@ import {
 } from '../../constants/roles-access-matrix';
 import { formatUltimoIngreso } from '../../utils/formatUltimoIngreso';
 import { getApiErrorMessage } from '../../utils/api-error-message';
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
-const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
-const INSTITUTIONAL_NAVY = '#1A2B3C';
 
 const paperCardSx = {
   ...listSurfaceSx,
@@ -174,50 +175,6 @@ const ROL_COLUMNA_ETIQUETA: Record<string, string> = {
   CONSULTA: 'Consulta',
 };
 
-function SectionLetterHeader({
-  letter,
-  accent = 'teal',
-  title,
-  subtitle,
-}: {
-  letter: string;
-  accent?: 'teal' | 'blue';
-  title: string;
-  subtitle: string;
-}) {
-  const badgeBg =
-    accent === 'blue' ? 'rgba(37, 99, 235, 0.14)' : INSTITUTIONAL_TEAL_SOFT;
-  const badgeFg = accent === 'blue' ? '#1d4ed8' : INSTITUTIONAL_TEAL;
-  return (
-    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-      <Box
-        aria-hidden
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: 2,
-          bgcolor: badgeBg,
-          color: badgeFg,
-          display: 'grid',
-          placeItems: 'center',
-          fontWeight: 900,
-          flexShrink: 0,
-        }}
-      >
-        {letter}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.15, color: INSTITUTIONAL_NAVY }}>
-          {title}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {subtitle}
-        </Typography>
-      </Box>
-    </Stack>
-  );
-}
-
 function displayUsuario(u: Usuario) {
   const n = `${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim();
   return n || u.email;
@@ -283,7 +240,7 @@ function RoleAssignmentFields({
       <FormControl component="fieldset" fullWidth>
         <FormLabel
           id={labelId}
-          sx={{ fontWeight: 800, color: INSTITUTIONAL_NAVY, mb: 0.75 }}
+          sx={{ fontWeight: 800, color: 'text.primary', mb: 0.75 }}
         >
           Rol institucional
         </FormLabel>
@@ -378,7 +335,7 @@ function PermissionCodesPicker({
 
   return (
     <FormControl fullWidth margin="normal" component="fieldset">
-      <FormLabel sx={{ fontWeight: 800, color: INSTITUTIONAL_NAVY, mb: 0.5 }}>
+      <FormLabel sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
         Permisos directos (solo esta cuenta)
       </FormLabel>
       <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
@@ -420,7 +377,7 @@ function PermissionCodesPicker({
               borderColor: 'divider',
               borderRadius: 2,
               p: 1,
-              bgcolor: 'grey.50',
+              bgcolor: 'action.hover',
             }}
           >
             {filtered.length === 0 ? (
@@ -466,12 +423,11 @@ function PermissionCodesPicker({
   );
 }
 
-/** Primera celda sticky en matriz RBAC horizontal (solo scroll X). */
 const matrixStickyModuleSx = {
   position: 'sticky',
   left: 0,
   zIndex: 2,
-  bgcolor: '#fff',
+  bgcolor: 'background.paper',
   boxShadow: '4px 0 12px rgba(15, 23, 42, 0.06)',
   minWidth: { xs: 200, md: 240 },
   maxWidth: { xs: 280, md: 320 },
@@ -480,7 +436,7 @@ const matrixStickyModuleSx = {
 const matrixStickyModuleHeadSx = {
   ...matrixStickyModuleSx,
   zIndex: 3,
-  bgcolor: 'grey.50',
+  bgcolor: 'action.hover',
 } as const;
 
 function MatrixCell({ allowed }: { allowed: boolean }) {
@@ -884,56 +840,84 @@ export function UsuariosPage() {
       </Accordion>
 
       <Stack spacing={{ xs: 2.25, md: 3 }}>
-        <Paper
-          id="tabla-usuarios-institucionales"
-          elevation={0}
-          sx={{
-            ...paperCardSx,
-            p: { xs: 2.25, sm: 3, md: 3.25 },
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            sx={{ mb: { xs: 1.75, md: 2 }, alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+        <Box id="tabla-usuarios-institucionales">
+          <ListPanel
+            badge={<PeopleOutlinedIcon fontSize="small" />}
+            title="Usuarios institucionales"
+            subtitle="Identidades institucionales · roles · estado activo/inactivo"
+            meta={
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Chip
+                  label={`Activos · ${usuariosActivos}`}
+                  size="small"
+                  color="success"
+                  sx={{ fontWeight: 700 }}
+                />
+                <Chip label={`Total · ${items.length}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+              </Stack>
+            }
+            footer={
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                {isAdmin ? (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    fullWidth
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      py: 1.15,
+                    }}
+                    onClick={() => {
+                      setInviteNotice(null);
+                      resetIdentityForm();
+                      setOpen(true);
+                    }}
+                  >
+                    Crear usuario
+                  </Button>
+                ) : null}
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  href="#matriz-rbac"
+                  sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
+                >
+                  Ver matriz RBAC
+                </Button>
+                {isAdmin ? (
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    href="#matriz-role-permissions-bd"
+                    sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
+                  >
+                    Permisos por rol (BD)
+                  </Button>
+                ) : null}
+              </Stack>
+            }
           >
-            <SectionLetterHeader
-              letter="U"
-              title="Usuarios institucionales"
-              subtitle="Identidades institucionales · roles · estado activo/inactivo"
-            />
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-              <Chip
-                label={`Activos · ${usuariosActivos}`}
-                size="small"
-                sx={{ bgcolor: `${INSTITUTIONAL_TEAL}18`, fontWeight: 700, color: INSTITUTIONAL_NAVY }}
-              />
-              <Chip label={`Total · ${items.length}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
-            </Stack>
-          </Stack>
-
-          {loading ? (
-            <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress aria-label="Cargando usuarios" />
-            </Box>
-          ) : (
-            <TableContainer
-              sx={{
-                ...listTableContainerSx,
-                maxHeight: { xs: 420, md: 560 },
-                overflow: 'auto',
-              }}
-            >
-              <Table
-                size="medium"
-                stickyHeader
-                sx={{ tableLayout: { md: 'auto' }, minWidth: 720 }}
-                aria-label="Usuarios institucionales"
+            {loading ? (
+              <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+                <CircularProgress aria-label="Cargando usuarios" />
+              </Box>
+            ) : (
+              <TableContainer
+                sx={{
+                  ...listTableContainerSx,
+                  maxHeight: { xs: 420, md: 560 },
+                  overflow: 'auto',
+                }}
               >
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <Table
+                  size="medium"
+                  stickyHeader
+                  sx={{ tableLayout: { md: 'auto' }, minWidth: 720 }}
+                  aria-label="Usuarios institucionales"
+                >
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'action.hover' }}>
                     <TableCell sx={{ fontWeight: 800, minWidth: 220 }}>Usuario</TableCell>
                     <TableCell sx={{ fontWeight: 800, minWidth: 120 }}>Rol</TableCell>
                     <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
@@ -1035,46 +1019,8 @@ export function UsuariosPage() {
               </TableContainer>
             )}
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2.5 }}>
-              {isAdmin ? (
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  fullWidth
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 800,
-                    py: 1.15,
-                  }}
-                  onClick={() => {
-                    setInviteNotice(null);
-                    resetIdentityForm();
-                    setOpen(true);
-                  }}
-                >
-                  Crear usuario
-                </Button>
-              ) : null}
-              <Button
-                fullWidth
-                variant="outlined"
-                href="#matriz-rbac"
-                sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
-              >
-                Ver matriz RBAC
-              </Button>
-              {isAdmin ? (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  href="#matriz-role-permissions-bd"
-                  sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
-                >
-                  Permisos por rol (BD)
-                </Button>
-              ) : null}
-            </Stack>
-          </Paper>
+          </ListPanel>
+        </Box>
 
           {isAdmin ? (
             <Paper
@@ -1082,13 +1028,12 @@ export function UsuariosPage() {
               elevation={0}
               sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
             >
-              <SectionLetterHeader
-                letter="P"
-                accent="teal"
+              <SectionHeader
+                icon={<VpnKeyOutlinedIcon fontSize="small" />}
                 title="Matriz rol ↔ permiso (base de datos)"
-                subtitle="Asignación persistida · `role_permissions` · fuente de verdad para `PermissionsGuard`"
+                subtitle="Asignación persistida · role_permissions · fuente de verdad para PermissionsGuard"
               />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2, lineHeight: 1.6 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 2, lineHeight: 1.6 }}>
                 Aquí concede o revoca <strong>códigos de permiso</strong> por <strong>rol institucional</strong>. Si la
                 lista aparece vacía, ejecute <code>npx prisma db seed</code> en el servidor (crea permisos y valores por
                 defecto).
@@ -1130,7 +1075,7 @@ export function UsuariosPage() {
                       borderColor: 'divider',
                       borderRadius: 2,
                       p: 1.5,
-                      bgcolor: 'grey.50',
+                      bgcolor: 'action.hover',
                     }}
                     aria-busy={rbacRolePermsLoading || rbacMatrixSaving}
                   >
@@ -1172,13 +1117,12 @@ export function UsuariosPage() {
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
                     <Button
                       variant="contained"
+                      color="secondary"
                       disabled={rbacMatrixSaving || rbacRolePermsLoading || !rbacRoleCodigo}
                       onClick={() => void saveRbacMatrix()}
                       sx={{
                         textTransform: 'none',
                         fontWeight: 800,
-                        bgcolor: INSTITUTIONAL_NAVY,
-                        '&:hover': { bgcolor: '#132030' },
                       }}
                     >
                       {rbacMatrixSaving ? 'Guardando…' : 'Guardar permisos del rol'}
@@ -1206,9 +1150,8 @@ export function UsuariosPage() {
             spacing={2}
             sx={{ mb: 2, alignItems: { md: 'flex-start' }, justifyContent: 'space-between' }}
           >
-            <SectionLetterHeader
-              letter="M"
-              accent="blue"
+            <SectionHeader
+              icon={<TableChartOutlinedIcon fontSize="small" />}
               title="Matriz de permisos (referencia)"
               subtitle="Lectura · comparación por rol · desplazamiento horizontal si aplica"
             />
@@ -1225,13 +1168,13 @@ export function UsuariosPage() {
                 borderColor: 'divider',
                 overflowX: 'auto',
                 overflowY: 'hidden',
-                bgcolor: 'rgba(248, 250, 252, 0.6)',
+                bgcolor: 'action.hover',
                 maxWidth: '100%',
               }}
             >
               <Table size="small" sx={{ minWidth: 720 }} aria-label="Matriz de permisos por rol">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableRow sx={{ bgcolor: 'action.hover' }}>
                     <TableCell sx={{ ...matrixStickyModuleHeadSx, fontWeight: 800 }}>Módulo</TableCell>
                     {matrizReferencia.columnas.map((c) => (
                       <TableCell key={c} align="center" sx={{ fontWeight: 700, px: 0.5 }}>
