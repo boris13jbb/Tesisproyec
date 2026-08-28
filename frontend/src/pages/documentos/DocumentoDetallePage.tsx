@@ -32,13 +32,21 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FullscreenOutlinedIcon from '@mui/icons-material/FullscreenOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import IconButton from '@mui/material/IconButton';
+import { alpha } from '@mui/material/styles';
 import DOMPurify from 'dompurify';
 import mammoth from 'mammoth';
 import { z } from 'zod';
 import {
   DOCUMENTO_ESTADOS,
+  documentoEstadoChipColor,
   documentoEstadoSchema,
+  documentoEstadoTone,
   labelDocumentoEstado,
 } from '../../constants/documento-estado';
 import { getApiErrorMessage } from '../../utils/api-error-message';
@@ -47,6 +55,7 @@ import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
+import { SectionHeader } from '../../components/SectionHeader';
 import { useRegisterBreadcrumbDetail } from '../../layouts/useBreadcrumbDetail';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
@@ -232,75 +241,33 @@ function labelConfidencialidad(raw: string): string {
   return map[raw] ?? raw;
 }
 
-function estadoVisualizationColor(estado: string):
-  | 'success'
-  | 'warning'
-  | 'error'
-  | 'info'
-  | 'default' {
-  switch (estado) {
-    case 'APROBADO':
-      return 'success';
-    case 'EN_REVISION':
-      return 'warning';
-    case 'RECHAZADO':
-      return 'error';
-    case 'ARCHIVADO':
-      return 'info';
-    default:
-      return 'default';
-  }
-}
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
-const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
-
 const paperCardSx = {
   ...listSurfaceSx,
 } as const;
 
-function SectionHeader({
-  letter,
-  title,
-  subtitle,
-}: {
-  letter: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-      <Box
-        aria-hidden
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: 2,
-          bgcolor: INSTITUTIONAL_TEAL_SOFT,
-          color: INSTITUTIONAL_TEAL,
-          display: 'grid',
-          placeItems: 'center',
-          fontWeight: 900,
-          flexShrink: 0,
-        }}
-      >
-        {letter}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.15 }}>
-          {title}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {subtitle}
-        </Typography>
-      </Box>
-    </Stack>
-  );
-}
+const nestedItemSx = {
+  p: 1.5,
+  borderRadius: 2,
+  border: '1px solid',
+  borderColor: 'divider',
+  bgcolor: 'background.paper',
+  transition: 'border-color 140ms ease, background-color 140ms ease',
+  '&:hover': {
+    bgcolor: 'action.hover',
+    borderColor: 'secondary.light',
+  },
+} as const;
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <Box sx={{ py: 1, borderBottom: 1, borderColor: 'divider' }}>
+    <Box
+      sx={{
+        py: 1.1,
+        borderBottom: 1,
+        borderColor: 'divider',
+        '&:last-of-type': { borderBottom: 0 },
+      }}
+    >
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
         {label}
       </Typography>
@@ -777,7 +744,7 @@ export function DocumentoDetallePage() {
             USE_PROFILES: { html: true },
           });
           setPreviewDocxHtml(
-            `<div class=\"docx-preview\">${safe}</div>`,
+            `<div class="docx-preview">${safe}</div>`,
           );
           setPreviewKind(null);
           setPreviewUrl(null);
@@ -1025,10 +992,10 @@ export function DocumentoDetallePage() {
             doc ? (
               <Stack spacing={0.75}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Detalle documental · GADPR-LM · Sistema de Gestión Documental
+                  {doc.asunto}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Consulta integral, historial de versiones y trazabilidad del documento.
+                  Vista previa, metadatos, adjuntos e historial del expediente.
                 </Typography>
               </Stack>
             ) : (
@@ -1041,7 +1008,7 @@ export function DocumentoDetallePage() {
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <Chip
                   size="small"
-                  color={estadoVisualizationColor(doc.estado)}
+                  color={documentoEstadoChipColor(doc.estado)}
                   label={labelDocumentoEstado(doc.estado)}
                 />
                 <Chip
@@ -1078,22 +1045,44 @@ export function DocumentoDetallePage() {
 
         {!loading && doc && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Paper elevation={0} sx={{ ...paperCardSx, p: { xs: 1.5, sm: 2 } }}>
+            <Paper elevation={0} sx={{ ...paperCardSx, p: { xs: 1.75, sm: 2.25 } }}>
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={{ xs: 1.5, sm: 2 }}
                 sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
               >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.4 }}>
-                    Flujo documental
-                  </Typography>
-                  <Typography sx={{ fontWeight: 700 }}>{doc.asunto}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Fecha doc. {formatDateOnly(doc.fechaDocumento)} · Registrado por{' '}
-                    {doc.createdBy.email}
-                  </Typography>
-                </Box>
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+                  <Box
+                    aria-hidden
+                    sx={(t) => {
+                      const accent = t.palette[documentoEstadoTone(doc.estado)].main;
+                      return {
+                        width: 44,
+                        height: 44,
+                        borderRadius: 2,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: alpha(accent, 0.14),
+                        color: accent,
+                        flexShrink: 0,
+                      };
+                    }}
+                  >
+                    <DescriptionOutlinedIcon />
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2, fontWeight: 800 }}>
+                      Flujo documental
+                    </Typography>
+                    <Typography sx={{ fontWeight: 800 }} noWrap title={doc.asunto}>
+                      {doc.asunto}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Fecha doc. {formatDateOnly(doc.fechaDocumento)} · Registrado por{' '}
+                      {doc.createdBy.email}
+                    </Typography>
+                  </Box>
+                </Stack>
                 <Stack
                   direction="row"
                   sx={{
@@ -1151,7 +1140,7 @@ export function DocumentoDetallePage() {
                 >
                   <Box sx={{ px: 2.5, pt: 2.25 }}>
                     <SectionHeader
-                      letter="D"
+                      icon={<VisibilityOutlinedIcon fontSize="small" />}
                       title="Vista previa"
                       subtitle={
                         archivoUltimaVersion
@@ -1202,8 +1191,9 @@ export function DocumentoDetallePage() {
                     <Box
                       sx={{
                         borderRadius: 2,
-                        border: '1px solid rgba(15,23,42,0.08)',
-                        bgcolor: '#f1f5f9',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'action.hover',
                         minHeight: { xs: 260, sm: 400 },
                         maxHeight: '72vh',
                         overflow: 'hidden',
@@ -1329,8 +1319,9 @@ export function DocumentoDetallePage() {
                           px: 1.5,
                           py: 1,
                           alignItems: 'center',
-                          borderTop: '1px solid rgba(15,23,42,0.06)',
-                          bgcolor: 'rgba(255,255,255,0.96)',
+                          borderTop: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
                           flexShrink: 0,
                           flexWrap: 'wrap',
                         }}
@@ -1340,7 +1331,7 @@ export function DocumentoDetallePage() {
                         </Typography>
                         <Chip
                           size="small"
-                          color={estadoVisualizationColor(doc.estado)}
+                          color={documentoEstadoChipColor(doc.estado)}
                           label={labelDocumentoEstado(doc.estado)}
                           sx={{ fontWeight: 800 }}
                         />
@@ -1489,12 +1480,12 @@ export function DocumentoDetallePage() {
                   ) : null}
 
                   <Box sx={{ px: 2.5, py: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5 }}>
-                      Archivos digitales
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Versiones activas registradas en el servidor; la vista previa usa la de mayor versión.
-                    </Typography>
+                    <SectionHeader
+                      icon={<FolderOutlinedIcon fontSize="small" />}
+                      title="Archivos digitales"
+                      subtitle="Versiones activas en el servidor; la vista previa usa la de mayor versión."
+                    />
+                    <Box sx={{ mt: 2 }}>
 
                     {canUploadFiles && (
                       <Box
@@ -1561,7 +1552,7 @@ export function DocumentoDetallePage() {
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {archivos.map((a) => (
-                          <Paper key={a.id} variant="outlined" sx={{ p: 1.5 }}>
+                          <Paper key={a.id} elevation={0} sx={nestedItemSx}>
                             <Box
                               sx={{
                                 display: 'flex',
@@ -1609,6 +1600,7 @@ export function DocumentoDetallePage() {
                         ))}
                       </Box>
                     )}
+                    </Box>
                   </Box>
                 </Paper>
               </Grid>
@@ -1617,7 +1609,7 @@ export function DocumentoDetallePage() {
                 <Stack spacing={2} sx={{ height: '100%' }}>
                   <Paper elevation={0} sx={{ ...paperCardSx, p: 2.5 }}>
                     <SectionHeader
-                      letter="C"
+                      icon={<AssignmentOutlinedIcon fontSize="small" />}
                       title="Metadatos"
                       subtitle="Datos del registro en el SGD y del catálogo documental."
                     />
@@ -1686,7 +1678,7 @@ export function DocumentoDetallePage() {
                             block: 'start',
                           })
                         }
-                        sx={{ textTransform: 'none', borderColor: 'rgba(15,23,42,0.15)' }}
+                        sx={{ textTransform: 'none', borderColor: 'divider' }}
                       >
                         Ver historial
                       </Button>
@@ -1695,7 +1687,7 @@ export function DocumentoDetallePage() {
 
                   <Paper ref={historiaRef} elevation={0} sx={{ ...paperCardSx, p: 2.5 }}>
                     <SectionHeader
-                      letter="A"
+                      icon={<HistoryOutlinedIcon fontSize="small" />}
                       title="Historial y trazabilidad"
                       subtitle="Últimos movimientos"
                     />
@@ -1720,7 +1712,7 @@ export function DocumentoDetallePage() {
                               spacing={1.25}
                               sx={{
                                 alignItems: 'flex-start',
-                                pb: isLast ? 0 : 2.25,
+                                pb: isLast ? 0 : 1.5,
                               }}
                             >
                               <Box
@@ -1742,7 +1734,7 @@ export function DocumentoDetallePage() {
                                       left: '50%',
                                       width: 2,
                                       transform: 'translateX(-50%)',
-                                      bgcolor: 'rgba(45, 138, 153, 0.42)',
+                                      bgcolor: 'secondary.main',
                                       borderRadius: 1,
                                     }}
                                   />
@@ -1756,11 +1748,11 @@ export function DocumentoDetallePage() {
                                     bgcolor: 'secondary.main',
                                     flexShrink: 0,
                                     zIndex: 1,
-                                    boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
+                                    boxShadow: (t) => `0 0 0 2px ${t.palette.background.paper}`,
                                   }}
                                 />
                               </Box>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Box sx={{ ...nestedItemSx, flex: 1, minWidth: 0, py: 1.25 }}>
                                 <Typography sx={{ fontWeight: 800, lineHeight: 1.3 }}>
                                   {line.primary}
                                 </Typography>
@@ -1807,7 +1799,7 @@ export function DocumentoDetallePage() {
                                               px: 1.5,
                                               py: 1,
                                               bgcolor:
-                                                rowIdx % 2 === 0 ? 'grey.50' : 'background.paper',
+                                                rowIdx % 2 === 0 ? 'action.hover' : 'background.paper',
                                             }}
                                           >
                                             <Typography variant="caption" sx={{ fontWeight: 700 }}>
@@ -2179,7 +2171,7 @@ export function DocumentoDetallePage() {
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {archivoEventos.map((ev) => (
-                <Paper key={ev.id} variant="outlined" sx={{ p: 1.5 }}>
+                <Paper key={ev.id} elevation={0} sx={nestedItemSx}>
                   <Box
                     sx={{
                       display: 'flex',
@@ -2203,7 +2195,7 @@ export function DocumentoDetallePage() {
                         mt: 1,
                         mb: 0,
                         overflow: 'auto',
-                        bgcolor: 'grey.50',
+                        bgcolor: 'action.hover',
                         p: 1,
                         borderRadius: 1,
                         fontSize: 12,

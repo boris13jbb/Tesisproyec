@@ -1,14 +1,18 @@
+import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
   Box,
   Button,
   Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  Link,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -16,10 +20,12 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Link as RouterLink } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
@@ -149,7 +155,16 @@ export function SeriesPage() {
           title="Series"
           description={
             <>
-              Catálogo del cuadro de clasificación. Alta y edición requieren rol <strong>ADMIN</strong>.
+              Catálogo del cuadro de clasificación. Alta y edición requieren rol <strong>ADMIN</strong>
+              . Relacionado:{' '}
+              <Link component={RouterLink} to="/catalogos/subseries" underline="hover">
+                Subseries
+              </Link>
+              {' · '}
+              <Link component={RouterLink} to="/clasificacion" underline="hover">
+                Clasificación
+              </Link>
+              .
             </>
           }
           actions={
@@ -181,7 +196,7 @@ export function SeriesPage() {
         </FilterPanel>
 
         <ListPanel
-          badge="S"
+          badge={<FolderOpenOutlinedIcon fontSize="small" />}
           title="Listado de series"
           subtitle={`${rows.length} registro${rows.length === 1 ? '' : 's'} según filtros`}
           loading={loading}
@@ -189,14 +204,18 @@ export function SeriesPage() {
           <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
             <Table size="small" aria-label="Series">
               <TableHead>
-                <TableRow>
-                  <TableCell>Código</TableCell>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 800 }}>Código</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Nombre</TableCell>
+                  <TableCell sx={{ fontWeight: 800, display: { xs: 'none', md: 'table-cell' } }}>
                     Descripción
                   </TableCell>
-                  <TableCell>Estado</TableCell>
-                  {isAdmin && <TableCell align="right">Acciones</TableCell>}
+                  <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+                  {isAdmin && (
+                    <TableCell align="right" sx={{ fontWeight: 800 }}>
+                      Acciones
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -208,8 +227,25 @@ export function SeriesPage() {
                 {!loading &&
                   rows.map((row) => (
                     <TableRow key={row.id} hover>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{row.codigo}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={row.codigo}
+                          sx={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <FolderOpenOutlinedIcon
+                            sx={{ fontSize: 18, color: 'secondary.main', flexShrink: 0 }}
+                            aria-hidden
+                          />
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {row.nombre}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         {row.descripcion ?? '—'}
                       </TableCell>
@@ -218,7 +254,7 @@ export function SeriesPage() {
                       </TableCell>
                       {isAdmin && (
                         <TableCell align="right">
-                          <Button size="small" variant="outlined" onClick={() => openEdit(row)}>
+                          <Button size="small" variant="outlined" color="secondary" onClick={() => openEdit(row)}>
                             Editar
                           </Button>
                         </TableCell>

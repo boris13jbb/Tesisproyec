@@ -14,7 +14,7 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 
 - **BD:** `documentos` + tabla de historial `documento_eventos` (trazabilidad de creación/actualización).
 - **API:** `GET /api/v1/documentos` y `GET /api/v1/documentos/:id` (JWT), `POST/PATCH` (ADMIN), `GET /api/v1/documentos/:id/eventos` (JWT).
-- **Frontend:** `/documentos` (listado + registrar), `/documentos/:id` (detalle + edición + historial).
+- **Frontend:** `/documentos` (listado en tarjetas o tabla + registrar), `/documentos/:id` (detalle en tarjetas: vista previa, metadatos, adjuntos, historial).
 - **Seed:** `DOC-0001` y eventos asociados al crear/editar.
 
 ## Decisiones técnicas

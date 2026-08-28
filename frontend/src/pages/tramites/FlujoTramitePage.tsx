@@ -1,9 +1,8 @@
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Alert,
   Box,
-  Card,
-  CardActionArea,
   Chip,
   CircularProgress,
   IconButton,
@@ -12,13 +11,17 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
+import { DocumentoListCard } from '../../components/DocumentoListCard';
 import { EmptyState } from '../../components/EmptyState';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import {
+  documentoEstadoChipColor,
+  documentoEstadoTone,
   labelDocumentoEstado,
   type DocumentoEstadoCodigo,
 } from '../../constants/documento-estado';
@@ -52,38 +55,12 @@ type TablonTramitesResponse = {
 };
 
 /** Estados del Kanban principal (alineado con modelo de trabajo documental real). */
-const KANBAN_COLUMNAS: {
-  estado: DocumentoEstadoCodigo;
-  chipLabel: string;
-  chipSx: { bgcolor: string; color: string; border?: string };
-}[] = [
-  {
-    estado: 'REGISTRADO',
-    chipLabel: 'Registrado',
-    chipSx: { bgcolor: 'rgba(59, 130, 246, 0.14)', color: '#1d4ed8' },
-  },
-  {
-    estado: 'EN_REVISION',
-    chipLabel: 'En revisión',
-    chipSx: { bgcolor: 'rgba(245, 158, 11, 0.16)', color: '#b45309' },
-  },
-  {
-    estado: 'APROBADO',
-    chipLabel: 'Aprobado',
-    chipSx: { bgcolor: 'rgba(34, 197, 94, 0.14)', color: '#15803d' },
-  },
-  {
-    estado: 'ARCHIVADO',
-    chipLabel: 'Archivado',
-    chipSx: {
-      bgcolor: 'rgba(100, 116, 139, 0.12)',
-      color: '#334155',
-      border: '1px solid rgba(100, 116, 139, 0.25)',
-    },
-  },
+const KANBAN_COLUMNAS: DocumentoEstadoCodigo[] = [
+  'REGISTRADO',
+  'EN_REVISION',
+  'APROBADO',
+  'ARCHIVADO',
 ];
-
-const REGLA_NEGOCIO_TEAL = '#2D8A99';
 
 const paperWrapSx = {
   ...listSurfaceSx,
@@ -99,6 +76,7 @@ function formatHoraActualizacion(iso: Date): string {
 }
 
 export function FlujoTramitePage() {
+  const theme = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,40 +212,80 @@ export function FlujoTramitePage() {
                 alignItems: 'stretch',
               }}
             >
-              {KANBAN_COLUMNAS.map((col) => {
-                const data = byEstado[col.estado];
+              {KANBAN_COLUMNAS.map((estadoCol) => {
+                const data = byEstado[estadoCol];
                 const items = data?.items ?? [];
                 const total = data?.total ?? 0;
                 const truncado = total > items.length;
+                const toneKey = documentoEstadoTone(estadoCol);
+                const accent = theme.palette[toneKey].main;
 
                 return (
                   <Box
-                    key={col.estado}
+                    key={estadoCol}
                     sx={{
                       flex: '1 1 260px',
                       minWidth: 260,
                       maxWidth: { md: 320 },
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 1.5,
+                      gap: 1.25,
+                      p: 1.25,
+                      borderRadius: 2,
+                      bgcolor: alpha(accent, theme.palette.mode === 'dark' ? 0.1 : 0.06),
+                      border: '1px solid',
+                      borderColor: 'divider',
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Chip
-                        label={col.chipLabel}
+                    <Stack
+                      direction="row"
+                      spacing={0.75}
+                      sx={{ alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
+                    >
+                      <Box
+                        aria-hidden
                         sx={{
-                          fontWeight: 800,
-                          ...col.chipSx,
+                          width: 28,
+                          height: 28,
+                          borderRadius: 1.5,
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: alpha(accent, 0.18),
+                          color: accent,
                         }}
+                      >
+                        <DescriptionOutlinedIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Chip
+                        label={labelDocumentoEstado(estadoCol)}
+                        size="small"
+                        color={documentoEstadoChipColor(estadoCol)}
+                        sx={{ fontWeight: 800 }}
                       />
-                    </Box>
+                      <Chip
+                        label={total}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontWeight: 700, height: 22 }}
+                        aria-label={`${total} documentos en ${labelDocumentoEstado(estadoCol)}`}
+                      />
+                    </Stack>
 
-                    <Stack spacing={1.25} sx={{ flex: 1 }}>
+                    <Stack
+                      spacing={1.25}
+                      sx={{ flex: 1 }}
+                      role={items.length > 0 ? 'list' : undefined}
+                      aria-label={
+                        items.length > 0
+                          ? `Documentos en ${labelDocumentoEstado(estadoCol)}`
+                          : undefined
+                      }
+                    >
                       {items.length === 0 ? (
                         <EmptyState
                           dense
                           title="Sin documentos"
-                          description={`No hay ítems en «${labelDocumentoEstado(col.estado)}».`}
+                          description={`No hay ítems en «${labelDocumentoEstado(estadoCol)}».`}
                         />
                       ) : (
                         items.map((doc) => {
@@ -281,47 +299,16 @@ export function FlujoTramitePage() {
                           ].join('\n');
                           return (
                             <Tooltip key={doc.id} title={tipTarjeta} arrow enterDelay={400}>
-                              <Card
-                                variant="outlined"
-                                sx={{
-                                  borderRadius: 2,
-                                  borderColor: 'rgba(15,23,42,0.08)',
-                                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-                                }}
-                              >
-                                <CardActionArea
-                                  onClick={() => void navigate(`/documentos/${doc.id}`)}
-                                  sx={{ p: 1.5, alignItems: 'stretch', textAlign: 'left' }}
-                                  aria-label={`Abrir documento ${doc.codigo}`}
-                                >
-                                  <Typography sx={{ fontWeight: 800, lineHeight: 1.3 }}>
-                                    {doc.codigo}
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ mt: 0.5 }} color="text.primary">
-                                    {doc.tipoDocumental.nombre}
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{
-                                      mt: 0.25,
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      overflow: 'hidden',
-                                    }}
-                                  >
-                                    {doc.asunto}
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ mt: 0.75, display: 'block', fontWeight: 600 }}
-                                  >
-                                    {lugar}
-                                  </Typography>
-                                </CardActionArea>
-                              </Card>
+                              <DocumentoListCard
+                                compact
+                                codigo={doc.codigo}
+                                asunto={doc.asunto}
+                                estado={doc.estado}
+                                tipoNombre={doc.tipoDocumental.nombre}
+                                clasificacionTitle={tituloTipo}
+                                responsablePrimary={lugar}
+                                onOpen={() => void navigate(`/documentos/${doc.id}`)}
+                              />
                             </Tooltip>
                           );
                         })
@@ -331,7 +318,7 @@ export function FlujoTramitePage() {
                     {truncado && (
                       <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
                         Mostrando {items.length} de {total}. Use la bandeja con filtro «
-                        {labelDocumentoEstado(col.estado)}» para el listado completo.
+                        {labelDocumentoEstado(estadoCol)}» para el listado completo.
                       </Typography>
                     )}
                   </Box>
@@ -350,7 +337,7 @@ export function FlujoTramitePage() {
               <Typography
                 variant="body2"
                 sx={{
-                  color: REGLA_NEGOCIO_TEAL,
+                  color: 'secondary.main',
                   fontWeight: 600,
                   textAlign: { xs: 'left', sm: 'center' },
                 }}

@@ -1,9 +1,11 @@
+import TopicOutlinedIcon from '@mui/icons-material/TopicOutlined';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
   Box,
   Button,
   Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -11,8 +13,10 @@ import {
   FormControl,
   FormControlLabel,
   InputLabel,
+  Link,
   MenuItem,
   Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -20,10 +24,12 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { Link as RouterLink } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
@@ -189,6 +195,15 @@ export function SubseriesPage() {
           description={
             <>
               Catálogo jerárquico bajo series. Alta y edición requieren rol <strong>ADMIN</strong>.
+              Relacionado:{' '}
+              <Link component={RouterLink} to="/catalogos/series" underline="hover">
+                Series
+              </Link>
+              {' · '}
+              <Link component={RouterLink} to="/clasificacion" underline="hover">
+                Clasificación
+              </Link>
+              .
             </>
           }
           actions={
@@ -240,7 +255,7 @@ export function SubseriesPage() {
         </FilterPanel>
 
         <ListPanel
-          badge="SS"
+          badge={<TopicOutlinedIcon fontSize="small" />}
           title="Listado de subseries"
           subtitle={`${rows.length} registro${rows.length === 1 ? '' : 's'} según filtros`}
           loading={loading}
@@ -248,15 +263,19 @@ export function SubseriesPage() {
           <TableContainer sx={{ ...listTableContainerSx, overflowX: 'auto' }}>
             <Table size="small" aria-label="Subseries">
               <TableHead>
-                <TableRow>
-                  <TableCell>Serie</TableCell>
-                  <TableCell>Código</TableCell>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 800 }}>Serie</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Código</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Nombre</TableCell>
+                  <TableCell sx={{ fontWeight: 800, display: { xs: 'none', md: 'table-cell' } }}>
                     Descripción
                   </TableCell>
-                  <TableCell>Estado</TableCell>
-                  {isAdmin && <TableCell align="right">Acciones</TableCell>}
+                  <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+                  {isAdmin && (
+                    <TableCell align="right" sx={{ fontWeight: 800 }}>
+                      Acciones
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -269,10 +288,29 @@ export function SubseriesPage() {
                   rows.map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell>
-                        {row.serie.codigo} — {row.serie.nombre}
+                        <Typography variant="body2">
+                          {row.serie.codigo} — {row.serie.nombre}
+                        </Typography>
                       </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{row.codigo}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{row.nombre}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={row.codigo}
+                          sx={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <TopicOutlinedIcon
+                            sx={{ fontSize: 18, color: 'secondary.main', flexShrink: 0 }}
+                            aria-hidden
+                          />
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {row.nombre}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         {row.descripcion ?? '—'}
                       </TableCell>
@@ -281,7 +319,7 @@ export function SubseriesPage() {
                       </TableCell>
                       {isAdmin && (
                         <TableCell align="right">
-                          <Button size="small" variant="outlined" onClick={() => openEdit(row)}>
+                          <Button size="small" variant="outlined" color="secondary" onClick={() => openEdit(row)}>
                             Editar
                           </Button>
                         </TableCell>

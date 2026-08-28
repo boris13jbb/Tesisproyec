@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import TableRowsOutlinedIcon from '@mui/icons-material/TableRowsOutlined';
+import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined';
 import {
   Alert,
   Box,
@@ -26,6 +28,8 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useMediaQuery,
   useTheme,
@@ -35,20 +39,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
-import {
-  DOCUMENTO_ESTADOS,
-  labelDocumentoEstado,
-  documentoEstadoCreacionSchema,
-  documentoEstadoSchema,
-} from '../../constants/documento-estado';
 import { apiClient } from '../../api/client';
-import { getApiErrorMessage } from '../../utils/api-error-message';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
+import { DocumentoListCard } from '../../components/DocumentoListCard';
 import { FilterPanel } from '../../components/FilterPanel';
 import { ListPanel } from '../../components/ListPanel';
 import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
+import {
+  DOCUMENTO_ESTADOS,
+  labelDocumentoEstado,
+  documentoEstadoChipColor,
+  documentoEstadoCreacionSchema,
+  documentoEstadoSchema,
+} from '../../constants/documento-estado';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -155,6 +161,27 @@ const createFormDefaults: CreateForm = {
   estado: 'REGISTRADO',
 };
 
+type DocumentosViewMode = 'cards' | 'table';
+const DOCUMENTOS_VIEW_KEY = 'sgd.ui.documentosView';
+
+function readDocumentosView(): DocumentosViewMode {
+  try {
+    const v = localStorage.getItem(DOCUMENTOS_VIEW_KEY);
+    if (v === 'table' || v === 'cards') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'cards';
+}
+
+function persistDocumentosView(mode: DocumentosViewMode) {
+  try {
+    localStorage.setItem(DOCUMENTOS_VIEW_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function DocumentosPage() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
@@ -202,6 +229,7 @@ export function DocumentosPage() {
   const createCodigoUsuarioRef = useRef(false);
   const [createCodigoBusy, setCreateCodigoBusy] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<DocumentosViewMode>(readDocumentosView);
 
   useEffect(() => {
     let cancelled = false;
@@ -569,25 +597,6 @@ export function DocumentosPage() {
     return map;
   }, [subseries]);
 
-  const estadoChipColor = (codigo: string): 'default' | 'success' | 'warning' | 'info' | 'error' => {
-    switch (codigo) {
-      case 'APROBADO':
-        return 'success';
-      case 'EN_REVISION':
-        return 'warning';
-      case 'REGISTRADO':
-        return 'info';
-      case 'RECHAZADO':
-        return 'error';
-      case 'ARCHIVADO':
-        return 'default';
-      case 'BORRADOR':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
   return (
     <>
       <Box component="main" sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
@@ -911,6 +920,26 @@ export function DocumentosPage() {
           title="Listado de documentos"
           subtitle={`${new Intl.NumberFormat('es-EC').format(total)} resultado${total === 1 ? '' : 's'} · datos del servidor según filtros y permisos`}
           loading={loading}
+          meta={
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={viewMode}
+              onChange={(_, next: DocumentosViewMode | null) => {
+                if (!next) return;
+                setViewMode(next);
+                persistDocumentosView(next);
+              }}
+              aria-label="Vista del listado"
+            >
+              <ToggleButton value="cards" aria-label="Vista en tarjetas" title="Tarjetas">
+                <ViewAgendaOutlinedIcon fontSize="small" />
+              </ToggleButton>
+              <ToggleButton value="table" aria-label="Vista en tabla" title="Tabla">
+                <TableRowsOutlinedIcon fontSize="small" />
+              </ToggleButton>
+            </ToggleButtonGroup>
+          }
           footer={
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
@@ -957,6 +986,44 @@ export function DocumentosPage() {
             />
           )}
 
+          {viewMode === 'cards' ? (
+            <Box>
+              {loading && rows.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                  Cargando…
+                </Typography>
+              ) : null}
+              {!loading && rows.length === 0 ? (
+                <EmptyState
+                  title="No hay documentos que coincidan con los criterios."
+                  description="Pruebe a limpiar filtros o registre un nuevo documento si tiene permiso."
+                />
+              ) : (
+                <Stack spacing={1.25} role="list" aria-label="Documentos en tarjetas">
+                  {rows.map((row) => {
+                    const cls = labelClasificacionBandeja(row);
+                    const resp = labelResponsableBandeja(row);
+                    return (
+                      <DocumentoListCard
+                        key={row.id}
+                        codigo={row.codigo}
+                        asunto={row.asunto}
+                        estado={row.estado}
+                        fechaLabel={new Date(row.fechaDocumento).toISOString().slice(0, 10)}
+                        tipoNombre={row.tipoDocumental.nombre}
+                        clasificacionLine={cls.line}
+                        clasificacionTitle={cls.title}
+                        responsablePrimary={resp.primary}
+                        responsableTitle={resp.title}
+                        activo={row.activo}
+                        onOpen={() => navigate(`/documentos/${row.id}`)}
+                      />
+                    );
+                  })}
+                </Stack>
+              )}
+            </Box>
+          ) : (
           <TableContainer
             sx={{
               ...listTableContainerSx,
@@ -1073,7 +1140,7 @@ export function DocumentosPage() {
                           <Chip
                             label={labelDocumentoEstado(row.estado)}
                             size="small"
-                            color={estadoChipColor(row.estado)}
+                            color={documentoEstadoChipColor(row.estado)}
                             variant="filled"
                             sx={{ fontWeight: 800 }}
                           />
@@ -1111,6 +1178,7 @@ export function DocumentosPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
         </ListPanel>
 
       </Box>

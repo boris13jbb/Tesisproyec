@@ -41,7 +41,8 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 ### 3.1 Encabezado
 
 - **Título:** Subseries  
-- **Texto:** *«Catálogo jerárquico bajo series. Alta y edición requieren rol **ADMIN**.»*
+- **Texto:** catálogo jerárquico bajo series; rol ADMIN; enlaces a **Series** y **Clasificación**.
+- El listado usa icono de subserie (no letras «SS»).
 
 ### 3.2 Controles superiores
 
@@ -56,10 +57,10 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 | Columna | Contenido |
 |---------|-----------|
 | **Serie** | Serie padre: `CÓDIGO — Nombre` (ej. `ADM — Administración`). |
-| **Código** | Código de la subserie, **único** en todo el catálogo (ej. `ADM-CORR`). Mayúsculas en servidor. |
-| **Nombre** | Denominación (ej. *Correspondencia*). |
+| **Código** | Código de la subserie, **único** en todo el catálogo (ej. `ADM-CORR`), en chip. Mayúsculas en servidor. |
+| **Nombre** | Denominación (ej. *Correspondencia*), con icono de subserie. |
 | **Descripción** | Opcional; si no hay valor, **—**. |
-| **Activa** | **Sí** / **No** (baja lógica). |
+| **Estado** | Chip **Activo** / **Inactivo** (baja lógica). |
 | **Acciones** | Solo **ADMIN**: **Editar**. |
 
 **Ejemplo seed (desarrollo):**

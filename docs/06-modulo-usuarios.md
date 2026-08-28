@@ -74,7 +74,7 @@ Administración de cuentas de usuario del sistema (alta, baja lógica, actualiza
 - **Nombres / Apellidos**
 - **Dependencia** (opcional)
 - **Cargo** (opcional)
-- **Roles** (`ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`). **`REVISOR`:** además del alcance de consulta JWT, puede **`POST /documentos/:id/resolver-revision`** (junto con **ADMIN**). **`AUDITOR`**/**`CONSULTA`:** mismo alcance funcional base que **`USUARIO`** hasta flujos propios.
+- **Roles:** un **rol institucional** (`ADMIN`, `USUARIO`, `REVISOR`, `AUDITOR`, `CONSULTA`) y, opcionalmente, el complemento **`EDITOR_DOC`**. **`REVISOR`:** además del alcance de consulta JWT, puede **`POST /documentos/:id/resolver-revision`** (junto con **ADMIN**). **`AUDITOR`**/**`CONSULTA`:** mismo alcance funcional base que **`USUARIO`** hasta flujos propios. La UI de crear/editar asigna un rol principal (no una lista múltiple opaca) para evitar acumulación accidental de privilegios.
 - **Activo** (habilitado / inhabilitado)
 
 ## Validaciones

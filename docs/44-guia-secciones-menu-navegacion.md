@@ -2,7 +2,7 @@
 
 **Audiencia:** usuarios operativos, administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores de la tesis.  
 **Objetivo:** explicar **qué contiene cada entrada del menú**, **cómo funciona**, **quién puede usarla** y **cómo se relaciona con el resto del sistema.  
-**Última revisión:** 2026-05-26 — alineada con `frontend/src/layouts/MainLayout.tsx` y rutas en `frontend/src/app/App.tsx`.
+**Última revisión:** 2026-08-27 — alineada con `frontend/src/layouts/MainLayout.tsx` (menú colapsable y tema oscuro) y rutas en `frontend/src/app/App.tsx`.
 
 **Documentos relacionados:** [Manual de usuario](./27-manual-usuario-sgd-gadpr-lm.md) (pasos operativos) · [Glosario](./43-glosario-terminos.md) (definiciones) · [Módulo documentos](./12-modulo-documentos.md) · [Roles y permisos](./07-modulo-roles-permisos.md).
 
@@ -10,7 +10,7 @@
 
 ## 1. Visión general del menú
 
-Tras iniciar sesión, el sistema muestra un **menú lateral fijo** (en pantallas pequeñas se abre con el icono ☰ de la barra superior). El menú está dividido en **tres bloques**:
+Tras iniciar sesión, el sistema muestra un **menú lateral** (en pantallas pequeñas se abre con el icono ☰ de la barra superior). En **escritorio** el menú se puede **contraer a solo iconos** (botón *Ocultar menú* al pie; la preferencia queda en el navegador). El menú está dividido en **tres bloques** más **Cuenta** (Mi perfil) cuando está expandido:
 
 | Bloque | Visible para | Propósito general |
 |--------|----------------|-------------------|
@@ -73,8 +73,9 @@ Es el **tablero de bienvenida** después del login. Resume la actividad del sist
 | **Actualizar ahora** | Fuerza una nueva consulta al API sin esperar el intervalo automático. | Todos (datos según rol) |
 | **Indicadores operativos de seguridad** | Barras con métricas de los últimos 30 días (definición operativa en subtítulo; **no** certificación ISO) + último respaldo verificado. | Solo **ADMIN** |
 | **Estado del servicio** | Comprueba que API y base de datos respondan (`GET /health`). | Solo **ADMIN** |
-| Tabla de **expedientes recientes** | Últimos documentos visibles para el usuario con enlace al detalle. | Todos (filtrado por visibilidad) |
-| Enlace **Ver documentos** | Atajo al listado completo. | Todos |
+| Tabla / lista de **actividad reciente** | Últimos documentos visibles para el usuario; pulse la fila para el detalle. | Todos (filtrado por visibilidad) |
+| Enlace **Ver todos** | Atajo al listado completo. | Todos |
+| **Señales recientes** | Último respaldo verificado, última auditoría y último ingreso correcto. | Solo **ADMIN** |
 
 #### Cómo funciona (técnicamente)
 
@@ -87,7 +88,7 @@ Es el **tablero de bienvenida** después del login. Resume la actividad del sist
 
 1. Ingresar al sistema → llegas a **Inicio**.
 2. Revisar si hay pendientes de revisión (tarjeta o alertas si eres ADMIN).
-3. Abrir un expediente desde la tabla reciente o ir a **Documentos**.
+3. Abrir un expediente desde la **actividad reciente** o ir a **Documentos**.
 
 #### Fallos frecuentes
 
@@ -108,8 +109,9 @@ Es la **consola principal de expedientes**: buscar, filtrar, paginar, exportar (
 | Zona de la pantalla | Contenido |
 |---------------------|-----------|
 | **Filtros** | Texto libre (`q`), estado, tipo documental, serie/subserie, rango de fechas, criterios por adjunto (nombre, MIME, hash). |
-| **Aplicar filtros** | Envía los criterios al servidor; la tabla se recarga paginada. |
-| **Tabla** | Código, asunto, estado, clasificación (serie/subserie), responsable/dependencia, fechas, acciones (*Ver*). |
+| **Aplicar filtros** | Envía los criterios al servidor; el listado se recarga paginado. |
+| **Tarjetas / tabla** | Vista por defecto en tarjetas; conmutador a tabla (orden por columnas). La preferencia queda en el navegador. |
+| **Listado** | Código, asunto, estado, clasificación (serie/subserie), responsable/dependencia, fechas, acciones (*Ver*). |
 | **Paginación** | Anterior / siguiente, total de registros y rango visible. |
 | **Exportar Excel / PDF** | Descarga el conjunto filtrado (hasta tope del servidor, p. ej. 5000 filas). | Solo **ADMIN** |
 | **Pendientes revisión (Excel/PDF)** | Exporta solo documentos en **En revisión**. | **ADMIN** y **REVISOR** |
@@ -168,7 +170,7 @@ Vista **visual del pipeline** documental: cuatro columnas que representan etapas
 | **Aprobado** | `APROBADO` | Revisión favorable; puede archivarse después. |
 | **Archivado** | `ARCHIVADO` | Cierre de ciclo operativo (estado terminal en MVP). |
 
-Cada **tarjeta** muestra: código del documento, tipo documental, asunto resumido y dependencia.
+Cada **columna** usa el mismo chip de estado que Documentos/detalle (tema MUI). Cada **tarjeta** muestra: icono, código, asunto, tipo documental y dependencia.
 
 #### Cómo funciona
 
@@ -206,8 +208,8 @@ Herramienta de **consulta archivística** (ISO 15489): muestra la **estructura**
 
 | Zona | Función |
 |------|---------|
-| **Árbol izquierdo — Estructura documental** | Series activas y sus subseries (mismo catálogo que en *Catálogos*). |
-| **Ficha de clasificación** (al seleccionar nodo) | Código, nombre, descripción del catálogo + métricas de expedientes visibles para ti. |
+| **Árbol izquierdo — Estructura documental** | Series activas y sus subseries (mismo catálogo que en *Catálogos*). Iconos y resaltado usan el tema MUI. |
+| **Ficha de clasificación** (al seleccionar nodo) | Código, nombre, descripción del catálogo + métricas de expedientes visibles para ti (chips de recuento y nivel de acceso). |
 | **Métricas derivadas** | Cantidad de expedientes activos bajo esa serie/subserie; dependencia predominante; nivel de confidencialidad más frecuente. |
 | **Conservación (plazo / destino)** | Texto honesto si el modelo aún no tiene política de retención en BD (no inventa años). |
 | **Tabla de retención** (abajo) | Una fila por serie activa con recuento de expedientes visibles; columnas retención/destino en *pendiente* hasta modelar datos. |
@@ -301,8 +303,8 @@ Dos grandes áreas en la misma página (diseño vertical a ancho completo):
 | Función | Descripción |
 |---------|-------------|
 | Listado | Tabla con correo, nombre, dependencia, cargo, roles, estado (activo/suspendido), último ingreso. |
-| **Crear usuario** | Alta con correo, contraseña temporal, roles, dependencia/cargo opcionales, permisos directos opcionales, invitación por correo si SMTP está configurado. |
-| **Editar usuario** | Cambiar roles, dependencia, cargo, permisos directos. |
+| **Crear usuario** | Alta con correo, contraseña temporal, **un rol institucional**, complemento Editor documental opcional, dependencia/cargo, permisos directos e invitación por correo si SMTP está configurado. |
+| **Editar usuario** | Elige **el rol que debe tener** la persona (radios, un solo rol institucional), complemento editor, dependencia, cargo y permisos directos. No se apilan varios roles al pulsar opciones. |
 | **Activar / Desactivar** | Impide login sin borrar historial. |
 | **Restablecer contraseña** | Define nueva contraseña administrativamente. |
 | Chips **Activos / Total** | Resumen rápido del directorio. |
@@ -598,6 +600,7 @@ Nivel superior del **cuadro de clasificación archivística** (fondos o series d
 
 - Una serie tiene muchas **subseries** hijas.
 - Solo registros **activos** aparecen en desplegables de alta documental.
+- La tabla usa el mismo lenguaje visual que Clasificación (icono, chip de código, estado Activo/Inactivo del tema).
 
 ---
 
@@ -621,6 +624,7 @@ Subdivisión concreta bajo una serie (la clasificación que realmente se asigna 
 - Cada subserie pertenece a una **serie** (`serie_id`).
 - Al crear documento se elige subserie (y por tanto serie implícita).
 - Desactivar subserie afecta nuevos registros, no borra historial.
+- Misma presentación que Series (icono, chip de código, estado del tema).
 
 ---
 
@@ -632,18 +636,20 @@ No es entrada de menú, pero concentra la **operación fina** del expediente:
 
 | Área | Funciones |
 |------|-----------|
-| Vista previa | PDF/imagen en navegador (límites de tamaño); lista de versiones de adjuntos. |
+| Vista previa | PDF/imagen en navegador (límites de tamaño); lista de versiones en tarjetas. |
 | Archivos digitales | Subir, descargar, historial, eliminar (según permisos `DOC_FILES_*`). |
 | Metadatos | Ver/editar (`DOC_UPDATE`); confidencialidad; dependencia. |
-| Flujo de revisión | Enviar a revisión · Aprobar · Rechazar (con motivo obligatorio). |
+| Flujo de revisión | Cabecera del detalle: Enviar a revisión · Aprobar · Rechazar (con motivo obligatorio). |
 | ACL (ADMIN) | Política INHERIT vs RESTRICTED y listas de usuarios/roles autorizados. |
 | Historial | Eventos `CREADO` / `ACTUALIZADO` y cambios JSON. |
 
 ### 5.2 Barra superior
 
 - Título **SGD-GADPR-LM** y estado de sesión.
+- Conmutador **tema claro / oscuro** (preferencia en el navegador; no afecta la pantalla de login).
 - Menú usuario: **Mi perfil**, **Cerrar sesión**.
 - En móvil: botón para abrir el drawer del menú.
+- En escritorio: el menú lateral puede contraerse a iconos.
 
 ### 5.3 Migas de pan (breadcrumbs)
 

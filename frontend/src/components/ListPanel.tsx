@@ -1,4 +1,5 @@
 import { Box, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 import { listResultsSurfaceSx } from './listSurfaces';
 
@@ -44,8 +45,9 @@ export function ListPanel({
               flexShrink: 0,
               display: 'grid',
               placeItems: 'center',
-              bgcolor: 'rgba(30, 124, 137, 0.12)',
-              color: 'secondary.dark',
+              bgcolor: (t) =>
+                alpha(t.palette.secondary.main, t.palette.mode === 'dark' ? 0.16 : 0.14),
+              color: 'secondary.main',
               fontWeight: 800,
               fontSize: '0.85rem',
             }}

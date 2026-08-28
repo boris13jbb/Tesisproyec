@@ -20,13 +20,16 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  FormGroup,
+  FormLabel,
   InputLabel,
   ListItemText,
   MenuItem,
   Menu,
   Paper,
+  Radio,
+  RadioGroup,
   Select,
-  type SelectChangeEvent,
   Stack,
   Table,
   TableBody,
@@ -101,6 +104,62 @@ const ROLE_OPTIONS = [
   'CONSULTA',
 ] as const;
 
+type RoleCode = (typeof ROLE_OPTIONS)[number];
+
+/** Roles institucionales (uno por cuenta). EDITOR_DOC es complemento, no rol principal. */
+const PRIMARY_ROLE_OPTIONS = ['USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA', 'ADMIN'] as const;
+type PrimaryRoleCode = (typeof PRIMARY_ROLE_OPTIONS)[number];
+
+const PRIMARY_ROLE_PRECEDENCE: readonly PrimaryRoleCode[] = [
+  'ADMIN',
+  'REVISOR',
+  'AUDITOR',
+  'CONSULTA',
+  'USUARIO',
+];
+
+const ROLE_DISPLAY_NAME: Record<RoleCode, string> = {
+  ADMIN: 'Administrador',
+  USUARIO: 'Usuario',
+  EDITOR_DOC: 'Editor documental',
+  REVISOR: 'Revisor',
+  AUDITOR: 'Auditor',
+  CONSULTA: 'Consulta',
+};
+
+const PRIMARY_ROLE_HELP: Record<PrimaryRoleCode, string> = {
+  USUARIO: 'Operación diaria: consulta y trámites según los permisos del rol.',
+  REVISOR: 'Aprueba o rechaza documentos enviados a revisión.',
+  AUDITOR: 'Consulta y trazabilidad; no edita expedientes.',
+  CONSULTA: 'Solo lectura institucional.',
+  ADMIN: 'Administración del sistema, usuarios, catálogos y seguridad.',
+};
+
+function isPrimaryRoleCode(value: string): value is PrimaryRoleCode {
+  return (PRIMARY_ROLE_OPTIONS as readonly string[]).includes(value);
+}
+
+function isRoleCode(value: string): value is RoleCode {
+  return (ROLE_OPTIONS as readonly string[]).includes(value);
+}
+
+function composeRoleCodes(primary: PrimaryRoleCode, editorDoc: boolean): RoleCode[] {
+  if (primary === 'ADMIN') return ['ADMIN'];
+  return editorDoc ? [primary, 'EDITOR_DOC'] : [primary];
+}
+
+function parseRoleCodes(codes: string[]): {
+  primary: PrimaryRoleCode;
+  editorDoc: boolean;
+  extrasDropped: string[];
+} {
+  const set = new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean));
+  const primary = PRIMARY_ROLE_PRECEDENCE.find((c) => set.has(c)) ?? 'USUARIO';
+  const editorDoc = set.has('EDITOR_DOC') && primary !== 'ADMIN';
+  const extrasDropped = [...set].filter((c) => c !== primary && c !== 'EDITOR_DOC');
+  return { primary, editorDoc, extrasDropped };
+}
+
 function mensajeErrorApi(err: unknown, fallback: string): string {
   return getApiErrorMessage(err, fallback);
 }
@@ -164,9 +223,247 @@ function displayUsuario(u: Usuario) {
   return n || u.email;
 }
 
-function formatRoles(u: Usuario) {
-  if (!u.roles.length) return '—';
-  return u.roles.map((r) => r.nombre || r.codigo).join(', ');
+function roleChipLabel(r: { codigo: string; nombre: string }) {
+  if (r.nombre?.trim()) return r.nombre;
+  return isRoleCode(r.codigo) ? ROLE_DISPLAY_NAME[r.codigo] : r.codigo;
+}
+
+function RoleChips({ u }: { u: Usuario }) {
+  if (!u.roles.length) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        —
+      </Typography>
+    );
+  }
+  return (
+    <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+      {u.roles.map((r) => (
+        <Chip
+          key={r.codigo}
+          size="small"
+          label={roleChipLabel(r)}
+          color={r.codigo === 'ADMIN' ? 'primary' : 'default'}
+          variant={r.codigo === 'EDITOR_DOC' ? 'outlined' : 'filled'}
+          sx={{ fontWeight: 700 }}
+        />
+      ))}
+    </Stack>
+  );
+}
+
+function RoleAssignmentFields({
+  idPrefix,
+  primaryRole,
+  onPrimaryRoleChange,
+  editorDocComplement,
+  onEditorDocChange,
+  extrasDropped,
+}: {
+  idPrefix: string;
+  primaryRole: PrimaryRoleCode;
+  onPrimaryRoleChange: (codigo: PrimaryRoleCode) => void;
+  editorDocComplement: boolean;
+  onEditorDocChange: (checked: boolean) => void;
+  extrasDropped?: string[];
+}) {
+  const editorDisabled = primaryRole === 'ADMIN';
+  const labelId = `${idPrefix}-rol-principal-label`;
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      {extrasDropped && extrasDropped.length > 0 ? (
+        <Alert severity="warning" sx={{ mb: 1.5 }}>
+          Esta cuenta tenía varios roles institucionales (
+          {extrasDropped.map((c) => (isRoleCode(c) ? ROLE_DISPLAY_NAME[c] : c)).join(', ')}
+          ). Elija <strong>un rol</strong> abajo. Al guardar se reemplazarán los demás para evitar
+          acumulación de privilegios. El complemento de editor documental se conserva si lo deja
+          marcado.
+        </Alert>
+      ) : null}
+      <FormControl component="fieldset" fullWidth>
+        <FormLabel
+          id={labelId}
+          sx={{ fontWeight: 800, color: INSTITUTIONAL_NAVY, mb: 0.75 }}
+        >
+          Rol institucional
+        </FormLabel>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+          Elija el rol que debe tener esta persona. Lo habitual es uno solo; el acceso real lo dan
+          los permisos de ese rol.
+        </Typography>
+        <RadioGroup
+          aria-labelledby={labelId}
+          name={`${idPrefix}-rol-institucional`}
+          value={primaryRole}
+          onChange={(e) => {
+            if (isPrimaryRoleCode(e.target.value)) onPrimaryRoleChange(e.target.value);
+          }}
+        >
+          {PRIMARY_ROLE_OPTIONS.map((codigo) => (
+            <FormControlLabel
+              key={codigo}
+              value={codigo}
+              control={<Radio size="small" />}
+              sx={{ alignItems: 'flex-start', ml: 0, mb: 0.5 }}
+              label={
+                <Box sx={{ pt: 0.35 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                    {ROLE_DISPLAY_NAME[codigo]}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', lineHeight: 1.35 }}
+                  >
+                    {PRIMARY_ROLE_HELP[codigo]}
+                  </Typography>
+                </Box>
+              }
+            />
+          ))}
+        </RadioGroup>
+      </FormControl>
+      <FormGroup sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+        <FormControlLabel
+          sx={{ alignItems: 'flex-start', ml: 0 }}
+          control={
+            <Checkbox
+              checked={editorDocComplement && !editorDisabled}
+              disabled={editorDisabled}
+              onChange={(_, checked) => onEditorDocChange(checked)}
+            />
+          }
+          label={
+            <Box sx={{ pt: 0.35 }}>
+              <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                {ROLE_DISPLAY_NAME.EDITOR_DOC} (complemento)
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', lineHeight: 1.35 }}
+              >
+                {editorDisabled
+                  ? 'No aplica: el administrador ya incluye estas capacidades.'
+                  : 'Márquelo si esta persona debe crear o editar documentos y adjuntos sin ser administrador.'}
+              </Typography>
+            </Box>
+          }
+        />
+      </FormGroup>
+    </Box>
+  );
+}
+
+function PermissionCodesPicker({
+  catalog,
+  value,
+  onChange,
+}: {
+  catalog: RbacPermRow[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [q, setQ] = useState('');
+  const selected = useMemo(() => new Set(value), [value]);
+  const filtered = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return catalog;
+    return catalog.filter(
+      (p) =>
+        p.codigo.toLowerCase().includes(t) ||
+        (p.descripcion ?? '').toLowerCase().includes(t),
+    );
+  }, [catalog, q]);
+
+  return (
+    <FormControl fullWidth margin="normal" component="fieldset">
+      <FormLabel sx={{ fontWeight: 800, color: INSTITUTIONAL_NAVY, mb: 0.5 }}>
+        Permisos directos (solo esta cuenta)
+      </FormLabel>
+      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+        Opcional. Se suman a los del rol. Vacío = solo hereda del rol. El efecto completo requiere
+        nueva sesión o renovación del token.
+      </Typography>
+      {catalog.length === 0 ? (
+        <Alert severity="warning">No hay catálogo de permisos. Ejecute el seed del servidor.</Alert>
+      ) : (
+        <>
+          <TextField
+            size="small"
+            label="Buscar permiso"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            margin="dense"
+          />
+          {value.length > 0 ? (
+            <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', my: 1 }}>
+              {value.map((c) => (
+                <Chip
+                  key={c}
+                  size="small"
+                  label={c}
+                  onDelete={() => onChange(value.filter((x) => x !== c))}
+                />
+              ))}
+            </Stack>
+          ) : (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', my: 0.75 }}>
+              Ninguno seleccionado.
+            </Typography>
+          )}
+          <Box
+            sx={{
+              maxHeight: 220,
+              overflow: 'auto',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 1,
+              bgcolor: 'grey.50',
+            }}
+          >
+            {filtered.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Sin coincidencias.
+              </Typography>
+            ) : (
+              filtered.map((p) => (
+                <FormControlLabel
+                  key={p.codigo}
+                  sx={{ display: 'flex', alignItems: 'flex-start', ml: 0, mb: 0.25 }}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={selected.has(p.codigo)}
+                      onChange={() => {
+                        const next = new Set(selected);
+                        if (next.has(p.codigo)) next.delete(p.codigo);
+                        else next.add(p.codigo);
+                        onChange([...next].sort((a, b) => a.localeCompare(b)));
+                      }}
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {p.codigo}
+                      </Typography>
+                      {p.descripcion ? (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {p.descripcion}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  }
+                />
+              ))
+            )}
+          </Box>
+        </>
+      )}
+    </FormControl>
+  );
 }
 
 /** Primera celda sticky en matriz RBAC horizontal (solo scroll X). */
@@ -233,7 +530,9 @@ export function UsuariosPage() {
   const [apellidos, setApellidos] = useState('');
   const [dependenciaId, setDependenciaId] = useState<string>('');
   const [cargoId, setCargoId] = useState<string>('');
-  const [roles, setRoles] = useState<(typeof ROLE_OPTIONS)[number][]>(['USUARIO']);
+  const [primaryRole, setPrimaryRole] = useState<PrimaryRoleCode>('USUARIO');
+  const [editorDocComplement, setEditorDocComplement] = useState(false);
+  const [extrasDropped, setExtrasDropped] = useState<string[]>([]);
   /** Códigos de `Permission`; se aplican solo a ese usuario (`user_permissions`). */
   const [directPermCodes, setDirectPermCodes] = useState<string[]>([]);
   const [invitarPorCorreo, setInvitarPorCorreo] = useState(true);
@@ -343,6 +642,25 @@ export function UsuariosPage() {
     }
   };
 
+  const resetIdentityForm = () => {
+    setEmail('');
+    setPassword('');
+    setNombres('');
+    setApellidos('');
+    setDependenciaId('');
+    setCargoId('');
+    setPrimaryRole('USUARIO');
+    setEditorDocComplement(false);
+    setExtrasDropped([]);
+    setDirectPermCodes([]);
+    setInvitarPorCorreo(true);
+  };
+
+  const onPrimaryRoleChange = (codigo: PrimaryRoleCode) => {
+    setPrimaryRole(codigo);
+    if (codigo === 'ADMIN') setEditorDocComplement(false);
+  };
+
   const onCreate = async () => {
     setError(null);
     setInviteNotice(null);
@@ -354,7 +672,7 @@ export function UsuariosPage() {
         apellidos: apellidos.trim() || undefined,
         dependenciaId: dependenciaId || undefined,
         cargoId: cargoId || undefined,
-        roles,
+        roles: composeRoleCodes(primaryRole, editorDocComplement),
         directPermissionCodes: directPermCodes,
         invitarPorCorreo,
       });
@@ -373,26 +691,13 @@ export function UsuariosPage() {
       }
 
       setOpen(false);
-      setEmail('');
-      setPassword('');
-      setNombres('');
-      setApellidos('');
-      setDependenciaId('');
-      setCargoId('');
-      setRoles(['USUARIO']);
-      setDirectPermCodes([]);
-      setInvitarPorCorreo(true);
+      resetIdentityForm();
       await load();
     } catch (err: unknown) {
       setError(
         mensajeErrorApi(err, 'No se pudo crear el usuario (correo duplicado o datos inválidos).'),
       );
     }
-  };
-
-  const handleDirectPermChange = (e: SelectChangeEvent<string[]>) => {
-    const value = e.target.value as string[];
-    setDirectPermCodes([...new Set(value)].sort((a, b) => a.localeCompare(b)));
   };
 
   const openEdit = (u: Usuario) => {
@@ -402,11 +707,10 @@ export function UsuariosPage() {
     setApellidos(u.apellidos ?? '');
     setDependenciaId(u.dependenciaId ?? '');
     setCargoId(u.cargoId ?? '');
-    setRoles(
-      (u.roles.map((r) => r.codigo).filter((c): c is (typeof ROLE_OPTIONS)[number] =>
-        (ROLE_OPTIONS as readonly string[]).includes(c),
-      ) as (typeof ROLE_OPTIONS)[number][]) || ['USUARIO'],
-    );
+    const parsed = parseRoleCodes(u.roles.map((r) => r.codigo));
+    setPrimaryRole(parsed.primary);
+    setEditorDocComplement(parsed.editorDoc);
+    setExtrasDropped(parsed.extrasDropped);
     setDirectPermCodes([...(u.directPermissionCodes ?? [])].sort((a, b) => a.localeCompare(b)));
     setEditOpen(true);
   };
@@ -421,11 +725,12 @@ export function UsuariosPage() {
         apellidos: apellidos.trim() || null,
         dependenciaId: dependenciaId || null,
         cargoId: cargoId || null,
-        roles,
+        roles: composeRoleCodes(primaryRole, editorDocComplement),
         directPermissionCodes: directPermCodes,
       });
       setEditOpen(false);
       setSelected(null);
+      setExtrasDropped([]);
       await load();
     } catch (err: unknown) {
       setError(
@@ -482,14 +787,6 @@ export function UsuariosPage() {
     [dependencias],
   );
   const cargoPorId = useMemo(() => new Map(cargos.map((c) => [c.id, c.nombre])), [cargos]);
-
-  const handleRolesChange = (e: SelectChangeEvent<string[]>) => {
-    const value = e.target.value as string[];
-    const next = value.filter((v): v is (typeof ROLE_OPTIONS)[number] =>
-      (ROLE_OPTIONS as readonly string[]).includes(v),
-    );
-    setRoles(next.length ? next : ['USUARIO']);
-  };
 
   const openActionsMenu = (e: MouseEvent<HTMLElement>, u: Usuario) => {
     setActionsAnchor(e.currentTarget);
@@ -680,8 +977,8 @@ export function UsuariosPage() {
                               ) : null;
                             })()}
                           </TableCell>
-                          <TableCell sx={{ maxWidth: 200 }}>
-                            <Typography variant="body2">{formatRoles(u)}</Typography>
+                          <TableCell sx={{ maxWidth: 280 }}>
+                            <RoleChips u={u} />
                             {(u.directPermissionCodes?.length ?? 0) > 0 ? (
                               <Typography
                                 variant="caption"
@@ -751,7 +1048,7 @@ export function UsuariosPage() {
                   }}
                   onClick={() => {
                     setInviteNotice(null);
-                    setDirectPermCodes([]);
+                    resetIdentityForm();
                     setOpen(true);
                   }}
                 >
@@ -1153,50 +1450,18 @@ export function UsuariosPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth margin="normal">
-            <InputLabel id="roles-label">Roles</InputLabel>
-            <Select
-              labelId="roles-label"
-              multiple
-              value={roles}
-              label="Roles"
-              onChange={handleRolesChange}
-            >
-              {ROLE_OPTIONS.map((r) => (
-                <MenuItem key={r} value={r}>
-                  {r}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth margin="normal">
-            <InputLabel id="direct-perms-create-label">Permisos directos (solo esta cuenta)</InputLabel>
-            <Select
-              labelId="direct-perms-create-label"
-              multiple
-              value={directPermCodes}
-              label="Permisos directos (solo esta cuenta)"
-              onChange={handleDirectPermChange}
-              disabled={sortedPermCatalog.length === 0}
-              renderValue={(selected) =>
-                (selected as string[]).length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Ninguno — solo hereda del rol
-                  </Typography>
-                ) : (
-                  <Typography variant="body2" sx={{ whiteSpace: 'normal' }}>
-                    {(selected as string[]).join(', ')}
-                  </Typography>
-                )
-              }
-            >
-              {sortedPermCatalog.map((p) => (
-                <MenuItem key={p.codigo} value={p.codigo}>
-                  <ListItemText primary={p.codigo} secondary={p.descripcion ?? undefined} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <RoleAssignmentFields
+            idPrefix="crear"
+            primaryRole={primaryRole}
+            onPrimaryRoleChange={onPrimaryRoleChange}
+            editorDocComplement={editorDocComplement}
+            onEditorDocChange={setEditorDocComplement}
+          />
+          <PermissionCodesPicker
+            catalog={sortedPermCatalog}
+            value={directPermCodes}
+            onChange={setDirectPermCodes}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)} variant="text">
@@ -1208,13 +1473,23 @@ export function UsuariosPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="md">
+      <Dialog
+        open={editOpen}
+        onClose={() => {
+          setEditOpen(false);
+          setSelected(null);
+          setExtrasDropped([]);
+        }}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>Editar usuario</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mt: 1, mb: 1 }}>
-            Puede asignar <strong>permisos directos</strong> a esta persona (p. ej.{' '}
-            <code>DOC_FILES_UPLOAD</code>) además de los que aporten sus roles. El efecto se nota al
-            iniciar sesión de nuevo o al renovar el token.
+            Elija <strong>un rol institucional</strong> (el que debe tener esta persona). El
+            complemento <strong>Editor documental</strong> es opcional. Los permisos directos se
+            suman al rol; el efecto completo se nota al iniciar sesión de nuevo o al renovar el
+            token.
           </Alert>
           <TextField
             label="Correo"
@@ -1275,56 +1550,26 @@ export function UsuariosPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth margin="normal">
-            <InputLabel id="roles2-label">Roles</InputLabel>
-            <Select
-              labelId="roles2-label"
-              multiple
-              value={roles}
-              label="Roles"
-              onChange={handleRolesChange}
-            >
-              {ROLE_OPTIONS.map((r) => (
-                <MenuItem key={r} value={r}>
-                  {r}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth margin="normal">
-            <InputLabel id="direct-perms-edit-label">Permisos directos (solo esta cuenta)</InputLabel>
-            <Select
-              labelId="direct-perms-edit-label"
-              multiple
-              value={directPermCodes}
-              label="Permisos directos (solo esta cuenta)"
-              onChange={handleDirectPermChange}
-              disabled={sortedPermCatalog.length === 0}
-              renderValue={(selected) =>
-                (selected as string[]).length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Ninguno — solo hereda del rol
-                  </Typography>
-                ) : (
-                  <Typography variant="body2" sx={{ whiteSpace: 'normal' }}>
-                    {(selected as string[]).join(', ')}
-                  </Typography>
-                )
-              }
-            >
-              {sortedPermCatalog.map((p) => (
-                <MenuItem key={p.codigo} value={p.codigo}>
-                  <ListItemText primary={p.codigo} secondary={p.descripcion ?? undefined} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <RoleAssignmentFields
+            idPrefix="editar"
+            primaryRole={primaryRole}
+            onPrimaryRoleChange={onPrimaryRoleChange}
+            editorDocComplement={editorDocComplement}
+            onEditorDocChange={setEditorDocComplement}
+            extrasDropped={extrasDropped}
+          />
+          <PermissionCodesPicker
+            catalog={sortedPermCatalog}
+            value={directPermCodes}
+            onChange={setDirectPermCodes}
+          />
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
               setEditOpen(false);
               setSelected(null);
+              setExtrasDropped([]);
             }}
             variant="text"
           >

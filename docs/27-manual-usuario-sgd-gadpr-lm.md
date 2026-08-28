@@ -1,6 +1,6 @@
 # Manual de Usuario — SGD-GADPR-LM (uso de principio a fin)
 
-**Versión del manual:** 2026-05-27 (UI honesta: solo controles verificables; ver `docs/45-principio-ui-controles-reales.md`)  
+**Versión del manual:** 2026-08-28 (UI honesta: solo controles verificables; ver `docs/45-principio-ui-controles-reales.md`)  
 **Audiencia:** personal institucional (usuario final), administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores (pruebas).  
 
 ---
@@ -60,8 +60,8 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 
 **Resultado esperado**
 - El sistema te redirige al **Panel principal**.
-- En la barra superior verás tu **avatar** (iniciales), correo y la chip **Sesión activa**.
-- En el menú lateral verás la marca **SGD** y la sección **Principal** con la ruta activa resaltada en acento teal.
+- En la barra superior verás tu **avatar** (iniciales), correo, la chip **Sesión activa** y el botón de **tema claro/oscuro**.
+- En el menú lateral verás la marca **SGD** y la sección **Principal** con la ruta activa resaltada. En escritorio puedes **ocultar el menú** (solo iconos) con el botón inferior; al pasar el cursor sobre un icono verás el nombre de la sección.
 
 **Posibles fallos**
 - **“Credenciales inválidas…”**: correo/contraseña incorrectos, usuario inactivo o **cuenta temporalmente bloqueada** tras repetidos errores de contraseña (el mismo mensaje se usa a propósito; el administrador puede revisar **`AUTH_LOGIN_FAIL`** / **`ACCOUNT_LOCKED`** en Auditoría). Tras restablecer contraseña el bloqueo se limpia.
@@ -129,11 +129,13 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 ### 4.1 Qué verás
 
 - **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
+- Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana**: el badge muestra alertas (ADMIN) o pendientes de revisión (resto). Si hay alertas, la campana lleva a la tarjeta de alertas; si hay pendientes, abre documentos en estado *En revisión*.
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
-- **Alertas (tarjeta roja, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
+- **Alertas (tarjeta, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
 - **Ocultar tras revisar**: debajo de las tarjetas KPI, si hay alertas del servidor, aparece el bloque **«Ocultar alertas del panel»** con el botón **Marcar como revisada** por cada señal. Eso **no borra** los registros de auditoría; solo deja de mostrar esa alerta en el panel hasta que ocurra actividad **nueva** (otro 403/login fallido posterior, más documentos en revisión que al descartar, o respaldo verificado registrado). La acción queda en auditoría como **`DASHBOARD_ALERT_ACK`**.
-- **Indicadores operativos de seguridad (solo `ADMIN`)**: barras con métricas de los últimos 30 días (cada una indica **qué mide**; no son certificación ISO), aviso de que son proxies operativos, más **último respaldo verificado** y última línea auditada en el mismo panel.
-- **Estado del servicio (solo `ADMIN`)**: confirmación de API y base de datos; el enlace rápido **Ir a documentos** aparece dentro de ese bloque. Los usuarios sin rol administrador pueden ir a documentos desde el menú o desde **Ver documentos** en la tabla de expedientes recientes.
+- **Actividad reciente**: lista de expedientes visibles para el usuario (código, estado, tiempo relativo). Pulse una fila para abrir el detalle. **Ver todos** lleva a Documentos.
+- **Indicadores operativos (solo `ADMIN`)**: barras con métricas de los últimos 30 días (cada una indica **qué mide**; no son certificación ISO). El bloque **Señales recientes** muestra último respaldo verificado, última línea auditada y último ingreso correcto.
+- **Estado del servicio (solo `ADMIN`)**: confirmación de API y base de datos; el enlace rápido **Ir a documentos** aparece dentro de ese bloque. Los usuarios sin rol administrador pueden ir a documentos desde el menú o desde **Ver todos** en la actividad reciente.
 - **Comprobación de rol administrador** (si aplica): indicador de acceso ADMIN.
 
 ### 4.2 Menú lateral (navegación)
@@ -143,6 +145,8 @@ Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **
 - **Menú:** Inicio · Documentos · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` o ADMIN)
 - **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Reportes · Configuración
 - **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries
+- **Cuenta** (menú lateral, cuando está expandido): Mi perfil. También está en el menú del avatar.
+- En escritorio, use **Ocultar menú** al pie del lateral para dejar solo iconos (la preferencia se guarda en el navegador). En la barra superior, el icono de sol/luna cambia entre tema claro y oscuro (solo dentro de la sesión; el login permanece claro).
 
 ---
 
@@ -156,7 +160,7 @@ La tabla reproduce `GET /usuarios` y la **matriz de referencia** `GET /usuarios/
 
 La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + **permisos en base de datos**: por **rol** (`role_permissions`) **y opcionalmente por persona** (`user_permissions`, llamados «permisos directos» en la pantalla), aplicados por el servidor (`@Permissions`). La sección **Matriz rol ↔ permiso (base de datos)** permite **marcar/desmarcar códigos** por cada rol institucional y **Guardar** (API `PUT /rbac/roles/:codigo/permissions`; queda evidencia **`ROLE_PERMISSIONS_UPDATED`** en auditoría para administradores).
 
-**Los usuarios** se administran con **roles** y, si hace falta, con **permisos directos** en **Crear usuario** / **Editar usuario** (campo **Permisos directos (solo esta cuenta)**): se **suman** a lo que otorguen los roles (p. ej. asignar solo `DOC_FILES_UPLOAD` sin crear un rol nuevo). Quedan registrados cambios fuertes en auditoría (**`USER_DIRECT_PERMISSIONS_UPDATED`**). Quien cambie de combinación debe **volver a iniciar sesión** (o esperar renovación del token) para ver el efecto completo.
+**Los usuarios** se administran con **un rol institucional** (el que debe tener la cuenta) y, si hace falta, el complemento **Editor documental** y **permisos directos** en **Crear usuario** / **Editar usuario**. Los permisos directos se **suman** a lo que otorgue el rol (p. ej. asignar solo `DOC_FILES_UPLOAD` sin crear un rol nuevo). Quedan registrados cambios fuertes en auditoría (**`USER_DIRECT_PERMISSIONS_UPDATED`**). Quien cambie de combinación debe **volver a iniciar sesión** (o esperar renovación del token) para ver el efecto completo.
 
 **Los roles** siguen siendo obligatorios (al menos uno): si un rol no tiene permisos en BD, la API puede responder `403` aun con el mismo código de rol en la cuenta.
 
@@ -164,13 +168,14 @@ La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + *
 2. En el directorio, revisa chips **Activos** / **Total** y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
 3. Para crear un usuario:
    - Presiona **Crear usuario**
-   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Roles** (lista ejemplar: `ADMIN`, `USUARIO`, `EDITOR_DOC`, `REVISOR`, `AUDITOR`, `CONSULTA`) y, opcionalmente, **Permisos directos** (lista de códigos del catálogo; vacío = solo hereda del rol). El **alcance en API** es la **unión** de permisos por **todos los roles** del usuario + **permisos directos**. El rol **`EDITOR_DOC`** (cuando existe en el seed o migración) complementa a **`USUARIO`** con edición de metadatos y gestión de adjuntos según **`role_permissions`**.
+   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Rol institucional** (elija **uno**: Usuario, Revisor, Auditor, Consulta o Administrador) y, si aplica, marque **Editor documental (complemento)** para crear/editar documentos y adjuntos sin ser ADMIN. Opcionalmente asigne **Permisos directos** (casillas del catálogo; vacío = solo hereda del rol). El **alcance en API** es la **unión** de permisos del rol (y del complemento si está marcado) + **permisos directos**.
    - Deja marcada la opción recomendada **“Enviar al correo un enlace…”** para que llegue un mensaje con el enlace a **definir contraseña** (página de restablecer). Si no marcas la casilla, el usuario solo puede entrar con la contraseña temporal.
    - Presiona **Crear**
    - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
 4. Para editar:
    - En la fila del usuario, pulsa el botón **⋮ / Acciones** (icono junto al final de la fila).
-   - Elige **Editar usuario** (roles, dependencia, cargo, permisos directos).
+   - Elige **Editar usuario** (rol institucional, complemento editor, dependencia, cargo, permisos directos).
+   - Marque el **rol que debe tener** esa persona (un solo rol institucional; ya no se apilan varios roles al pulsar opciones). Si la cuenta tenía varios roles acumulados, verá un aviso y al **Guardar** quedará solo el rol elegido.
    - Ajusta y presiona **Guardar** (si cambió permisos directos, revise auditoría y pida al usuario que cierre sesión si hace falta).
 5. Para activar/desactivar:
    - En **Acciones**, elija **Activar cuenta** o **Desactivar cuenta**
@@ -234,15 +239,17 @@ Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
 
 1. Menú → **Catálogos → Series**
 2. Opcional: en **Filtros**, **Incluir inactivas**.
-3. En la cabecera, **Nueva serie:** código único (ej. `ADM`), nombre y descripción → **Guardar**.
-4. **Editar:** nombre, descripción y **Activa** (el código no se modifica).
+3. El listado muestra **icono de carpeta**, **código** en chip y estado **Activo/Inactivo**. En la cabecera hay enlaces a **Subseries** y **Clasificación**.
+4. En la cabecera, **Nueva serie:** código único (ej. `ADM`), nombre y descripción → **Guardar**.
+5. **Editar:** nombre, descripción y **Activa** (el código no se modifica; desactivar es baja lógica, no borra el registro).
 
 **Subseries**
 
 1. Menú → **Catálogos → Subseries**
 2. En **Filtros**: **Serie** (*Todas* o una serie) y opcional **Incluir inactivas**.
-3. En la cabecera, **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
-4. **Editar:** puede cambiar **serie** padre, nombre, descripción y **Activa** (el código de subserie no se modifica).
+3. El listado muestra **icono de subserie**, código en chip y la **serie padre**. Enlaces a **Series** y **Clasificación**.
+4. En la cabecera, **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
+5. **Editar:** puede cambiar **serie** padre, nombre, descripción y **Activa** (el código de subserie no se modifica).
 
 **Resultado esperado**
 - Los catálogos quedan disponibles para el registro documental.
@@ -259,7 +266,9 @@ Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
 
 ### 7.2 Buscar documentos (simple y avanzada)
 
-Los filtros se organizan en **tarjeta de filtros** unificada y se **adaptan al ancho de pantalla** (en móviles los campos se apilan; en escritorio pueden mostrarse en varias columnas). Las acciones principales (**Nuevo documento**, exportar Excel/PDF si aplica) aparecen en la **cabecera** de la página. La **tabla** puede mostrar **scroll horizontal** en pantallas estrechas: desplázate lateralmente para ver todas las columnas.
+Los filtros se organizan en **tarjeta de filtros** unificada y se **adaptan al ancho de pantalla** (en móviles los campos se apilan; en escritorio pueden mostrarse en varias columnas). Las acciones principales (**Nuevo documento**, exportar Excel/PDF si aplica) aparecen en la **cabecera** de la página.
+
+El listado se muestra por defecto en **tarjetas** (código, asunto, estado, tipo, clasificación, responsable y fecha). En el encabezado del listado puede cambiar a **tabla** (mismas columnas de siempre, con orden al pulsar Código / Estado / Fecha). La preferencia se guarda en el navegador. En vista tabla, en pantallas estrechas hay **scroll horizontal**.
 
 En la barra de filtros puedes usar:
 - Texto libre (`q`): coincide con **código**, **asunto**, **descripción**, **dependencia** del documento (nombre o código), **usuario que registró** (correo, nombres o apellidos), **tipo documental** y **clasificación** (subserie o serie).
@@ -275,13 +284,13 @@ En la barra de filtros puedes usar:
 
 **Resultado esperado**
 - Lista **paginada** con registros **reales** del servidor (según tus permisos y filtros). Abajo del listado verás **número de página**, el **intervalo de registros** visibles respecto del total y botones **Anterior** / **Siguiente**.
-- En la tabla, **Clasificación** muestra serie y subserie; **Responsable** prioriza la **dependencia aplicada al documento** y, si no hay, muestra nombre o correo de quien lo registró (pasa el ratón sobre la celda para ver detalle cuando aplique).
+- En cada tarjeta o fila, **Clasificación** muestra serie y subserie; **Responsable** prioriza la **dependencia aplicada al documento** y, si no hay, muestra nombre o correo de quien lo registró. Pulse la tarjeta, la fila o **Ver** para abrir el detalle.
 
 ### 7.2.1 Trámites — tablero de flujo (Kanban)
 
 1. Menú → **Trámites** (ruta `/tramites`).
 2. Revisa cuatro columnas: **Registrado**, **En revisión**, **Aprobado** y **Archivado** — los ítems son **documentos vivos del servidor**, filtrados por tu **permiso de lectura**, no datos de demostración.
-3. Cada tarjeta muestra **código**, **tipo documental** (nombre del catálogo), línea compacta del **asunto** y **dependencia aplicada al expediente** (o aviso si no hay dependencia).
+3. Cada columna tiene el **mismo chip de estado** que la bandeja y el detalle (colores del tema claro/oscuro) y un **contador** de expedientes. Cada tarjeta muestra **icono**, **código**, **asunto**, **tipo documental** y **dependencia aplicada al expediente** (o aviso si no hay dependencia).
 
 **Interactividad**
 
@@ -299,13 +308,13 @@ En la barra de filtros puedes usar:
 
 1. Menú → **Clasificación** (ruta `/clasificacion`).
 2. **Actualizar** (icono de recarga junto al título): vuelve a cargar catálogo y agregados del servidor (`GET …/clasificacion-agregados` junto con series/subseries activas).
-3. **Izquierda — Estructura documental:** árbol con el fondo institucional y, debajo, cada **serie** y sus **subseries** (**solo catálogo activo** — mismos datos que en **Catálogos**).
-4. Pulsa una **serie** o **subserie**. La **Ficha de clasificación** muestra **código** y **nombre** del catálogo; **descripción** si existe; además (**datos derivados de expedientes**):
+3. **Izquierda — Estructura documental:** árbol con el fondo institucional (icono de árbol) y, debajo, cada **serie** y sus **subseries** (**solo catálogo activo** — mismos datos que en **Catálogos**). La selección se resalta con el color del tema (claro u oscuro).
+4. Pulsa una **serie** o **subserie**. La **Ficha de clasificación** (icono de ficha) muestra **código** y **nombre** del catálogo; **descripción** si existe; además (**datos derivados de expedientes**):
    - **Expedientes visibles**: cuántos documentos vigentes (**activo**) coinciden con tu **misma visibilidad** que en la bandeja **Documentos**, agregados a la serie o subserie elegida (por subserie asignada al expediente; en serie se suman todas las subseries bajo ese padre que aplica al recuento del servidor).
    - **Área responsable predominante**: dependencia más frecuente entre esos expedientes visibles en esa clasificación; si **cero** expedientes encajan, texto claro tipo “sin expedientes…”; puede no coincidir con un campo “único” si tu organización distribuye cargas entre varias dependencias.
    - **Nivel de acceso predominante**: confidencialidad más frecuente entre expedientes visibles (p. ej. interno/reservado), en etiqueta legible según valores del modelo.
    - **Conservación (plazo / destino)** el sistema declara honestamente si **no** hay campos de retención o disposición final en base de datos: no muestra años inventados; cuando el proyecto modele esa política en catálogo, la pantalla podrá enlazarlos.
-5. **Tabla de retención** (abajo derecha): una fila por **serie activa** con código y nombre del catálogo; columna **Expedientes visibles** (**recuento real** igual criterio que arriba). Columnas **Retención** y **Destino final** muestran **marcador de pendiente**, no valores ficticios, hasta que existan datos modelados.
+5. **Tabla de retención** (abajo derecha, icono de tabla): una fila por **serie activa** con código y nombre del catálogo; columna **Expedientes visibles** (**recuento real** igual criterio que arriba, en chip). Columnas **Retención** y **Destino final** muestran **marcador de pendiente**, no valores ficticios, hasta que existan datos modelados.
 
 **ADMIN:** enlaces a mantenimiento **Series** / **Subseries**. Otros roles: solo lectura.
 
@@ -391,9 +400,10 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 1. En el listado de Documentos, haz clic sobre un registro (o usa **Ver**).
 2. El sistema navega a `/documentos/:id`.
 
-La pantalla se organiza en dos columnas (en escritorio):
+La pantalla se organiza en dos columnas (en escritorio), con el mismo estilo de **tarjetas** que el panel y la bandeja:
 
-- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales**: **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
+- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** / **Aprobar** / **Rechazar** (mismos permisos de siempre).
+- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
 - **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; dependencia; **Conservación** si no está parametrizada en datos (valor «—») y texto explicativo. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 

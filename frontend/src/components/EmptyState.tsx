@@ -33,8 +33,11 @@ export function EmptyState({ title, description, action, dense }: EmptyStateProp
             borderRadius: 3,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: 'rgba(30, 124, 137, 0.10)',
-            color: 'secondary.dark',
+            bgcolor: (t) =>
+              t.palette.mode === 'dark'
+                ? 'rgba(59, 168, 182, 0.16)'
+                : 'rgba(30, 124, 137, 0.10)',
+            color: 'secondary.main',
           }}
         >
           <InboxOutlinedIcon sx={{ fontSize: 30 }} />
@@ -75,7 +78,7 @@ export function EmptyState({ title, description, action, dense }: EmptyStateProp
         maxWidth: 440,
         mx: 'auto',
         borderRadius: 3,
-        bgcolor: 'rgba(30, 58, 95, 0.02)',
+        bgcolor: 'action.hover',
         borderStyle: 'dashed',
       }}
     >

@@ -41,7 +41,8 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 ### 3.1 Encabezado
 
 - **Título:** Series  
-- **Texto:** *«Catálogo del cuadro de clasificación. Alta y edición requieren rol **ADMIN**.»*
+- **Texto:** catálogo del cuadro de clasificación; rol ADMIN; enlaces a **Subseries** y **Clasificación**.
+- El listado usa el mismo panel que Documentos (icono de carpeta, no letra «S»).
 
 ### 3.2 Controles superiores
 
@@ -54,10 +55,10 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 
 | Columna | Contenido |
 |---------|-----------|
-| **Código** | Identificador corto y **único** (ej. `ADM`, `SEC`). Se guarda en **mayúsculas** en el servidor. |
-| **Nombre** | Denominación de la serie (ej. *Administración*, *Secretaría*). |
+| **Código** | Identificador corto y **único** (ej. `ADM`, `SEC`), en chip. Se guarda en **mayúsculas** en el servidor. |
+| **Nombre** | Denominación de la serie (ej. *Administración*, *Secretaría*), con icono de carpeta. |
 | **Descripción** | Texto opcional; puede ser largo (política archivística de la serie). Si no hay valor, **—**. |
-| **Activa** | **Sí** / **No** (baja lógica). |
+| **Estado** | Chip **Activo** / **Inactivo** (baja lógica). |
 | **Acciones** | Solo **ADMIN**: **Editar** por fila. |
 
 **Ejemplos típicos (seed o entorno de prueba):**

@@ -16,6 +16,10 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import {
   AppBar,
   Avatar,
@@ -35,6 +39,7 @@ import {
   MenuItem,
   Stack,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from '@mui/material';
@@ -44,12 +49,18 @@ import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-rout
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { getBreadcrumbsForPath } from '../nav/breadcrumbs';
+import { ColorModeProvider } from '../theme/ColorModeProvider';
+import { useColorMode } from '../theme/useColorMode';
 import { BreadcrumbDetailProvider } from './BreadcrumbDetailProvider';
 import { useBreadcrumbDetail } from './useBreadcrumbDetail';
 
-const drawerWidth = 272;
+const DRAWER_WIDTH = 272;
+const DRAWER_WIDTH_COLLAPSED = 72;
+const SIDEBAR_STORAGE_KEY = 'sgd.ui.sidebarOpen';
 
-const navItems: { to: string; label: string; icon: ReactNode }[] = [
+type NavItem = { to: string; label: string; icon: ReactNode };
+
+const navItems: NavItem[] = [
   { to: '/', label: 'Inicio', icon: <HomeOutlinedIcon fontSize="small" /> },
   {
     to: '/documentos',
@@ -68,7 +79,7 @@ const navItems: { to: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
-const catalogNav: { to: string; label: string; icon: ReactNode }[] = [
+const catalogNav: NavItem[] = [
   {
     to: '/catalogos/dependencias',
     label: 'Dependencias',
@@ -92,7 +103,7 @@ const catalogNav: { to: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
-const adminNav: { to: string; label: string; icon: ReactNode }[] = [
+const adminNav: NavItem[] = [
   {
     to: '/admin/usuarios',
     label: 'Usuarios y roles',
@@ -120,6 +131,25 @@ const adminNav: { to: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
+function readSidebarOpen(): boolean {
+  try {
+    const v = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (v === '0') return false;
+    if (v === '1') return true;
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+function persistSidebarOpen(open: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
 function initialsFromEmail(email: string | undefined): string {
   if (!email) return 'U';
   const local = email.split('@')[0] ?? email;
@@ -145,7 +175,7 @@ function LayoutBreadcrumbs() {
         px: { xs: 1, sm: 1.5 },
         py: { xs: 0.75, sm: 1 },
         borderRadius: 2,
-        bgcolor: 'rgba(30, 58, 95, 0.03)',
+        bgcolor: 'action.hover',
         border: '1px solid',
         borderColor: 'divider',
         '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap', rowGap: 0.5 },
@@ -177,15 +207,19 @@ function LayoutBreadcrumbs() {
   );
 }
 
-function BrandBlock() {
+function BrandBlock({ open }: { open: boolean }) {
   return (
     <Box
       sx={{
-        px: 2,
+        px: open ? 2 : 1,
         py: 2,
         display: 'flex',
         alignItems: 'center',
+        justifyContent: open ? 'flex-start' : 'center',
         gap: 1.5,
+        borderBottom: 1,
+        borderColor: 'divider',
+        minHeight: 72,
       }}
     >
       <Box
@@ -207,22 +241,87 @@ function BrandBlock() {
       >
         SGD
       </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.15, color: 'primary.main' }}>
-          SGD-GADPR-LM
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
-          Gestión documental
-        </Typography>
-      </Box>
+      {open ? (
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.15, color: 'primary.main' }}>
+            SGD-GADPR-LM
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+            Gestión documental
+          </Typography>
+        </Box>
+      ) : null}
     </Box>
   );
 }
 
-export function MainLayout() {
+function NavSectionLabel({ open, children }: { open: boolean; children: ReactNode }) {
+  if (!open) return null;
+  return (
+    <ListSubheader
+      component="div"
+      sx={{
+        bgcolor: 'transparent',
+        lineHeight: 2.2,
+        color: 'text.secondary',
+        fontWeight: 700,
+        fontSize: '0.7rem',
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        px: 2.5,
+      }}
+    >
+      {children}
+    </ListSubheader>
+  );
+}
+
+function NavButton({
+  item,
+  selected,
+  open,
+  onNavigate,
+}: {
+  item: NavItem;
+  selected: boolean;
+  open: boolean;
+  onNavigate: (to: string) => void;
+}) {
+  return (
+    <Tooltip title={item.label} placement="right" disableHoverListener={open}>
+      <ListItemButton
+        selected={selected}
+        onClick={() => onNavigate(item.to)}
+        aria-label={item.label}
+        sx={{
+          justifyContent: open ? 'flex-start' : 'center',
+          px: open ? 1.5 : 1,
+          mx: open ? 1 : 0.75,
+        }}
+      >
+        <ListItemIcon
+          sx={{
+            minWidth: open ? 36 : 0,
+            justifyContent: 'center',
+            mr: open ? 0 : 0,
+          }}
+        >
+          {item.icon}
+        </ListItemIcon>
+        {open ? (
+          <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
+        ) : null}
+      </ListItemButton>
+    </Tooltip>
+  );
+}
+
+function MainLayoutShell() {
   const theme = useTheme();
+  const { mode, toggleColorMode } = useColorMode();
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -233,6 +332,8 @@ export function MainLayout() {
     if (isAdmin) return true;
     return myPermissionCodes?.includes('DOC_CREATE') ?? false;
   }, [isAdmin, myPermissionCodes]);
+
+  const desktopDrawerWidth = sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED;
 
   useEffect(() => {
     let cancelled = false;
@@ -267,126 +368,138 @@ export function MainLayout() {
     return location.pathname === to || location.pathname.startsWith(`${to}/`);
   };
 
-  const drawer = (
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      persistSidebarOpen(next);
+      return next;
+    });
+  };
+
+  const renderDrawer = (open: boolean) => (
     <Box
       sx={{
-        width: drawerWidth,
+        width: open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
+        transition: theme.transitions.create('width', {
+          duration: theme.transitions.duration.standard,
+          easing: theme.transitions.easing.easeInOut,
+        }),
       }}
       role="navigation"
       aria-label="Menú principal"
     >
-      <BrandBlock />
-      <Divider />
-      <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+      <BrandBlock open={open} />
+      <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 1 }}>
         <List dense disablePadding>
-          <ListSubheader
-            component="div"
-            sx={{
-              bgcolor: 'transparent',
-              lineHeight: 2.2,
-              color: 'text.secondary',
-              fontWeight: 700,
-              fontSize: '0.7rem',
-              letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              px: 2.5,
-            }}
-          >
-            Principal
-          </ListSubheader>
+          <NavSectionLabel open={open}>Principal</NavSectionLabel>
           {navItems.map((item) => (
-            <ListItemButton
+            <NavButton
               key={item.to}
+              item={item}
               selected={isSelected(item.to, item.to === '/')}
-              onClick={() => handleNav(item.to)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
-            </ListItemButton>
+              open={open}
+              onNavigate={handleNav}
+            />
           ))}
           {canCreateDocumento && (
-            <ListItemButton
-              key="/documentos/nuevo"
+            <NavButton
+              item={{
+                to: '/documentos/nuevo',
+                label: 'Nuevo documento',
+                icon: <AddOutlinedIcon fontSize="small" />,
+              }}
               selected={location.pathname === '/documentos/nuevo'}
-              onClick={() => handleNav('/documentos/nuevo')}
-            >
-              <ListItemIcon>
-                <AddOutlinedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText
-                primary="Nuevo documento"
-                slotProps={{ primary: { variant: 'body2' } }}
-              />
-            </ListItemButton>
+              open={open}
+              onNavigate={handleNav}
+            />
           )}
           {isAdmin && (
             <>
-              <ListSubheader
-                component="div"
-                sx={{
-                  bgcolor: 'transparent',
-                  lineHeight: 2.2,
-                  color: 'text.secondary',
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                  letterSpacing: 0.6,
-                  textTransform: 'uppercase',
-                  px: 2.5,
-                  mt: 1,
-                }}
-              >
-                Administración
-              </ListSubheader>
+              <NavSectionLabel open={open}>Administración</NavSectionLabel>
               {adminNav.map((item) => (
-                <ListItemButton
+                <NavButton
                   key={item.to}
+                  item={item}
                   selected={isSelected(item.to)}
-                  onClick={() => handleNav(item.to)}
-                >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    slotProps={{ primary: { variant: 'body2' } }}
-                  />
-                </ListItemButton>
+                  open={open}
+                  onNavigate={handleNav}
+                />
               ))}
-              <ListSubheader
-                component="div"
-                sx={{
-                  bgcolor: 'transparent',
-                  lineHeight: 2.2,
-                  color: 'text.secondary',
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                  letterSpacing: 0.6,
-                  textTransform: 'uppercase',
-                  px: 2.5,
-                  mt: 1,
-                }}
-              >
-                Catálogos
-              </ListSubheader>
+              <NavSectionLabel open={open}>Catálogos</NavSectionLabel>
               {catalogNav.map((item) => (
-                <ListItemButton
+                <NavButton
                   key={item.to}
+                  item={item}
                   selected={location.pathname === item.to}
-                  onClick={() => handleNav(item.to)}
-                >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} slotProps={{ primary: { variant: 'body2' } }} />
-                </ListItemButton>
+                  open={open}
+                  onNavigate={handleNav}
+                />
               ))}
             </>
           )}
         </List>
+
+        {open ? (
+          <Box sx={{ borderTop: 1, borderColor: 'divider', mt: 2, pt: 1 }}>
+            <NavSectionLabel open>Cuenta</NavSectionLabel>
+            <NavButton
+              item={{
+                to: '/perfil',
+                label: 'Mi perfil',
+                icon: <PersonOutlineOutlinedIcon fontSize="small" />,
+              }}
+              selected={location.pathname === '/perfil'}
+              open={open}
+              onNavigate={handleNav}
+            />
+          </Box>
+        ) : null}
       </Box>
-      <Box sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
-        <Typography variant="caption" color="text.secondary">
-          Intranet institucional · Acceso controlado
-        </Typography>
+
+      <Box sx={{ borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>
+        {isMdUp ? (
+          <Tooltip title={open ? 'Contraer menú' : 'Expandir menú'} placement="right" disableHoverListener={open}>
+            <ListItemButton
+              onClick={toggleSidebar}
+              aria-label={open ? 'Contraer menú de navegación' : 'Expandir menú de navegación'}
+              aria-expanded={open}
+              sx={{
+                justifyContent: open ? 'flex-start' : 'center',
+                mx: 0,
+                borderRadius: 0,
+                minHeight: 52,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: open ? 36 : 0, justifyContent: 'center' }}>
+                <KeyboardDoubleArrowRightIcon
+                  fontSize="small"
+                  sx={{
+                    transition: 'transform 240ms ease',
+                    transform: open ? 'rotate(180deg)' : 'none',
+                    color: 'text.secondary',
+                  }}
+                />
+              </ListItemIcon>
+              {open ? (
+                <ListItemText
+                  primary="Ocultar menú"
+                  slotProps={{ primary: { variant: 'body2', sx: { color: 'text.secondary' } } }}
+                />
+              ) : null}
+            </ListItemButton>
+          </Tooltip>
+        ) : open ? (
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              Intranet institucional · Acceso controlado
+            </Typography>
+          </Box>
+        ) : null}
       </Box>
     </Box>
   );
@@ -399,11 +512,15 @@ export function MainLayout() {
           elevation={0}
           sx={{
             zIndex: (t) => t.zIndex.drawer + 1,
-            width: { md: `calc(100% - ${drawerWidth}px)` },
-            ml: { md: `${drawerWidth}px` },
+            width: { md: `calc(100% - ${desktopDrawerWidth}px)` },
+            ml: { md: `${desktopDrawerWidth}px` },
             borderBottom: '1px solid',
             borderColor: 'primary.dark',
             boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
+            transition: theme.transitions.create(['width', 'margin'], {
+              duration: theme.transitions.duration.standard,
+              easing: theme.transitions.easing.easeInOut,
+            }),
           }}
         >
           <Toolbar sx={{ gap: 1.5, minHeight: { xs: 56, sm: 64 } }}>
@@ -439,6 +556,25 @@ export function MainLayout() {
                 border: '1px solid rgba(255,255,255,0.22)',
               }}
             />
+            <Tooltip title={mode === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}>
+              <IconButton
+                color="inherit"
+                onClick={toggleColorMode}
+                aria-label={mode === 'dark' ? 'Activar tema claro' : 'Activar tema oscuro'}
+                sx={{
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  borderRadius: 2,
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
+                }}
+              >
+                {mode === 'dark' ? (
+                  <LightModeOutlinedIcon fontSize="small" />
+                ) : (
+                  <DarkModeOutlinedIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Tooltip>
             <Box
               component="button"
               type="button"
@@ -554,7 +690,7 @@ export function MainLayout() {
           </Toolbar>
         </AppBar>
 
-        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+        <Box component="nav" sx={{ width: { md: desktopDrawerWidth }, flexShrink: { md: 0 } }}>
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -562,10 +698,10 @@ export function MainLayout() {
             ModalProps={{ keepMounted: true }}
             sx={{
               display: { xs: 'block', md: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
             }}
           >
-            {drawer}
+            {renderDrawer(true)}
           </Drawer>
           <Drawer
             variant="permanent"
@@ -573,14 +709,19 @@ export function MainLayout() {
               display: { xs: 'none', md: 'block' },
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
-                width: drawerWidth,
+                width: desktopDrawerWidth,
                 borderRight: 1,
                 borderColor: 'divider',
+                overflowX: 'hidden',
+                transition: theme.transitions.create('width', {
+                  duration: theme.transitions.duration.standard,
+                  easing: theme.transitions.easing.easeInOut,
+                }),
               },
             }}
             open
           >
-            {drawer}
+            {renderDrawer(sidebarOpen)}
           </Drawer>
         </Box>
 
@@ -590,11 +731,15 @@ export function MainLayout() {
           key={location.pathname}
           sx={{
             flexGrow: 1,
-            width: { md: `calc(100% - ${drawerWidth}px)` },
+            width: { md: `calc(100% - ${desktopDrawerWidth}px)` },
             minWidth: 0,
             pb: { xs: 6, md: 5 },
             px: { xs: 1.5, sm: 2.5, md: 3 },
             pt: 0,
+            transition: theme.transitions.create('width', {
+              duration: theme.transitions.duration.standard,
+              easing: theme.transitions.easing.easeInOut,
+            }),
           }}
         >
           <Toolbar />
@@ -612,5 +757,13 @@ export function MainLayout() {
         </Box>
       </Box>
     </BreadcrumbDetailProvider>
+  );
+}
+
+export function MainLayout() {
+  return (
+    <ColorModeProvider>
+      <MainLayoutShell />
+    </ColorModeProvider>
   );
 }

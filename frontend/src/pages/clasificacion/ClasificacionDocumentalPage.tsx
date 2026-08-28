@@ -1,12 +1,16 @@
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import TopicOutlinedIcon from '@mui/icons-material/TopicOutlined';
 import {
   Alert,
   Box,
+  Chip,
   CircularProgress,
   Collapse,
   Grid,
@@ -25,14 +29,19 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { alpha } from '@mui/material/styles';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
 import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
-import { labelNivelConfidencialidad } from '../../constants/confidencialidad';
+import { SectionHeader } from '../../components/SectionHeader';
+import {
+  confidencialidadChipColor,
+  labelNivelConfidencialidad,
+} from '../../constants/confidencialidad';
 
 type SerieRow = {
   id: string;
@@ -63,10 +72,6 @@ type ClasificacionAgregadosResponse = {
   subseries: Record<string, ClasificacionAgg>;
 };
 
-const INSTITUTIONAL_TEAL = '#2D8A99';
-const INSTITUTIONAL_TEAL_SOFT = 'rgba(45, 138, 153, 0.14)';
-const INSTITUTIONAL_NAVY = '#1A2B3C';
-
 const paperCardSx = {
   ...listSurfaceSx,
 } as const;
@@ -82,51 +87,17 @@ type Selection =
   | { kind: 'serie'; serie: SerieRow }
   | { kind: 'subserie'; serie: SerieRow; subserie: SubserieRow };
 
-function SectionHeaderLetter({
-  letter,
-  accent = 'teal',
-  title,
-  subtitle,
+function ReadonlyFieldRow({
+  label,
+  value,
+  chip,
+  monospace,
 }: {
-  letter: string;
-  accent?: 'teal' | 'blue';
-  title: string;
-  subtitle: string;
+  label: string;
+  value: string;
+  chip?: ReactNode;
+  monospace?: boolean;
 }) {
-  const badgeBg =
-    accent === 'blue' ? 'rgba(37, 99, 235, 0.14)' : INSTITUTIONAL_TEAL_SOFT;
-  const badgeFg = accent === 'blue' ? '#1d4ed8' : INSTITUTIONAL_TEAL;
-  return (
-    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-      <Box
-        aria-hidden
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: 2,
-          bgcolor: badgeBg,
-          color: badgeFg,
-          display: 'grid',
-          placeItems: 'center',
-          fontWeight: 900,
-          flexShrink: 0,
-        }}
-      >
-        {letter}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.15 }}>
-          {title}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {subtitle}
-        </Typography>
-      </Box>
-    </Stack>
-  );
-}
-
-function ReadonlyFieldRow({ label, value }: { label: string; value: string }) {
   return (
     <Box sx={{ py: 1 }}>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
@@ -136,13 +107,29 @@ function ReadonlyFieldRow({ label, value }: { label: string; value: string }) {
         sx={{
           p: 1.25,
           borderRadius: 2,
-          bgcolor: 'rgba(15,23,42,0.03)',
-          border: '1px solid rgba(15,23,42,0.08)',
+          bgcolor: 'action.hover',
+          border: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 1,
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>
-          {value}
-        </Typography>
+        {value ? (
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              wordBreak: 'break-word',
+              fontFamily: monospace ? 'ui-monospace, monospace' : undefined,
+              flex: 1,
+            }}
+          >
+            {value}
+          </Typography>
+        ) : null}
+        {chip}
       </Box>
     </Box>
   );
@@ -322,8 +309,8 @@ export function ClasificacionDocumentalPage() {
                 flexDirection: 'column',
               }}
             >
-              <SectionHeaderLetter
-                letter="C"
+              <SectionHeader
+                icon={<AccountTreeOutlinedIcon fontSize="small" />}
                 title="Estructura documental"
                 subtitle="Series y subseries del catálogo institucional"
               />
@@ -343,7 +330,7 @@ export function ClasificacionDocumentalPage() {
                     sx={{
                       borderBottom: 1,
                       borderColor: 'divider',
-                      bgcolor: 'rgba(45,138,153,0.04)',
+                      bgcolor: (t) => alpha(t.palette.secondary.main, 0.08),
                     }}
                   >
                     <Stack
@@ -357,7 +344,7 @@ export function ClasificacionDocumentalPage() {
                       >
                         {rootOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                       </IconButton>
-                      <Typography sx={{ fontWeight: 900, flex: 1, color: INSTITUTIONAL_NAVY }}>
+                      <Typography sx={{ fontWeight: 900, flex: 1, color: 'secondary.main' }}>
                         Fondo documental GADPR-LM
                       </Typography>
                     </Stack>
@@ -378,7 +365,9 @@ export function ClasificacionDocumentalPage() {
                                 alignItems: 'center',
                                 py: 0.25,
                                 borderRadius: 1,
-                                bgcolor: serieSelected ? 'rgba(45,138,153,0.08)' : 'transparent',
+                                bgcolor: serieSelected
+                                  ? (t) => alpha(t.palette.secondary.main, 0.12)
+                                  : 'transparent',
                               }}
                             >
                               {subs.length > 0 ? (
@@ -414,7 +403,10 @@ export function ClasificacionDocumentalPage() {
                                 }}
                               >
                                 <FolderOpenOutlinedIcon
-                                  sx={{ fontSize: 18, color: 'text.secondary' }}
+                                  sx={{
+                                    fontSize: 18,
+                                    color: serieSelected ? 'secondary.main' : 'text.secondary',
+                                  }}
                                   aria-hidden
                                 />
                                 <Typography sx={{ fontWeight: 800 }}>{s.nombre}</Typography>
@@ -430,7 +422,8 @@ export function ClasificacionDocumentalPage() {
                                   sx={{
                                     ml: 2.25,
                                     pl: 2,
-                                    borderLeft: '2px solid rgba(45,138,153,0.25)',
+                                    borderLeft: '2px solid',
+                                    borderColor: (t) => alpha(t.palette.secondary.main, 0.35),
                                   }}
                                 >
                                   {subs.map((u) => {
@@ -450,11 +443,20 @@ export function ClasificacionDocumentalPage() {
                                           py: 0.75,
                                           pl: 0.75,
                                           borderRadius: 1,
+                                          '&.Mui-selected': {
+                                            bgcolor: (t) => alpha(t.palette.secondary.main, 0.12),
+                                            '&:hover': {
+                                              bgcolor: (t) => alpha(t.palette.secondary.main, 0.18),
+                                            },
+                                          },
                                         }}
                                       >
                                         <ChevronRightIcon sx={{ fontSize: 18, opacity: 0.6 }} aria-hidden />
                                         <TopicOutlinedIcon
-                                          sx={{ fontSize: 18, color: 'text.secondary' }}
+                                          sx={{
+                                            fontSize: 18,
+                                            color: sel ? 'secondary.main' : 'text.secondary',
+                                          }}
                                           aria-hidden
                                         />
                                         <Typography sx={{ fontWeight: 700 }}>{u.nombre}</Typography>
@@ -499,9 +501,8 @@ export function ClasificacionDocumentalPage() {
           <Grid size={{ xs: 12, md: 7 }}>
             <Stack spacing={2} sx={{ height: '100%' }}>
               <Paper elevation={0} sx={{ ...paperCardSx, p: 2.25 }}>
-                <SectionHeaderLetter
-                  letter="D"
-                  accent="blue"
+                <SectionHeader
+                  icon={<AssignmentOutlinedIcon fontSize="small" />}
                   title="Ficha de clasificación"
                   subtitle={
                     selection?.kind === 'subserie' ? 'Subserie seleccionada' : 'Serie seleccionada'
@@ -511,6 +512,7 @@ export function ClasificacionDocumentalPage() {
                   <Box sx={{ mt: 2 }}>
                     <ReadonlyFieldRow
                       label="Código"
+                      monospace
                       value={buildDisplayCodigo(
                         selection.serie,
                         selection.kind === 'subserie' ? selection.subserie : undefined,
@@ -526,10 +528,18 @@ export function ClasificacionDocumentalPage() {
                     />
                     <ReadonlyFieldRow
                       label="Expedientes visibles"
-                      value={
-                        fichaAgregacion === null
-                          ? '—'
-                          : String(fichaAgregacion.expedientes)
+                      value={fichaAgregacion === null ? '—' : ''}
+                      chip={
+                        fichaAgregacion === null ? undefined : (
+                          <Chip
+                            size="small"
+                            label={fichaAgregacion.expedientes}
+                            color={fichaAgregacion.expedientes > 0 ? 'secondary' : 'default'}
+                            variant={fichaAgregacion.expedientes > 0 ? 'filled' : 'outlined'}
+                            sx={{ fontWeight: 800 }}
+                            aria-label={`${fichaAgregacion.expedientes} expedientes visibles`}
+                          />
+                        )
                       }
                     />
                     <ReadonlyFieldRow
@@ -546,7 +556,17 @@ export function ClasificacionDocumentalPage() {
                       value={
                         fichaAgregacion === null || fichaAgregacion.expedientes === 0
                           ? 'Sin expedientes que coincidan con su visibilidad en esta clasificación.'
-                          : labelNivelConfidencialidad(fichaAgregacion.nivelConfidencialidad)
+                          : ''
+                      }
+                      chip={
+                        fichaAgregacion === null || fichaAgregacion.expedientes === 0 ? undefined : (
+                          <Chip
+                            size="small"
+                            label={labelNivelConfidencialidad(fichaAgregacion.nivelConfidencialidad)}
+                            color={confidencialidadChipColor(fichaAgregacion.nivelConfidencialidad)}
+                            sx={{ fontWeight: 800 }}
+                          />
+                        )
                       }
                     />
                     <ReadonlyFieldRow label="Conservación (plazo / destino)" value={CONSERVACION_SIN_MODELO_DATOS} />
@@ -571,8 +591,8 @@ export function ClasificacionDocumentalPage() {
               </Paper>
 
               <Paper elevation={0} sx={{ ...paperCardSx, p: 2.25, flex: 1 }}>
-                <SectionHeaderLetter
-                  letter="R"
+                <SectionHeader
+                  icon={<TableChartOutlinedIcon fontSize="small" />}
                   title="Tabla de retención"
                   subtitle="Política de conservación documental"
                 />
@@ -585,7 +605,7 @@ export function ClasificacionDocumentalPage() {
                 <TableContainer sx={{ mt: 2, ...listTableContainerSx, overflowX: 'auto' }}>
                   <Table size="small" aria-label="Tabla de retención por serie">
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableRow sx={{ bgcolor: 'action.hover' }}>
                         <TableCell sx={{ fontWeight: 800 }}>Serie</TableCell>
                         <TableCell sx={{ fontWeight: 800 }} align="right">
                           Expedientes visibles
@@ -603,7 +623,9 @@ export function ClasificacionDocumentalPage() {
                           <TableRow
                             key={r.id}
                             sx={{
-                              bgcolor: highlight ? 'rgba(45,138,153,0.06)' : 'inherit',
+                              bgcolor: highlight
+                                ? (t) => alpha(t.palette.secondary.main, 0.1)
+                                : 'inherit',
                             }}
                           >
                             <TableCell>
@@ -614,8 +636,14 @@ export function ClasificacionDocumentalPage() {
                                 {r.codigo}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 700 }}>
-                              {r.expedientes}
+                            <TableCell align="right">
+                              <Chip
+                                size="small"
+                                label={r.expedientes}
+                                color={r.expedientes > 0 ? 'secondary' : 'default'}
+                                variant={r.expedientes > 0 ? 'filled' : 'outlined'}
+                                sx={{ fontWeight: 800 }}
+                              />
                             </TableCell>
                             <TableCell sx={{ color: 'text.secondary' }}>{r.retencion}</TableCell>
                             <TableCell sx={{ color: 'text.secondary' }}>{r.destino}</TableCell>

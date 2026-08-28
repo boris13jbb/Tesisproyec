@@ -24,6 +24,46 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-28 — Catálogos Series/Subseries: iconos y chips de tema
+
+- **Frontend:** `SeriesPage` y `SubseriesPage` sustituyen letras «S/SS» por iconos, chips de código y `ActivoChip` con paleta MUI. Formularios, validaciones y baja lógica sin cambio. `ListPanel` usa el mismo fondo de badge que `SectionHeader`.
+- **Docs:** manual `27` §6.4, guías `50`/`51`, menú `44`.
+
+### 2026-08-28 — Clasificación: iconos y chips alineados al resto del SGD
+
+- **Frontend:** `ClasificacionDocumentalPage` deja hex fijos (teal/navy/azul) y reutiliza `SectionHeader` (extraído del detalle), chips de recuento y `confidencialidadChipColor`. Catálogo, agregados y solo lectura sin cambio.
+- **Docs:** manual `27` §7.2.2, guía de menú `44`.
+
+### 2026-08-28 — Usuarios: un rol institucional editable (sin acumulación)
+
+- **Frontend:** en `/admin/usuarios` el diálogo Crear/Editar deja de usar un selector múltiple de códigos. El administrador elige **un rol institucional** (radios con nombre y ayuda) y, si aplica, el complemento **Editor documental**. Al guardar se reemplaza la asignación (`PATCH /usuarios/:id` con `roles`).
+- Si la cuenta tenía varios roles apilados, la UI avisa y al guardar queda el rol elegido (mínimo privilegio, ISO/IEC 27001 A.5.18).
+- **Docs:** manual `27` §5.1, módulo `06`.
+
+### 2026-08-28 — Trámites (Kanban): chips e iconos unificados con bandeja
+
+- **Frontend:** `FlujoTramitePage` reutiliza `DocumentoListCard` (variante compacta) y `documentoEstadoChipColor` / `documentoEstadoTone`. Sin cambio de API, visibilidad ni transiciones; el tablero sigue siendo solo lectura.
+- **Docs:** manual `27` §7.2.1, guía de menú `44`.
+
+### 2026-08-28 — Detalle documental con tarjetas (mismo flujo y permisos)
+
+- **Frontend:** `DocumentoDetallePage` alinea cabecera de flujo, vista previa, metadatos, adjuntos e historial al estilo de tarjetas del panel; ACL y botones de revisión sin cambio de reglas.
+- Colores de estado reutilizan `documentoEstadoChipColor` / `documentoEstadoTone`.
+- **Docs:** manual `27` §8.1.
+
+### 2026-08-28 — Bandeja documental en tarjetas (misma lógica de filtros)
+
+- **Frontend:** vista **tarjetas** por defecto en `/documentos` (estilo del panel); conmutador a **tabla**; preferencia `sgd.ui.documentosView`. Filtros, paginación, exportaciones y permisos sin cambio.
+- Colores de estado unificados (`documentoEstadoTone` / `documentoEstadoChipColor`) reutilizados en dashboard y bandeja.
+- **Docs:** manual `27` §7.2, guía de menú `44`.
+
+### 2026-08-27 — Shell con menú colapsable, tema oscuro y panel tipo dashboard
+
+- **MainLayout:** menú lateral colapsable en escritorio (iconos / etiquetas) con preferencia en `localStorage` (`sgd.ui.sidebarOpen`); botón **Ocultar menú**; sección **Cuenta → Mi perfil**; conmutador claro/oscuro en la barra superior (solo shell autenticado; login permanece claro).
+- **Dashboard:** tarjetas KPI con iconos, lista de **actividad reciente** (expedientes reales) y panel de **indicadores / señales** sin datos simulados. Campana con badge de alertas o pendientes.
+- **Tema:** `createAppTheme(mode)` en `appTheme.ts`; `ColorModeProvider` anidado en el layout autenticado (`sgd.ui.colorMode`).
+- **Docs:** manual `27`, guía de menú `44`, diseño `25`.
+
 ### 2026-07-13 — Subida de adjuntos: solo PDF
 
 - **Backend:** whitelist MIME limitada a `application/pdf`; validación de extensión `.pdf` y firma de contenido `%PDF`.

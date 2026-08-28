@@ -32,3 +32,46 @@ export function labelDocumentoEstado(codigo: string): string {
     DOCUMENTO_ESTADO_LABELS[codigo as DocumentoEstadoCodigo] ?? codigo
   );
 }
+
+/** Color de Chip MUI según estado documental. */
+export function documentoEstadoChipColor(
+  codigo: string,
+): 'default' | 'success' | 'warning' | 'info' | 'error' {
+  switch (codigo) {
+    case 'APROBADO':
+      return 'success';
+    case 'EN_REVISION':
+      return 'warning';
+    case 'REGISTRADO':
+      return 'info';
+    case 'RECHAZADO':
+      return 'error';
+    case 'ARCHIVADO':
+      return 'default';
+    case 'BORRADOR':
+      return 'info';
+    default:
+      return 'default';
+  }
+}
+
+/**
+ * Clave de paleta para fondos/iconos (dashboard y bandeja).
+ * El color concreto se toma del tema (claro/oscuro).
+ */
+export function documentoEstadoTone(
+  codigo: string,
+): 'success' | 'warning' | 'error' | 'info' | 'secondary' {
+  switch (codigo) {
+    case 'APROBADO':
+      return 'success';
+    case 'EN_REVISION':
+      return 'warning';
+    case 'RECHAZADO':
+      return 'error';
+    case 'REGISTRADO':
+      return 'info';
+    default:
+      return 'secondary';
+  }
+}

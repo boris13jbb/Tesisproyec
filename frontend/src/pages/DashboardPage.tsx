@@ -1,6 +1,12 @@
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import {
   Alert,
   Avatar,
+  Badge,
   Box,
   Button,
   Card,
@@ -9,16 +15,15 @@ import {
   Chip,
   CircularProgress,
   Grid,
+  IconButton,
   LinearProgress,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import type { ReactNode } from 'react';
 import {
   useCallback,
   useEffect,
@@ -35,7 +40,7 @@ import { useAuth } from '../auth/useAuth';
 import { useDashboardLcpReporting } from '../perf/useDashboardLcpReporting';
 import { listSurfaceSx } from '../components/listSurfaces';
 import { PageHeader } from '../components/PageHeader';
-import { labelDocumentoEstado } from '../constants/documento-estado';
+import { labelDocumentoEstado, documentoEstadoTone } from '../constants/documento-estado';
 import {
   pickFirstDashboardAlertDestination,
   type DashboardAlertItemClient,
@@ -87,13 +92,6 @@ type DashboardSummary = {
     lastBackupVerifiedAt: string | null;
   };
 };
-
-const INTRANET_CHIP_SX = {
-  bgcolor: 'rgba(30, 58, 95, 0.08)',
-  color: '#1E3A5F',
-  fontWeight: 800,
-  letterSpacing: 0.4,
-} as const;
 
 function initialsFromUser(email: string, nombres?: string | null, apellidos?: string | null): string {
   const joined = `${nombres ?? ''} ${apellidos ?? ''}`.trim();
@@ -149,24 +147,40 @@ function formatUltimoRespaldoVerificado(iso: string | null): string {
   return `Último respaldo verificado: ${formatShortDateEc(iso)} ${time}`;
 }
 
+function formatRelativeEs(iso: string): string {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return formatShortDateEc(iso);
+  const min = Math.floor(diffMs / 60_000);
+  if (min < 1) return 'Hace un momento';
+  if (min < 60) return `Hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `Hace ${h} h`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `Hace ${days} d`;
+  return formatShortDateEc(iso);
+}
+
 function KpiCard({
-  iconLetter,
+  icon,
   title,
   subtitle,
   value,
   accentColor,
   footnote,
+  footnotePositive,
   detailLines,
   interactive,
   interactiveLabel,
   onInteractiveAction,
 }: {
-  iconLetter: string;
+  icon: ReactNode;
   title: string;
   subtitle: string;
   value: string;
   accentColor: string;
   footnote?: string;
+  footnotePositive?: boolean;
   /** Viñetas breves bajo el valor (p. ej. desglose de alertas). */
   detailLines?: string[];
   /** Tarjeta pulsable (Enter/Espacio/clic) con estilo de botón. */
@@ -196,30 +210,26 @@ function KpiCard({
       aria-label={interactive ? interactiveLabel : undefined}
       sx={{
         borderRadius: 3,
-        border: '1px solid rgba(15, 23, 42, 0.08)',
-        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
-        p: 2.25,
+        border: '1px solid',
+        borderColor: 'divider',
+        boxShadow: (t) =>
+          t.palette.mode === 'dark'
+            ? '0 8px 24px rgba(0, 0, 0, 0.28)'
+            : '0 8px 24px rgba(15, 23, 42, 0.06)',
+        p: 2.5,
         height: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 3,
-          bgcolor: accentColor,
-          opacity: 0.85,
-        },
+        bgcolor: 'background.paper',
+        transition: 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease',
         ...(interactive
           ? {
               cursor: 'pointer',
-              transition: 'box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease',
               '&:hover': {
-                boxShadow: '0 14px 32px rgba(15, 23, 42, 0.10)',
+                boxShadow: (t) =>
+                  t.palette.mode === 'dark'
+                    ? '0 14px 32px rgba(0, 0, 0, 0.4)'
+                    : '0 14px 32px rgba(15, 23, 42, 0.10)',
                 transform: 'translateY(-1px)',
-                borderColor: 'rgba(30, 124, 137, 0.28)',
+                borderColor: 'secondary.light',
               },
               '&:focus-visible': {
                 outline: '2px solid',
@@ -227,41 +237,49 @@ function KpiCard({
                 outlineOffset: 2,
               },
             }
-          : {}),
+          : {
+              '&:hover': {
+                boxShadow: (t) =>
+                  t.palette.mode === 'dark'
+                    ? '0 14px 32px rgba(0, 0, 0, 0.4)'
+                    : '0 14px 32px rgba(15, 23, 42, 0.10)',
+              },
+            }),
       }}
     >
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
         <Box
           aria-hidden
           sx={{
-            width: 34,
-            height: 34,
+            width: 40,
+            height: 40,
             borderRadius: 2,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: 'rgba(30, 124, 137, 0.12)',
-            color: '#0F4C55',
-            fontWeight: 900,
+            bgcolor: alpha(accentColor, 0.12),
+            color: accentColor,
           }}
         >
-          {iconLetter}
+          {icon}
         </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
-            {title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {subtitle}
-          </Typography>
-        </Box>
+        {footnotePositive ? (
+          <TrendingUpIcon sx={{ fontSize: 18, color: 'success.main' }} aria-hidden />
+        ) : null}
       </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+        {title}
+        {subtitle ? (
+          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.75 }}>
+            · {subtitle}
+          </Typography>
+        ) : null}
+      </Typography>
       <Typography
         variant="h4"
         sx={{
-          mt: 1.5,
-          fontWeight: 900,
+          fontWeight: 800,
           letterSpacing: 0.2,
-          color: accentColor,
+          color: 'text.primary',
         }}
       >
         {value}
@@ -269,8 +287,12 @@ function KpiCard({
       {footnote ? (
         <Typography
           variant="caption"
-          color="text.secondary"
-          sx={{ mt: 0.75, display: 'block', fontWeight: 700 }}
+          sx={{
+            mt: 0.75,
+            display: 'block',
+            fontWeight: 700,
+            color: footnotePositive ? 'success.main' : 'text.secondary',
+          }}
         >
           {footnote}
         </Typography>
@@ -340,9 +362,9 @@ function ComplianceBar({
         color={color}
         sx={{
           mt: 0.75,
-          height: 10,
+          height: 8,
           borderRadius: 999,
-          bgcolor: 'rgba(15, 23, 42, 0.06)',
+          bgcolor: 'action.hover',
         }}
       />
     </Box>
@@ -350,6 +372,7 @@ function ComplianceBar({
 }
 
 export function DashboardPage() {
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -609,6 +632,28 @@ export function DashboardPage() {
   const displayRole =
     user?.roles.find((r) => r.codigo === 'ADMIN')?.nombre ?? user?.roles[0]?.nombre ?? 'Usuario';
 
+  const greetingName = useMemo(() => {
+    const joined = `${user?.nombres ?? ''} ${user?.apellidos ?? ''}`.trim();
+    return joined || user?.email || 'usuario';
+  }, [user?.nombres, user?.apellidos, user?.email]);
+
+  const bellCount = isAdmin ? alertsCount : (summary?.kpis.pendientesRevision ?? 0);
+
+  const handleBellClick = () => {
+    if (isAdmin && alertsCount > 0) {
+      const el = document.getElementById('alertas');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      navigateToFirstAlert();
+      return;
+    }
+    if ((summary?.kpis.pendientesRevision ?? 0) > 0) {
+      navigate('/documentos?estado=EN_REVISION');
+    }
+  };
+
   const generatedAt = summary?.generatedAt;
   const updatedAtLabel = useMemo(() => {
     if (!generatedAt) return null;
@@ -619,14 +664,44 @@ export function DashboardPage() {
     <Box>
       <PageHeader
         title="Panel principal"
-        description="GADPR-LM · Sistema de Gestión Documental · Indicadores en tiempo real desde la base de datos."
+        description={`Bienvenido de nuevo, ${greetingName}. Indicadores en tiempo real del SGD-GADPR-LM.`}
         actions={
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={1.5}
             sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
           >
-            <Chip size="small" label="INTRANET" sx={INTRANET_CHIP_SX} />
+            <Tooltip
+              title={
+                isAdmin
+                  ? alertsCount > 0
+                    ? `${alertsCount} alerta(s) operativa(s)`
+                    : 'Sin alertas activas'
+                  : (summary?.kpis.pendientesRevision ?? 0) > 0
+                    ? `${summary?.kpis.pendientesRevision} pendiente(s) de revisión`
+                    : 'Sin pendientes de revisión'
+              }
+            >
+              <IconButton
+                aria-label="Ver alertas o pendientes"
+                onClick={handleBellClick}
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'background.paper',
+                }}
+              >
+                <Badge
+                  color="error"
+                  badgeContent={summaryLoading || healthLoading ? 0 : bellCount}
+                  max={99}
+                >
+                  <NotificationsOutlinedIcon fontSize="small" />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <Chip size="small" label="INTRANET" color="primary" variant="outlined" sx={{ fontWeight: 800 }} />
             <Chip
               size="small"
               variant="outlined"
@@ -693,10 +768,10 @@ export function DashboardPage() {
         </Alert>
       ) : null}
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 12, sm: 6, md: isAdmin ? 3 : 6 }}>
           <KpiCard
-            iconLetter="D"
+            icon={<DescriptionOutlinedIcon fontSize="small" />}
             title="Documentos"
             subtitle="total"
             value={summaryLoading ? '…' : formattedNumber(summary?.kpis.documentosTotal ?? null)}
@@ -704,6 +779,7 @@ export function DashboardPage() {
             footnote={
               summaryLoading || summary == null ? undefined : docDeltaEsteMes
             }
+            footnotePositive={!summaryLoading && (summary?.kpis.documentosCreadosEsteMes ?? 0) > 0}
             interactive
             interactiveLabel="Ir a bandeja de Documentos"
             onInteractiveAction={() => navigate('/documentos')}
@@ -711,7 +787,7 @@ export function DashboardPage() {
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: isAdmin ? 3 : 6 }}>
           <KpiCard
-            iconLetter="P"
+            icon={<AssignmentOutlinedIcon fontSize="small" />}
             title="Pendientes"
             subtitle="por revisar"
             value={
@@ -726,7 +802,7 @@ export function DashboardPage() {
         {isAdmin ? (
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <KpiCard
-              iconLetter="U"
+              icon={<PeopleOutlinedIcon fontSize="small" />}
               title="Usuarios"
               subtitle="activos"
               value={summaryLoading ? '…' : formattedNumber(summary?.kpis.usuariosActivos ?? null)}
@@ -738,9 +814,9 @@ export function DashboardPage() {
           </Grid>
         ) : null}
         {isAdmin ? (
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} id="alertas" sx={{ scrollMarginTop: { xs: 88, md: 96 } }}>
             <KpiCard
-              iconLetter="A"
+              icon={<NotificationsOutlinedIcon fontSize="small" />}
               title="Alertas"
               subtitle="señales operativas"
               value={summaryLoading || healthLoading ? '…' : String(alertsCount)}
@@ -771,10 +847,8 @@ export function DashboardPage() {
         <Paper
           elevation={0}
           sx={{
-            mb: 2,
-            borderRadius: 3,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            boxShadow: '0 10px 32px rgba(15, 23, 42, 0.06)',
+            ...listSurfaceSx,
+            mb: 2.5,
             p: 2,
           }}
         >
@@ -801,7 +875,8 @@ export function DashboardPage() {
                   alignItems: { xs: 'stretch', sm: 'center' },
                   justifyContent: 'space-between',
                   py: 0.75,
-                  borderBottom: '1px solid rgba(15, 23, 42, 0.06)',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
                   '&:last-of-type': { borderBottom: 0 },
                 }}
               >
@@ -822,8 +897,8 @@ export function DashboardPage() {
         </Paper>
       ) : null}
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, md: isAdmin ? 7 : 12 }}>
+      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 12, lg: isAdmin ? 8 : 12 }}>
           <Paper
             elevation={0}
             sx={{
@@ -832,30 +907,18 @@ export function DashboardPage() {
             }}
           >
             <Box sx={{ px: 2.5, pt: 2.25, pb: 1.5 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-                <Box
-                  aria-hidden
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(30, 124, 137, 0.12)',
-                    color: '#0F4C55',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 900,
-                  }}
-                >
-                  G
-                </Box>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                    Documentos recientes
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+                    Actividad reciente
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Ordenados por última actualización del expediente en el sistema
+                    Expedientes ordenados por última actualización en el sistema
                   </Typography>
                 </Box>
+                <Button component={RouterLink} to="/documentos" variant="text" size="small" sx={{ fontWeight: 700 }}>
+                  Ver todos
+                </Button>
               </Stack>
             </Box>
             <Box sx={{ px: 1.5, pb: 1.5 }}>
@@ -870,28 +933,14 @@ export function DashboardPage() {
                   </Typography>
                 </Box>
               ) : (
-                <Table size="small" aria-label="Tabla de documentos recientes">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>
-                        Código
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>
-                        Documento
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>
-                        Estado
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 800, color: 'text.secondary' }}>
-                        Última actividad
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {summary?.documentosRecientes.map((d) => (
-                      <TableRow
+                <Stack spacing={0.5} role="list" aria-label="Documentos recientes">
+                  {summary?.documentosRecientes.map((d) => {
+                    const toneKey = documentoEstadoTone(d.estado);
+                    const accent = theme.palette[toneKey].main;
+                    return (
+                      <Box
                         key={d.id}
-                        hover
+                        role="listitem"
                         tabIndex={0}
                         onClick={() => navigate(`/documentos/${d.id}`)}
                         onKeyDown={(e) => {
@@ -901,73 +950,78 @@ export function DashboardPage() {
                           }
                         }}
                         sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          px: 1.25,
+                          py: 1.25,
+                          borderRadius: 2,
                           cursor: 'pointer',
+                          '&:hover': { bgcolor: 'action.hover' },
                           '&:focus-visible': {
-                            outline: '2px solid rgba(45, 138, 153, 0.6)',
+                            outline: '2px solid',
+                            outlineColor: 'secondary.main',
                             outlineOffset: 2,
-                            borderRadius: 8,
                           },
-                          '&:last-child td': { borderBottom: 0 },
                         }}
                       >
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                          {d.codigo}
-                        </TableCell>
-                        <TableCell>{d.asunto}</TableCell>
-                        <TableCell>{labelDocumentoEstado(d.estado)}</TableCell>
-                        <TableCell title={`Fecha del documento: ${formatShortDateEc(d.fechaDocumento)}`}>
-                          {formatShortDateEc(d.ultimaActividadAt)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        <Box
+                          aria-hidden
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 2,
+                            display: 'grid',
+                            placeItems: 'center',
+                            bgcolor: alpha(accent, 0.14),
+                            color: accent,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <DescriptionOutlinedIcon sx={{ fontSize: 18 }} />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                            {d.asunto}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {d.codigo} · {labelDocumentoEstado(d.estado)}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          title={`Fecha del documento: ${formatShortDateEc(d.fechaDocumento)} · Actualizado: ${formatShortDateEc(d.ultimaActividadAt)}`}
+                          sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                        >
+                          {formatRelativeEs(d.ultimaActividadAt)}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Stack>
               )}
-            </Box>
-            <Box sx={{ px: 2.5, pb: 2 }}>
-              <Button component={RouterLink} to="/documentos" variant="text" size="small">
-                Ver documentos
-              </Button>
             </Box>
           </Paper>
         </Grid>
 
         {isAdmin ? (
-          <Grid size={{ xs: 12, md: 5 }}>
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <Stack spacing={2.5}>
             <Paper
               elevation={0}
               sx={{
                 ...listSurfaceSx,
                 p: 2.5,
-                height: '100%',
               }}
             >
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 1.5 }}>
-                <Box
-                  aria-hidden
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(30, 124, 137, 0.12)',
-                    color: '#0F4C55',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 900,
-                  }}
-                >
-                  S
-                </Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                    Indicadores operativos de seguridad
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Porcentajes desde auditoría y datos del sistema (últimos 30 días). No sustituyen una
-                    certificación ISO ni una auditoría externa.
-                  </Typography>
-                </Box>
-              </Stack>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1, mb: 0.5 }}>
+                Indicadores operativos
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                Porcentajes desde auditoría y datos del sistema (últimos 30 días). No sustituyen una
+                certificación ISO ni una auditoría externa.
+              </Typography>
 
               {summaryLoading ? (
                 <Box sx={{ py: 2 }}>
@@ -984,35 +1038,59 @@ export function DashboardPage() {
                   />
                 ))
               )}
-
-              <Paper
-                elevation={0}
-                sx={{
-                  mt: 1,
-                  px: 2,
-                  py: 1.2,
-                  borderRadius: 3,
-                  bgcolor: 'rgba(30, 124, 137, 0.10)',
-                  border: '1px solid rgba(30, 124, 137, 0.16)',
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 800, color: '#0F4C55', display: 'block', mb: 0.75 }}
-                >
-                  {formatUltimoRespaldoVerificado(summary?.lastSignals.lastBackupVerifiedAt ?? null)}
-                </Typography>
-                <Typography variant="caption" sx={{ fontWeight: 600, color: '#0F4C55', opacity: 0.9 }}>
-                  Última línea auditada en el sistema:{' '}
-                  {summary?.lastSignals.lastAuditAt
-                    ? new Intl.DateTimeFormat('es-EC', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      }).format(new Date(summary.lastSignals.lastAuditAt))
-                    : '—'}
-                </Typography>
-              </Paper>
             </Paper>
+
+            <Paper
+              elevation={0}
+              sx={{
+                ...listSurfaceSx,
+                p: 2.5,
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1.5 }}>
+                Señales recientes
+              </Typography>
+              <Stack spacing={1.25}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Último respaldo verificado
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {formatUltimoRespaldoVerificado(summary?.lastSignals.lastBackupVerifiedAt ?? null).replace(
+                      'Último respaldo verificado: ',
+                      '',
+                    )}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Última línea auditada
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {summary?.lastSignals.lastAuditAt
+                      ? new Intl.DateTimeFormat('es-EC', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        }).format(new Date(summary.lastSignals.lastAuditAt))
+                      : '—'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Último ingreso correcto
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {summary?.lastSignals.lastLoginOkAt
+                      ? new Intl.DateTimeFormat('es-EC', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        }).format(new Date(summary.lastSignals.lastLoginOkAt))
+                      : '—'}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Paper>
+            </Stack>
           </Grid>
         ) : null}
       </Grid>

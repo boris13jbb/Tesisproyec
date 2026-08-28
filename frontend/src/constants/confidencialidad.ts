@@ -9,3 +9,21 @@ export function labelNivelConfidencialidad(raw: string | null | undefined): stri
   };
   return map[raw] ?? raw;
 }
+
+/** Color de Chip MUI según nivel de confidencialidad (solo presentación). */
+export function confidencialidadChipColor(
+  raw: string | null | undefined,
+): 'default' | 'success' | 'warning' | 'info' | 'error' {
+  switch (raw) {
+    case 'PUBLICO':
+      return 'success';
+    case 'INTERNO':
+      return 'info';
+    case 'RESERVADO':
+      return 'warning';
+    case 'CONFIDENCIAL':
+      return 'error';
+    default:
+      return 'default';
+  }
+}

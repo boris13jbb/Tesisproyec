@@ -87,7 +87,7 @@ Sustituir el primario por **color de marca** si la institución lo define; mante
 
 ### Responsivo (prioridad escritorio)
 
-- **Desktop:** sidebar fijo, tablas amplias, detalle en dos columnas si aplica.  
+- **Desktop:** sidebar fijo (colapsable a iconos), tablas amplias, detalle en dos columnas si aplica.  
 - **Tablet:** drawer overlay; tablas con scroll horizontal con indicación visual.  
 - **Móvil:** flujos por pasos; evitar tablas densas sin alternativa.
 
@@ -297,9 +297,9 @@ En rutas profundas: `Inicio > Documentos > Detalle`. Deben reflejar la jerarquí
 
 ## 12. Implementación en el repositorio
 
-- **Tema MUI:** `frontend/src/theme/appTheme.ts` (palette, tipografía Inter, shape).  
-- **Layout autenticación:** `frontend/src/layouts/AuthLayout.tsx` (card centrada, fondo institucional).  
-- **Shell logueado:** `frontend/src/layouts/MainLayout.tsx` (drawer responsivo, breadcrumbs, iconos de navegación).  
+- **Tema MUI:** `frontend/src/theme/appTheme.ts` (`createAppTheme(mode)` claro/oscuro), `ColorModeProvider` en el shell autenticado.  
+- **Layout autenticación:** `frontend/src/layouts/AuthLayout.tsx` (card centrada, fondo institucional; siempre tema claro).  
+- **Shell logueado:** `frontend/src/layouts/MainLayout.tsx` (drawer colapsable, breadcrumbs, iconos, conmutador de tema).  
 - **Utilidad de migas:** `frontend/src/nav/breadcrumbs.ts` (opción `documentDetailLabel` para detalle de documento).  
 - **Contexto de miga dinámica:** `breadcrumbDetailContext.ts`, `BreadcrumbDetailProvider.tsx` y `useBreadcrumbDetail.ts` (`useRegisterBreadcrumbDetail` en detalle de documento).  
 - **Cabecera de página:** `frontend/src/components/PageHeader.tsx` (título, descripción, acciones, enlace “volver”).  
