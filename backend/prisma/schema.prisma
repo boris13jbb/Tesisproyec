@@ -48,6 +48,7 @@ model User {
   passwordHistory           UserPasswordHistory[]
   totp                      UserTotp?
   mfaLoginChallenges        MfaLoginChallenge[]
+  notifications             UserNotification[]
 
   @@index([dependenciaId])
   @@index([cargoId])
@@ -68,6 +69,25 @@ model DashboardAlertAcknowledgment {
   @@unique([actorUserId, alertCodigo])
   @@index([alertCodigo, acknowledgedAt])
   @@map("dashboard_alert_acknowledgments")
+}
+
+/// Notificación in-app por usuario (R-44 complemento a correo SMTP).
+model UserNotification {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  tipo         String   @db.VarChar(64)
+  titulo       String   @db.VarChar(200)
+  mensaje      String?  @db.VarChar(1000)
+  resourceType String?  @map("resource_type") @db.VarChar(64)
+  resourceId   String?  @map("resource_id") @db.VarChar(36)
+  leido        Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, leido, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("user_notifications")
 }
 
 /// Refresh opaco (hash SHA-256 en BD); el valor en claro solo en cookie HttpOnly.
@@ -399,6 +419,10 @@ model Documento {
   descripcion              String?  @db.VarChar(1000)
   fechaDocumento           DateTime @map("fecha_documento")
   fechaVencimiento         DateTime? @map("fecha_vencimiento")
+  /// Inicio del trámite de revisión (al pasar a EN_REVISION).
+  fechaIngresoRevision     DateTime? @map("fecha_ingreso_revision")
+  /// Límite operativo de SLA de revisión (calculado al ingresar a revisión).
+  fechaLimiteSla           DateTime? @map("fecha_limite_sla")
   /// Responsable institucional (persona o área encargada del documento).
   responsableInstitucional String?  @map("responsable_institucional") @db.VarChar(250)
   /// Ciclo de vida (catálogo y transiciones en `documento-estado.util.ts`).
@@ -437,6 +461,9 @@ model Documento {
   @@index([accessPolicy])
   @@index([createdAt])
   @@index([estado])
+  @@index([fechaIngresoRevision])
+  @@index([fechaLimiteSla])
+  @@index([fechaVencimiento])
   @@map("documentos")
 }
 

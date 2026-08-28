@@ -193,4 +193,207 @@ export class ReportesService {
       viewer,
     );
   }
+
+  async findUsuariosActivos() {
+    const MAX_ROWS = 5000;
+    const users = await this.prisma.user.findMany({
+      where: { activo: true },
+      orderBy: [{ email: 'asc' }],
+      take: MAX_ROWS,
+      include: {
+        dependencia: { select: { codigo: true, nombre: true } },
+        cargo: { select: { codigo: true, nombre: true } },
+        roles: { include: { role: { select: { codigo: true, nombre: true } } } },
+      },
+    });
+    return users.map((u) => ({
+      email: u.email,
+      nombres: u.nombres ?? '',
+      apellidos: u.apellidos ?? '',
+      dependencia: u.dependencia
+        ? `${u.dependencia.codigo} — ${u.dependencia.nombre}`
+        : '—',
+      cargo: u.cargo ? `${u.cargo.codigo} — ${u.cargo.nombre}` : '—',
+      roles: u.roles.map((r) => r.role.codigo).join(', '),
+      ultimoLoginAt: u.ultimoLoginAt,
+      createdAt: u.createdAt,
+    }));
+  }
+
+  async aggregateDocumentosPorDependencia(
+    viewer: JwtRequestUser,
+    filter?: { fechaDesde?: Date; fechaHasta?: Date },
+  ) {
+    const baseWhere: Prisma.DocumentoWhereInput = {
+      activo: true,
+      ...(filter?.fechaDesde || filter?.fechaHasta
+        ? {
+            fechaDocumento: {
+              ...(filter.fechaDesde ? { gte: filter.fechaDesde } : {}),
+              ...(filter.fechaHasta ? { lte: filter.fechaHasta } : {}),
+            },
+          }
+        : {}),
+    };
+    const vis = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = vis
+      ? { AND: [baseWhere, vis] }
+      : baseWhere;
+
+    const grouped = await this.prisma.documento.groupBy({
+      by: ['dependenciaId'],
+      where,
+      _count: { _all: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    const depIds = grouped
+      .map((g) => g.dependenciaId)
+      .filter((id): id is string => Boolean(id));
+    const deps = depIds.length
+      ? await this.prisma.dependencia.findMany({
+          where: { id: { in: depIds } },
+          select: { id: true, codigo: true, nombre: true },
+        })
+      : [];
+    const depMap = new Map(deps.map((d) => [d.id, d]));
+
+    return grouped.map((g) => {
+      const dep = g.dependenciaId ? depMap.get(g.dependenciaId) : null;
+      return {
+        dependenciaCodigo: dep?.codigo ?? 'SIN-DEP',
+        dependenciaNombre: dep?.nombre ?? 'Sin dependencia',
+        total: g._count._all,
+      };
+    });
+  }
+
+  async aggregateDocumentosPorEstado(
+    viewer: JwtRequestUser,
+    filter?: { fechaDesde?: Date; fechaHasta?: Date },
+  ) {
+    const baseWhere: Prisma.DocumentoWhereInput = {
+      activo: true,
+      ...(filter?.fechaDesde || filter?.fechaHasta
+        ? {
+            fechaDocumento: {
+              ...(filter.fechaDesde ? { gte: filter.fechaDesde } : {}),
+              ...(filter.fechaHasta ? { lte: filter.fechaHasta } : {}),
+            },
+          }
+        : {}),
+    };
+    const vis = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = vis
+      ? { AND: [baseWhere, vis] }
+      : baseWhere;
+
+    const grouped = await this.prisma.documento.groupBy({
+      by: ['estado'],
+      where,
+      _count: { _all: true },
+      orderBy: { estado: 'asc' },
+    });
+
+    return grouped.map((g) => ({
+      estado: g.estado,
+      total: g._count._all,
+    }));
+  }
+
+  async findActividadRevision(filter?: { from?: Date; to?: Date }) {
+    const MAX_ROWS = 5000;
+    const actions = ['DOC_SUBMITTED_FOR_REVIEW', 'DOC_REVIEW_RESOLVED'];
+    const raw = await this.prisma.auditLog.findMany({
+      where: {
+        action: { in: actions },
+        ...(filter?.from || filter?.to
+          ? {
+              createdAt: {
+                ...(filter.from ? { gte: filter.from } : {}),
+                ...(filter.to ? { lte: filter.to } : {}),
+              },
+            }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: MAX_ROWS,
+    });
+    const enriched = await enrichAuditLogsWithDocumentoCodigo(this.prisma, raw);
+    return enriched.map((row) => {
+      let meta: Record<string, unknown> = {};
+      if (row.metaJson) {
+        try {
+          const parsed: unknown = JSON.parse(row.metaJson);
+          if (typeof parsed === 'object' && parsed !== null) {
+            meta = parsed as Record<string, unknown>;
+          }
+        } catch {
+          meta = {};
+        }
+      }
+      return {
+        fecha: row.createdAt,
+        accion: row.action,
+        actorEmail: row.actorEmail ?? '—',
+        documentoCodigo: row.resourceCodigo ?? '—',
+        documentoId: row.resourceId ?? '',
+        decision:
+          typeof meta.decision === 'string' ? meta.decision : undefined,
+        motivoRechazo:
+          typeof meta.motivoRechazo === 'string' ? meta.motivoRechazo : undefined,
+      };
+    });
+  }
+
+  async findProximosVencimiento(viewer: JwtRequestUser, diasAhead = 30) {
+    const days = Math.min(365, Math.max(1, Math.trunc(diasAhead)));
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(to.getDate() + days);
+    to.setHours(23, 59, 59, 999);
+
+    const baseWhere: Prisma.DocumentoWhereInput = {
+      activo: true,
+      fechaVencimiento: { gte: from, lte: to },
+      estado: { notIn: ['ARCHIVADO', 'BORRADOR'] },
+    };
+    const vis = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = vis
+      ? { AND: [baseWhere, vis] }
+      : baseWhere;
+
+    const MAX_ROWS = 5000;
+    const items = await this.prisma.documento.findMany({
+      where,
+      orderBy: [{ fechaVencimiento: 'asc' }, { codigo: 'asc' }],
+      take: MAX_ROWS,
+      include: {
+        tipoDocumental: { select: { codigo: true, nombre: true } },
+        dependencia: { select: { codigo: true, nombre: true } },
+        subserie: {
+          select: {
+            codigo: true,
+            nombre: true,
+            serie: { select: { codigo: true, nombre: true } },
+          },
+        },
+        createdBy: { select: { email: true } },
+        archivos: { where: { activo: true }, select: { id: true } },
+      },
+    });
+
+    return items.map((d) => ({
+      id: d.id,
+      codigo: d.codigo,
+      asunto: d.asunto,
+      fechaVencimiento: d.fechaVencimiento,
+      estado: d.estado,
+      dependenciaCodigo: d.dependencia?.codigo ?? '—',
+      tipoDocumental: `${d.tipoDocumental.codigo} — ${d.tipoDocumental.nombre}`,
+      createdBy: d.createdBy.email,
+      archivosActivos: d.archivos.length,
+    }));
+  }
 }

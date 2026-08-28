@@ -14,6 +14,7 @@ import {
   DocumentoDetallePage,
   DocumentosPage,
   FlujoTramitePage,
+  BandejaTramitesPage,
   ForbiddenPage,
   ForgotPasswordPage,
   LoginPage,
@@ -88,6 +89,7 @@ export function App() {
               <Route path="/perfil" element={<PerfilUsuarioPage />} />
               <Route path="/documentos" element={<DocumentosPage />} />
               <Route path="/tramites" element={<FlujoTramitePage />} />
+              <Route path="/bandeja-tramites" element={<BandejaTramitesPage />} />
               <Route path="/clasificacion" element={<ClasificacionDocumentalPage />} />
               <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
               <Route element={<RoleRoute roles={['ADMIN', 'SUPERADMIN']} />}>

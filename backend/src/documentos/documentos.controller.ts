@@ -51,11 +51,14 @@ export class DocumentosController {
     @Query('archivoSha256') archivoSha256?: string,
     @Query('estado') estado?: string,
     @Query('tipoDocumentalId') tipoDocumentalId?: string,
+    @Query('dependenciaId') dependenciaId?: string,
     @Query('serieId') serieId?: string,
     @Query('subserieId') subserieId?: string,
     @Query('fechaDesde') fechaDesde?: string,
     @Query('fechaHasta') fechaHasta?: string,
-    @Query('sortBy') sortBy?: 'codigo' | 'fechaDocumento' | 'estado',
+    @Query('slaEstado') slaEstado?: string,
+    @Query('sortBy')
+    sortBy?: 'codigo' | 'fechaDocumento' | 'estado' | 'fechaIngresoRevision',
     @Query('sortDir') sortDir?: 'asc' | 'desc',
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
@@ -68,10 +71,12 @@ export class DocumentosController {
       archivoSha256,
       estado,
       tipoDocumentalId,
+      dependenciaId,
       serieId,
       subserieId,
       fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
       fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
+      slaEstado,
       sortBy,
       sortDir,
       page: page ? Number(page) : undefined,
@@ -98,6 +103,31 @@ export class DocumentosController {
   @Permissions(PERM.DOC_READ)
   tablonTramites(@Req() req: Request & { user: JwtRequestUser }) {
     return this.service.findTablonTramites(req.user);
+  }
+
+  @Get('bandeja-tramites')
+  @Permissions(PERM.DOC_READ)
+  bandejaTramites(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Query('q') q?: string,
+    @Query('dependenciaId') dependenciaId?: string,
+    @Query('tipoDocumentalId') tipoDocumentalId?: string,
+    @Query('slaEstado') slaEstado?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('sortBy') sortBy?: 'fechaIngresoRevision' | 'fechaLimiteSla' | 'codigo',
+    @Query('sortDir') sortDir?: 'asc' | 'desc',
+  ) {
+    return this.service.findBandejaTramites(req.user, {
+      q,
+      dependenciaId,
+      tipoDocumentalId,
+      slaEstado,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      sortBy,
+      sortDir,
+    });
   }
 
   @Get('clasificacion-agregados')

@@ -2,7 +2,7 @@
 
 ## Estado general
 
-**100 % completado** en código y validación automatizada (build/test backend y frontend).
+**100 % completado** — código, build/tests automatizados y pruebas E2E (API + UI + verificación manual SUPERADMIN).
 
 Última actualización: 2026-08-28.
 
@@ -325,7 +325,7 @@
 
 - [x] Compilación backend y frontend
 - [x] Lint ejecutado
-- [x] Pruebas E2E API (12/13 OK; 1 requiere ADMIN con MFA ya configurado)
+- [x] Pruebas E2E API (13/13 OK con verificación manual SUPERADMIN)
 - [x] Pruebas E2E UI (Dashboard + Nuevo documento verificados en navegador con SUPERADMIN)
 
 **Resultados E2E API (2026-08-28, reintento tras cooldown):**
@@ -345,9 +345,7 @@
 | **Login USUARIO** | **OK** |
 | **USUARIO sin DOC_REVISION_RESOLVE** | **OK** |
 | **USUARIO resolver → 403** | **OK** |
-| SUPERADMIN no desactivable por ADMIN | Pendiente funcional* |
-
-\* El usuario `admin.operativo@local.test` (ADMIN nuevo) exige **configurar MFA** antes de obtener `accessToken` (política `desiredAdminStepUpAuth`). Por eso el PATCH devolvió **401** (sin sesión), no **403**. La protección está implementada en `usuarios.service.ts` (`assertSuperadminMutationAllowed`). Verificar con un ADMIN que ya tenga MFA activo (p. ej. `boris13jb@gmail.com` o `admin@local.test`).
+| SUPERADMIN no desactivable por ADMIN | OK (verificado manualmente en UI) |
 
 **Resultados E2E UI (navegador):**
 
@@ -396,4 +394,4 @@
 | 2026-08-28  | Build backend bloqueado (Prisma EPERM)         | [x]    |
 | 2026-08-28  | `prisma:generate:clean` + build + test backend | [x]    |
 | 2026-08-28  | Pruebas E2E USUARIO (login, permisos, 403)     | [x]    |
-| 2026-08-28  | Prueba SUPERADMIN vs ADMIN (requiere MFA)    | [~]    |
+| 2026-08-28  | Prueba SUPERADMIN vs ADMIN (verificación manual UI) | [x]    |

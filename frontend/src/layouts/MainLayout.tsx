@@ -14,6 +14,7 @@ import BackupOutlinedIcon from '@mui/icons-material/BackupOutlined';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
@@ -47,6 +48,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { InAppNotificationsMenu } from '../components/InAppNotificationsMenu';
 import { useAuth } from '../auth/useAuth';
 import { userHasAdminAccess } from '../auth/role-utils';
 import { getBreadcrumbsForPath } from '../nav/breadcrumbs';
@@ -67,6 +69,11 @@ const navItems: NavItem[] = [
     to: '/documentos',
     label: 'Documentos',
     icon: <DescriptionOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/bandeja-tramites',
+    label: 'Bandeja trámites',
+    icon: <InboxOutlinedIcon fontSize="small" />,
   },
   {
     to: '/tramites',
@@ -580,6 +587,7 @@ function MainLayoutShell() {
                 border: '1px solid rgba(255,255,255,0.22)',
               }}
             />
+            <InAppNotificationsMenu />
             <Tooltip title={mode === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}>
               <IconButton
                 color="inherit"

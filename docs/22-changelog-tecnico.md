@@ -24,6 +24,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-28 — R-44/R-27/R-28: notificaciones, bandeja SLA y reportes institucionales ampliados
+
+- **Migración** `20260828140000_sla_notifications`: `documentos.fecha_ingreso_revision`, `fecha_limite_sla`; tabla `user_notifications`.
+- **Backend:** módulo `notifications` (correo HTML + in-app, cron vencimientos `NOTIFY_EXPIRY_*`, auditoría `NOTIFICATION_DISPATCHED`); `GET /documentos/bandeja-tramites`; SLA al enviar a revisión (`SLA_DIAS_REVISION`); reportes XLSX: usuarios, por dependencia, por estado, actividad revisión, próximos vencimientos.
+- **Frontend:** `/bandeja-tramites`, campana in-app en barra superior, nuevos botones en `/reportes`.
+- **Docs:** `27-manual-usuario`, `04-modelo-base-de-datos` (26 migraciones).
+
 ### 2026-08-28 — RBAC SUPERADMIN, dashboard documental, auditoría paginada, catálogos contraparte/beneficiario
 
 - **Backend:** rol `SUPERADMIN` en seed; protección de cuenta técnica en `usuarios.service`; permisos `CONTRAPARTES_WRITE` / `BENEFICIARIOS_WRITE`; migración `20260828120000_contrapartes_beneficiarios_documento_fields`; módulos `contrapartes` y `beneficiarios`; validaciones EC cédula/RUC, fechas emisión/vencimiento, mayúsculas administrativas; dashboard `documentosPorMes` + totales por estado; auditoría paginada (10), `GET /auditoria/stats` y detalle por id; `includeCatalogos` con contraparte/beneficiario en documentos.

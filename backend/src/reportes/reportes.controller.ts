@@ -37,7 +37,15 @@ export class ReportesController {
   private async logReportExport(
     req: Request & { user?: JwtRequestUser },
     format: 'xlsx' | 'pdf',
-    kind: 'documentos' | 'auditoria' | 'pendientes_revision',
+    kind:
+      | 'documentos'
+      | 'auditoria'
+      | 'pendientes_revision'
+      | 'usuarios'
+      | 'documentos_por_dependencia'
+      | 'documentos_por_estado'
+      | 'actividad_revision'
+      | 'proximos_vencimiento',
   ) {
     const u = req.user;
     await this.audit.log({
@@ -500,5 +508,200 @@ export class ReportesController {
       if (doc.y > 760) doc.addPage();
     }
     doc.end();
+  }
+
+  @Get('usuarios.xlsx')
+  @Permissions(PERM.REPORTS_EXPORT)
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportUsuariosExcel(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Res() res: Response,
+  ) {
+    await this.logReportExport(req, 'xlsx', 'usuarios');
+    const items = await this.service.findUsuariosActivos();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'SGD-GADPR-LM';
+    const ws = wb.addWorksheet('Usuarios');
+    ws.columns = [
+      { header: 'Email', key: 'email', width: 32 },
+      { header: 'Nombres', key: 'nombres', width: 22 },
+      { header: 'Apellidos', key: 'apellidos', width: 22 },
+      { header: 'Dependencia', key: 'dependencia', width: 28 },
+      { header: 'Cargo', key: 'cargo', width: 24 },
+      { header: 'Roles', key: 'roles', width: 24 },
+      { header: 'Último login', key: 'ultimoLoginAt', width: 20 },
+      { header: 'Creado', key: 'createdAt', width: 20 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    for (const u of items) {
+      ws.addRow({
+        ...u,
+        ultimoLoginAt: u.ultimoLoginAt
+          ? u.ultimoLoginAt.toISOString().replace('T', ' ').slice(0, 19)
+          : '',
+        createdAt: u.createdAt.toISOString().replace('T', ' ').slice(0, 19),
+      });
+    }
+    const filename = `usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  }
+
+  @Get('documentos-por-dependencia.xlsx')
+  @Permissions(PERM.REPORTS_EXPORT)
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportDocumentosPorDependenciaExcel(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Res() res: Response,
+    @Query('fechaDesde') fechaDesde?: string,
+    @Query('fechaHasta') fechaHasta?: string,
+  ) {
+    await this.logReportExport(req, 'xlsx', 'documentos_por_dependencia');
+    const items = await this.service.aggregateDocumentosPorDependencia(
+      req.user,
+      {
+        fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
+        fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
+      },
+    );
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Por dependencia');
+    ws.columns = [
+      { header: 'Código dependencia', key: 'dependenciaCodigo', width: 18 },
+      { header: 'Dependencia', key: 'dependenciaNombre', width: 36 },
+      { header: 'Total documentos', key: 'total', width: 16 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    for (const row of items) ws.addRow(row);
+    const filename = `documentos_por_dependencia_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  }
+
+  @Get('documentos-por-estado.xlsx')
+  @Permissions(PERM.REPORTS_EXPORT)
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportDocumentosPorEstadoExcel(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Res() res: Response,
+    @Query('fechaDesde') fechaDesde?: string,
+    @Query('fechaHasta') fechaHasta?: string,
+  ) {
+    await this.logReportExport(req, 'xlsx', 'documentos_por_estado');
+    const items = await this.service.aggregateDocumentosPorEstado(req.user, {
+      fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
+      fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
+    });
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Por estado');
+    ws.columns = [
+      { header: 'Estado', key: 'estado', width: 18 },
+      { header: 'Total', key: 'total', width: 12 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    for (const row of items) ws.addRow(row);
+    const filename = `documentos_por_estado_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  }
+
+  @Get('actividad-revision.xlsx')
+  @Permissions(PERM.REPORTS_EXPORT)
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportActividadRevisionExcel(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Res() res: Response,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    await this.logReportExport(req, 'xlsx', 'actividad_revision');
+    const items = await this.service.findActividadRevision({
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    });
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Actividad revisión');
+    ws.columns = [
+      { header: 'Fecha UTC', key: 'fecha', width: 20 },
+      { header: 'Acción', key: 'accion', width: 28 },
+      { header: 'Actor', key: 'actorEmail', width: 28 },
+      { header: 'Código documento', key: 'documentoCodigo', width: 18 },
+      { header: 'Decisión', key: 'decision', width: 14 },
+      { header: 'Motivo rechazo', key: 'motivoRechazo', width: 40 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    for (const row of items) {
+      ws.addRow({
+        fecha: row.fecha.toISOString().replace('T', ' ').slice(0, 19),
+        accion: row.accion,
+        actorEmail: row.actorEmail,
+        documentoCodigo: row.documentoCodigo,
+        decision: row.decision ?? '',
+        motivoRechazo: row.motivoRechazo ?? '',
+      });
+    }
+    const filename = `actividad_revision_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  }
+
+  @Get('proximos-vencimiento.xlsx')
+  @Permissions(PERM.REPORTS_EXPORT)
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportProximosVencimientoExcel(
+    @Req() req: Request & { user: JwtRequestUser },
+    @Res() res: Response,
+    @Query('dias') dias?: string,
+  ) {
+    await this.logReportExport(req, 'xlsx', 'proximos_vencimiento');
+    const diasAhead = dias ? Number(dias) : 30;
+    const items = await this.service.findProximosVencimiento(
+      req.user,
+      Number.isFinite(diasAhead) ? diasAhead : 30,
+    );
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Próximos vencimientos');
+    ws.columns = [
+      { header: 'Código', key: 'codigo', width: 18 },
+      { header: 'Asunto', key: 'asunto', width: 40 },
+      { header: 'Vencimiento', key: 'fechaVencimiento', width: 14 },
+      { header: 'Estado', key: 'estado', width: 14 },
+      { header: 'Dependencia', key: 'dependenciaCodigo', width: 16 },
+      { header: 'Tipo documental', key: 'tipoDocumental', width: 28 },
+      { header: 'Creado por', key: 'createdBy', width: 24 },
+      { header: 'Adjuntos', key: 'archivosActivos', width: 10 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    for (const d of items) {
+      ws.addRow({
+        ...d,
+        fechaVencimiento: d.fechaVencimiento
+          ? d.fechaVencimiento.toISOString().slice(0, 10)
+          : '',
+      });
+    }
+    const filename = `proximos_vencimiento_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
   }
 }

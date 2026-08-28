@@ -39,6 +39,11 @@ export function getBreadcrumbsForPath(
     return items;
   }
 
+  if (pathname === '/bandeja-tramites') {
+    items.push({ label: 'Bandeja de trámites', to: pathname });
+    return items;
+  }
+
   if (pathname === '/clasificacion') {
     items.push({ label: 'Clasificación', to: pathname });
     return items;

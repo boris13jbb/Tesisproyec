@@ -11,7 +11,7 @@
 | Elemento | Situación |
 |----------|-----------|
 | `backend/prisma/schema.prisma` | **Existe** — `provider = "mysql"`. Prisma **5.22.0** fijado en `backend/package.json` (la línea base del proyecto no asume Prisma 7). |
-| `backend/prisma/migrations/` | **23** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
+| `backend/prisma/migrations/` | **26** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
 | `DATABASE_URL` | Definir en `backend/.env` (plantilla en `.env.example`). Crear la base vacía en phpMyAdmin antes de migrar. |
 | Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). En Windows ante **EPERM**: `npm run prisma:generate:clean`. |
 | Cierre ETAPA 2 | Evidencias formales en **`docs/31-etapa-2-cierre-y-evidencias.md`**. |

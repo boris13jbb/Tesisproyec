@@ -17,13 +17,20 @@ import {
   parseFechaVencimientoOptional,
 } from '../common/date-validation.util';
 import { normalizeAdministrativeText } from '../common/text-normalize.util';
-import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notification.service';
 import {
   JwtRequestUser,
   jwtUserIsAdmin,
   jwtUserIsRevisor,
 } from '../auth/request-user';
+import {
+  computeFechaLimiteSla,
+  computeSlaEstado,
+  diasEnRevision,
+  slaDiasRevisionFromEnv,
+  type DocumentoSlaEstado,
+} from './documento-sla.util';
 import { documentoVisibilityWhere } from './documento-scope.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
@@ -145,43 +152,47 @@ export class DocumentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly mail: MailService,
+    private readonly notifications: NotificationService,
   ) {}
 
-  private async notifyRevisionSubmitted(input: {
-    documentoId: string;
-    codigo: string;
-    asunto: string;
-  }) {
-    if (!this.mail.isConfigured()) return;
-    const recipients = await this.prisma.user.findMany({
-      where: {
-        activo: true,
-        roles: {
-          some: { role: { codigo: { in: ['ADMIN', 'REVISOR'] } } },
-        },
-      },
-      select: { email: true },
-      take: 200,
-    });
-    const to = recipients
-      .map((r) => r.email)
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-    if (!to.length) return;
-    await this.mail.sendIfConfigured({
-      to,
-      subject: `SGD-GADPR-LM — Pendiente de revisión: ${input.codigo}`,
-      text: [
-        'Se ha enviado un documento a revisión.',
-        '',
-        `Código: ${input.codigo}`,
-        `Asunto: ${input.asunto}`,
-        `ID: ${input.documentoId}`,
-        '',
-        'Acción: ingrese al sistema → Documentos → filtre “Estado → En revisión”, o use el reporte “Pendientes de revisión”.',
-      ].join('\n'),
-    });
+  private enrichSlaFields<
+    T extends {
+      fechaIngresoRevision?: Date | null;
+      fechaLimiteSla?: Date | null;
+    },
+  >(row: T) {
+    const now = new Date();
+    const slaEstado = computeSlaEstado(row.fechaLimiteSla ?? null, now);
+    return {
+      ...row,
+      slaEstado,
+      diasEnRevision: diasEnRevision(row.fechaIngresoRevision ?? null, now),
+    };
+  }
+
+  private slaWhereFromFilter(
+    slaEstado?: string,
+  ): Prisma.DocumentoWhereInput | undefined {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const norm = slaEstado?.trim().toUpperCase();
+    if (!norm || norm === 'SIN_SLA') {
+      if (norm === 'SIN_SLA') return { fechaLimiteSla: null };
+      return undefined;
+    }
+    if (norm === 'VENCIDO') {
+      return { fechaLimiteSla: { lt: now } };
+    }
+    if (norm === 'POR_VENCER') {
+      return {
+        fechaLimiteSla: { gte: now, lte: tomorrow },
+      };
+    }
+    if (norm === 'EN_PLAZO') {
+      return { fechaLimiteSla: { gt: tomorrow } };
+    }
+    return undefined;
   }
 
   private async loadDocumentoById(id: string) {
@@ -342,11 +353,13 @@ export class DocumentosService {
       archivoSha256?: string;
       estado?: string;
       tipoDocumentalId?: string;
+      dependenciaId?: string;
       serieId?: string;
       subserieId?: string;
       fechaDesde?: Date;
       fechaHasta?: Date;
-      sortBy?: 'codigo' | 'fechaDocumento' | 'estado';
+      slaEstado?: DocumentoSlaEstado | string;
+      sortBy?: 'codigo' | 'fechaDocumento' | 'estado' | 'fechaIngresoRevision' | 'fechaLimiteSla';
       sortDir?: 'asc' | 'desc';
       page?: number;
       pageSize?: number;
@@ -376,13 +389,30 @@ export class DocumentosService {
               { fechaDocumento: 'desc' },
               { createdAt: 'desc' },
             ]
-          : [{ fechaDocumento: sortDir }, { createdAt: 'desc' }];
+          : sortBy === 'fechaIngresoRevision'
+            ? [
+                { fechaIngresoRevision: sortDir },
+                { fechaDocumento: 'desc' },
+                { createdAt: 'desc' },
+              ]
+            : sortBy === 'fechaLimiteSla'
+              ? [
+                  { fechaLimiteSla: sortDir },
+                  { fechaIngresoRevision: 'asc' },
+                  { createdAt: 'desc' },
+                ]
+              : [{ fechaDocumento: sortDir }, { createdAt: 'desc' }];
+
+    const slaWhere = this.slaWhereFromFilter(filters?.slaEstado);
 
     const baseWhere: Prisma.DocumentoWhereInput = {
       ...(incluirInactivos ? {} : { activo: true }),
       ...(estado ? { estado } : {}),
       ...(filters?.tipoDocumentalId
         ? { tipoDocumentalId: filters.tipoDocumentalId }
+        : {}),
+      ...(filters?.dependenciaId
+        ? { dependenciaId: filters.dependenciaId }
         : {}),
       ...(filters?.subserieId ? { subserieId: filters.subserieId } : {}),
       ...(filters?.serieId ? { subserie: { serieId: filters.serieId } } : {}),
@@ -411,6 +441,7 @@ export class DocumentosService {
           }
         : {}),
       ...documentoWhereLibre(q),
+      ...(slaWhere ?? {}),
     } satisfies Prisma.DocumentoWhereInput;
 
     const scope = documentoVisibilityWhere(viewer);
@@ -429,7 +460,84 @@ export class DocumentosService {
       }),
     ]);
 
-    return { page, pageSize, total, items };
+    return {
+      page,
+      pageSize,
+      total,
+      items: items.map((row) => this.enrichSlaFields(row)),
+    };
+  }
+
+  /**
+   * Bandeja operativa de trámites en revisión con filtros SLA (R-27/R-28).
+   */
+  async findBandejaTramites(
+    viewer: JwtRequestUser,
+    filters?: {
+      q?: string;
+      dependenciaId?: string;
+      tipoDocumentalId?: string;
+      slaEstado?: DocumentoSlaEstado | string;
+      page?: number;
+      pageSize?: number;
+      sortBy?: 'fechaIngresoRevision' | 'fechaLimiteSla' | 'codigo';
+      sortDir?: 'asc' | 'desc';
+    },
+  ) {
+    const page = Math.max(1, filters?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(5, filters?.pageSize ?? 20));
+
+    const list = await this.findAll(viewer, false, {
+      estado: 'EN_REVISION',
+      q: filters?.q,
+      dependenciaId: filters?.dependenciaId,
+      tipoDocumentalId: filters?.tipoDocumentalId,
+      slaEstado: filters?.slaEstado,
+      page,
+      pageSize,
+      sortBy: filters?.sortBy ?? 'fechaIngresoRevision',
+      sortDir: filters?.sortDir ?? 'asc',
+    });
+
+    const slaResumen = await this.countSlaResumen(viewer);
+
+    return {
+      ...list,
+      slaResumen,
+      slaDiasInstitucional: slaDiasRevisionFromEnv(process.env.SLA_DIAS_REVISION),
+    };
+  }
+
+  private async countSlaResumen(viewer: JwtRequestUser) {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const base: Prisma.DocumentoWhereInput = {
+      activo: true,
+      estado: 'EN_REVISION',
+    };
+    const scope = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = scope
+      ? { AND: [base, scope] }
+      : base;
+
+    const [total, vencidos, porVencer, enPlazo] = await Promise.all([
+      this.prisma.documento.count({ where }),
+      this.prisma.documento.count({
+        where: { AND: [where, { fechaLimiteSla: { lt: now } }] },
+      }),
+      this.prisma.documento.count({
+        where: {
+          AND: [where, { fechaLimiteSla: { gte: now, lte: tomorrow } }],
+        },
+      }),
+      this.prisma.documento.count({
+        where: { AND: [where, { fechaLimiteSla: { gt: tomorrow } }] },
+      }),
+    ]);
+
+    return { total, vencidos, porVencer, enPlazo };
   }
 
   /**
@@ -1303,14 +1411,25 @@ export class DocumentosService {
       { action: 'DOC_SUBMITTED_FOR_REVIEW' },
     );
 
-    // R-44 (MVP): notificación por correo (best-effort) a ADMIN/REVISOR si SMTP está configurado.
-    await this.notifyRevisionSubmitted({
-      documentoId: updated.id,
-      codigo: updated.codigo,
-      asunto: updated.asunto,
+    const ingreso = new Date();
+    const diasSla = slaDiasRevisionFromEnv(process.env.SLA_DIAS_REVISION);
+    const limite = computeFechaLimiteSla(ingreso, diasSla);
+    const withSla = await this.prisma.documento.update({
+      where: { id: updated.id },
+      data: {
+        fechaIngresoRevision: ingreso,
+        fechaLimiteSla: limite,
+      },
+      include: includeCatalogos,
     });
 
-    return updated;
+    await this.notifications.notifyRevisionSubmitted({
+      documentoId: withSla.id,
+      codigo: withSla.codigo,
+      asunto: withSla.asunto,
+    });
+
+    return this.enrichSlaFields(withSla);
   }
 
   /** R-28: EN_REVISION → APROBADO | RECHAZADO (ADMIN o REVISOR). Rechazo con motivo auditable. */
@@ -1350,25 +1469,23 @@ export class DocumentosService {
       },
     );
 
-    // R-44 (MVP): notificación al creador del documento (best-effort) si SMTP está configurado.
-    await this.mail.sendIfConfigured({
-      to: doc.createdBy.email,
-      subject: `SGD-GADPR-LM — Revisión resuelta: ${doc.codigo} (${dto.decision})`,
-      text: [
-        'Se resolvió la revisión de su documento.',
-        '',
-        `Código: ${doc.codigo}`,
-        `Asunto: ${doc.asunto}`,
-        `Decisión: ${dto.decision}`,
-        ...(dto.decision === 'RECHAZADO' && dto.motivo
-          ? ['', `Motivo: ${dto.motivo}`]
-          : []),
-        '',
-        `ID: ${doc.id}`,
-      ].join('\n'),
+    const cleared = await this.prisma.documento.update({
+      where: { id: updated.id },
+      data: { fechaIngresoRevision: null, fechaLimiteSla: null },
+      include: includeCatalogos,
     });
 
-    return updated;
+    await this.notifications.notifyRevisionResolved({
+      documentoId: doc.id,
+      codigo: doc.codigo,
+      asunto: doc.asunto,
+      decision: dto.decision,
+      motivo: dto.motivo,
+      creatorUserId: doc.createdById,
+      creatorEmail: doc.createdBy.email,
+    });
+
+    return this.enrichSlaFields(cleared);
   }
 
   async getAccess(documentoId: string) {

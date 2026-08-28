@@ -215,7 +215,12 @@ export function ReportesInstitucionalesPage() {
     | '/reportes/auditoria.pdf'
     | '/reportes/auditoria.xlsx'
     | '/reportes/pendientes-revision.pdf'
-    | '/reportes/pendientes-revision.xlsx';
+    | '/reportes/pendientes-revision.xlsx'
+    | '/reportes/usuarios.xlsx'
+    | '/reportes/documentos-por-dependencia.xlsx'
+    | '/reportes/documentos-por-estado.xlsx'
+    | '/reportes/actividad-revision.xlsx'
+    | '/reportes/proximos-vencimiento.xlsx';
 
   const execExport = async (
     path: ExportPath,
@@ -231,11 +236,24 @@ export function ReportesInstitucionalesPage() {
 
     /** Auditoría no comparte filtros de documentos: usa `from/to` y filtros por acción/actor/etc. */
     const baseParams: Record<string, string> = (() => {
-      if (path.startsWith('/reportes/auditoria')) {
+      if (path.startsWith('/reportes/auditoria') || path === '/reportes/actividad-revision.xlsx') {
         const audit: Record<string, string> = {};
         if (appliedBounds?.fechaDesde) audit.from = appliedBounds.fechaDesde;
         if (appliedBounds?.fechaHasta) audit.to = appliedBounds.fechaHasta;
         return audit;
+      }
+      if (path === '/reportes/proximos-vencimiento.xlsx') {
+        return { dias: '30' };
+      }
+      if (
+        path === '/reportes/usuarios.xlsx' ||
+        path === '/reportes/documentos-por-dependencia.xlsx' ||
+        path === '/reportes/documentos-por-estado.xlsx'
+      ) {
+        const p: Record<string, string> = {};
+        if (appliedBounds?.fechaDesde) p.fechaDesde = appliedBounds.fechaDesde;
+        if (appliedBounds?.fechaHasta) p.fechaHasta = appliedBounds.fechaHasta;
+        return p;
       }
       return exportReportParams;
     })();
@@ -685,10 +703,10 @@ export function ReportesInstitucionalesPage() {
             >
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  Documentos por área
+                  Documentos por área (agregado)
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Exportación XLSX con columna de dependencia (útil si “Área” = Todas)
+                  Totales por dependencia según período aplicado
                 </Typography>
               </Box>
               <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
@@ -696,7 +714,143 @@ export function ReportesInstitucionalesPage() {
                   <Button
                     size="small"
                     variant="outlined"
-                    onClick={() => void execExport('/reportes/documentos.xlsx', 'xlsx')}
+                    onClick={() =>
+                      void execExport('/reportes/documentos-por-dependencia.xlsx', 'xlsx')
+                    }
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
+                  </Button>
+                ) : null}
+              </Stack>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{
+                py: 1.5,
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between',
+                gap: 1,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  Documentos por estado
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Resumen de ciclo de vida documental en el período
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      void execExport('/reportes/documentos-por-estado.xlsx', 'xlsx')
+                    }
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
+                  </Button>
+                ) : null}
+              </Stack>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{
+                py: 1.5,
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between',
+                gap: 1,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  Usuarios y roles activos
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Inventario de cuentas activas con roles institucionales
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void execExport('/reportes/usuarios.xlsx', 'xlsx')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
+                  </Button>
+                ) : null}
+              </Stack>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{
+                py: 1.5,
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between',
+                gap: 1,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  Actividad de revisión documental
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Envíos y resoluciones de revisión en el período
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      void execExport('/reportes/actividad-revision.xlsx', 'xlsx')
+                    }
+                    sx={{ textTransform: 'none' }}
+                  >
+                    XLSX
+                  </Button>
+                ) : null}
+              </Stack>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{
+                py: 1.5,
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between',
+                gap: 1,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  Próximos vencimientos
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Documentos con fecha de vencimiento en los próximos 30 días
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
+                {permiteExcel ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      void execExport('/reportes/proximos-vencimiento.xlsx', 'xlsx')
+                    }
                     sx={{ textTransform: 'none' }}
                   >
                     XLSX

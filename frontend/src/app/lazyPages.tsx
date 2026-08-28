@@ -48,6 +48,12 @@ export const FlujoTramitePage = lazy(() =>
   import('../pages/tramites/FlujoTramitePage').then((m) => ({ default: m.FlujoTramitePage })),
 );
 
+export const BandejaTramitesPage = lazy(() =>
+  import('../pages/tramites/BandejaTramitesPage').then((m) => ({
+    default: m.BandejaTramitesPage,
+  })),
+);
+
 export const ClasificacionDocumentalPage = lazy(() =>
   import('../pages/clasificacion/ClasificacionDocumentalPage').then((m) => ({
     default: m.ClasificacionDocumentalPage,

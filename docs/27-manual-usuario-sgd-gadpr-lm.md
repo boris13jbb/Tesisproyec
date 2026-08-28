@@ -129,7 +129,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 ### 4.1 Qué verás
 
 - **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). Las tarjetas KPI usan **colores del tema** (primary, warning, success, error) y se adaptan al modo claro/oscuro. La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**. El bloque **Documentos** muestra totales **por estado** (Borrador, Registrado, En revisión, etc.) y un **gráfico de los últimos 12 meses** (registros por mes); la nota al pie explica el criterio sin símbolos confusos tipo «+N».
-- Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana**: el badge muestra alertas (ADMIN) o pendientes de revisión (resto). Si hay alertas, la campana lleva a la tarjeta de alertas; si hay pendientes, abre documentos en estado *En revisión*.
+- Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana de notificaciones in-app** (icono junto al tema): muestra eventos de revisión, resolución y vencimientos; el badge indica no leídas. En el panel **Inicio**, la campana del dashboard sigue mostrando alertas (ADMIN) o pendientes de revisión (resto).
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
 - **Ocultar tras revisar**: debajo de las tarjetas KPI, si hay alertas del servidor, aparece el bloque **«Ocultar alertas del panel»** con el botón **Marcar como revisada** por cada señal. Eso **no borra** los registros de auditoría; solo deja de mostrar esa alerta en el panel hasta que ocurra actividad **nueva** (otro 403/login fallido posterior, más documentos en revisión que al descartar, o respaldo verificado registrado). La acción queda en auditoría como **`DASHBOARD_ALERT_ACK`**.
@@ -142,7 +142,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **`docs/44-guia-secciones-menu-navegacion.md`**.
 
-- **Menú:** Inicio · Documentos · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` o ADMIN)
+- **Menú:** Inicio · Documentos · **Bandeja trámites** · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` o ADMIN)
 - **Reportes** (solo `ADMIN`): **Reportes institucionales** (ruta `/reportes`; `/admin/reportes` redirige al mismo módulo)
 - **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Configuración
 - **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries · **Contrapartes** · **Beneficiarios**
@@ -302,6 +302,22 @@ En la barra de filtros puedes usar:
 **Resultado esperado**
 - Lista **paginada** con registros **reales** del servidor (según tus permisos y filtros). Abajo del listado verás **número de página**, el **intervalo de registros** visibles respecto del total y botones **Anterior** / **Siguiente**.
 - En cada tarjeta o fila, **Clasificación** muestra serie y subserie; **Responsable** prioriza la **dependencia aplicada al documento** y, si no hay, muestra nombre o correo de quien lo registró. Pulse la tarjeta, la fila o **Ver** para abrir el detalle.
+
+### 7.2.0 Bandeja de trámites (cola en revisión + SLA)
+
+1. Menú → **Bandeja trámites** (ruta `/bandeja-tramites`).
+2. Revise los chips de resumen: total en revisión, **SLA vencido**, **por vencer** (24 h) y **en plazo**.
+3. Filtre por texto, **dependencia**, **tipo documental** y **estado SLA**; pulse **Filtrar**.
+4. La tabla muestra ingreso a revisión, **fecha límite SLA** (plazo institucional configurable en servidor, por defecto 5 días) y días en revisión.
+5. Pulse **Abrir** para resolver el trámite en el detalle del documento (aprobar/rechazar según permisos).
+
+**Resultado esperado**
+- Solo documentos en estado **En revisión** visibles para su usuario; semáforo SLA coherente con fechas del servidor.
+
+**Notificaciones (correo + in-app)**
+- Al enviar a revisión: notificación a ADMIN/REVISOR (correo si SMTP configurado + campana in-app).
+- Al resolver: notificación al creador.
+- Vencimientos próximos: cron diario (si está activo en servidor) notifica al creador por correo e in-app.
 
 ### 7.2.1 Trámites — tablero de flujo (Kanban)
 
@@ -558,10 +574,16 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 2. Elija **Periodo** (mes), **Área** (dependencia, opcional), **Tipo documental** (opcional) y el **formato preferido** para limitar botones PDF/XLSX.
 3. Pulse **Generar** para aplicar los filtros al gráfico **Documentos por tipo** (máx. 6 tipos con más volumen en el mes; barras con colores del tema) y para las exportaciones de inventario.
 4. En **Reportes disponibles** puede:
-   - Descargar inventario en **PDF / XLSX** (respeta filtros aplicados; el XLSX permite acotar también por **Área** mediante `dependenciaId` en servidor).
-   - Descargar **Actividad por usuario** como PDF de **auditoría** (solo rango de fechas del periodo, sin filtro de tipo/área).
-   - **Trazabilidad por documento:** use el detalle del expediente (**Cómo consultar** explica la ruta dentro del sistema).
-   - **Verificaciones de respaldo:** atajo a la pantalla **Respaldos** (procedimiento documentado fuera del SGD).
+   - Descargar inventario en **PDF / XLSX** (respeta filtros aplicados).
+   - Descargar **auditoría** en PDF/XLSX (rango del periodo).
+   - **Pendientes de revisión** (PDF/XLSX).
+   - **Documentos por área (agregado)** — totales por dependencia (XLSX).
+   - **Documentos por estado** — resumen del ciclo de vida (XLSX).
+   - **Usuarios y roles activos** (XLSX).
+   - **Actividad de revisión documental** — envíos y resoluciones (XLSX).
+   - **Próximos vencimientos** — documentos que vencen en 30 días (XLSX).
+   - **Verificaciones de respaldo:** atajo con filtro `BACKUP_VERIFIED` o pantalla **Respaldos**.
+   - **Trazabilidad por documento:** use el detalle del expediente.
 
 **Posibles fallos**
 

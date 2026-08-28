@@ -23,6 +23,7 @@ import { ForbiddenAuditFilter } from './common/filters/forbidden-audit.filter';
 import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { RbacModule } from './rbac/rbac.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -104,6 +105,7 @@ class StartupConfigGuard implements OnModuleInit {
     ContrapartesModule,
     BeneficiariosModule,
     RbacModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
