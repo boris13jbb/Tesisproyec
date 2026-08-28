@@ -1,5 +1,6 @@
 import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthLayout } from '../layouts/AuthLayout';
 
@@ -15,7 +16,7 @@ export function NotFoundPage() {
             borderRadius: 2.5,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: 'rgba(30, 58, 95, 0.08)',
+            bgcolor: (t) => alpha(t.palette.primary.main, 0.08),
             color: 'primary.main',
             alignSelf: 'flex-start',
           }}

@@ -1,6 +1,7 @@
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 
 export function SplashInicioPage() {
@@ -17,9 +18,9 @@ export function SplashInicioPage() {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        backgroundColor: '#1E7C89',
-        backgroundImage:
-          'radial-gradient(900px 420px at 18% 22%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 60%), radial-gradient(760px 420px at 88% 38%, rgba(0,0,0,0.14) 0%, rgba(0,0,0,0) 62%)',
+        backgroundColor: 'secondary.main',
+        backgroundImage: (t) =>
+          `radial-gradient(900px 420px at 18% 22%, ${alpha(t.palette.common.white, 0.1)} 0%, ${alpha(t.palette.common.white, 0)} 60%), radial-gradient(760px 420px at 88% 38%, ${alpha(t.palette.common.black, 0.14)} 0%, ${alpha(t.palette.common.black, 0)} 62%)`,
         color: 'common.white',
         px: 2,
         py: { xs: 6, md: 8 },
@@ -39,8 +40,8 @@ export function SplashInicioPage() {
                   width: 42,
                   height: 42,
                   borderRadius: 2,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  border: '1px solid rgba(255,255,255,0.28)',
+                  backgroundColor: (t) => alpha(t.palette.common.white, 0.18),
+                  border: (t) => `1px solid ${alpha(t.palette.common.white, 0.28)}`,
                   display: 'grid',
                   placeItems: 'center',
                 }}
@@ -89,8 +90,8 @@ export function SplashInicioPage() {
                     size="small"
                     sx={{
                       color: 'common.white',
-                      bgcolor: 'rgba(255,255,255,0.18)',
-                      border: '1px solid rgba(255,255,255,0.28)',
+                      bgcolor: (t) => alpha(t.palette.common.white, 0.18),
+                      border: (t) => `1px solid ${alpha(t.palette.common.white, 0.28)}`,
                       fontWeight: 700,
                     }}
                   />
@@ -106,9 +107,9 @@ export function SplashInicioPage() {
                 size="large"
                 startIcon={<LockOutlinedIcon />}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.92)',
-                  color: '#0B2D33',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,1)' },
+                  bgcolor: (t) => alpha(t.palette.common.white, 0.92),
+                  color: 'primary.dark',
+                  '&:hover': { bgcolor: 'common.white' },
                 }}
               >
                 Iniciar sesión
@@ -119,11 +120,11 @@ export function SplashInicioPage() {
                 variant="outlined"
                 size="large"
                 sx={{
-                  borderColor: 'rgba(255,255,255,0.65)',
+                  borderColor: (t) => alpha(t.palette.common.white, 0.65),
                   color: 'common.white',
                   '&:hover': {
-                    borderColor: 'rgba(255,255,255,0.85)',
-                    bgcolor: 'rgba(255,255,255,0.08)',
+                    borderColor: (t) => alpha(t.palette.common.white, 0.85),
+                    bgcolor: (t) => alpha(t.palette.common.white, 0.08),
                   },
                 }}
               >
@@ -142,7 +143,7 @@ export function SplashInicioPage() {
                   height: 2,
                   width: 320,
                   maxWidth: '75%',
-                  bgcolor: 'rgba(255,255,255,0.55)',
+                  bgcolor: (t) => alpha(t.palette.common.white, 0.55),
                   borderRadius: 999,
                 }}
               />
@@ -176,8 +177,8 @@ export function SplashInicioPage() {
                     height: { xs: 210, sm: 250, md: 280 },
                     borderRadius: 3,
                     transform: `rotate(${card.rotate}deg)`,
-                    backgroundColor: 'rgba(255,255,255,0.98)',
-                    boxShadow: '0 30px 70px rgba(2, 6, 23, 0.22)',
+                    backgroundColor: (t) => alpha(t.palette.common.white, 0.98),
+                    boxShadow: (t) => t.shadows[8],
                     opacity: card.opacity,
                   }}
                 />

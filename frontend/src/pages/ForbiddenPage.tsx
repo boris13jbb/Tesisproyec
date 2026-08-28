@@ -1,5 +1,6 @@
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthLayout } from '../layouts/AuthLayout';
 
@@ -15,7 +16,7 @@ export function ForbiddenPage() {
             borderRadius: 2.5,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: 'rgba(185, 28, 28, 0.10)',
+            bgcolor: (t) => alpha(t.palette.error.main, 0.1),
             color: 'error.main',
             alignSelf: 'flex-start',
           }}

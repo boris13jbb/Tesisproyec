@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
@@ -168,9 +169,9 @@ export function LoginPage() {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'stretch',
-        bgcolor: '#EAF1F6',
-        backgroundImage:
-          'radial-gradient(900px 420px at 18% 30%, rgba(30, 58, 95, 0.10) 0%, rgba(30, 58, 95, 0) 60%)',
+        bgcolor: 'background.default',
+        backgroundImage: (t) =>
+          `radial-gradient(900px 420px at 18% 30%, ${alpha(t.palette.primary.main, 0.1)} 0%, ${alpha(t.palette.primary.main, 0)} 60%)`,
       }}
     >
       <Container
@@ -195,7 +196,7 @@ export function LoginPage() {
               px: { xs: 3, sm: 4, md: 5 },
               py: { xs: 4, md: 5 },
               color: 'common.white',
-              backgroundColor: '#0D2C46',
+              backgroundColor: 'primary.dark',
               position: 'relative',
               overflow: 'hidden',
             }}
@@ -207,8 +208,8 @@ export function LoginPage() {
                 inset: 0,
                 opacity: 0.9,
                 pointerEvents: 'none',
-                backgroundImage:
-                  'radial-gradient(circle at 18% 18%, rgba(24, 226, 206, 0.35) 0 2px, rgba(24, 226, 206, 0) 3px), radial-gradient(980px 520px at 12% 18%, rgba(20, 198, 183, 0.25) 0%, rgba(20, 198, 183, 0) 62%)',
+                backgroundImage: (t) =>
+                  `radial-gradient(circle at 18% 18%, ${alpha(t.palette.secondary.light, 0.35)} 0 2px, ${alpha(t.palette.secondary.light, 0)} 3px), radial-gradient(980px 520px at 12% 18%, ${alpha(t.palette.secondary.main, 0.25)} 0%, ${alpha(t.palette.secondary.main, 0)} 62%)`,
               }}
             />
             <Box
@@ -220,7 +221,7 @@ export function LoginPage() {
                 width: 560,
                 height: 560,
                 borderRadius: '50%',
-                border: '2px solid rgba(24, 226, 206, 0.35)',
+                border: (t) => `2px solid ${alpha(t.palette.secondary.light, 0.35)}`,
               }}
             />
             <Box
@@ -232,7 +233,7 @@ export function LoginPage() {
                 width: 460,
                 height: 460,
                 borderRadius: '50%',
-                border: '2px solid rgba(24, 226, 206, 0.25)',
+                border: (t) => `2px solid ${alpha(t.palette.secondary.light, 0.25)}`,
               }}
             />
             <Box sx={{ position: 'relative' }}>
@@ -270,8 +271,8 @@ export function LoginPage() {
                     key={item.title}
                     elevation={0}
                     sx={{
-                      bgcolor: 'rgba(255,255,255,0.08)',
-                      border: '1px solid rgba(255,255,255,0.10)',
+                      bgcolor: (t) => alpha(t.palette.common.white, 0.08),
+                      border: (t) => `1px solid ${alpha(t.palette.common.white, 0.1)}`,
                       borderRadius: 3,
                       px: 2,
                       py: 1.6,
@@ -279,7 +280,7 @@ export function LoginPage() {
                     }}
                   >
                     <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-                      <CheckCircleRoundedIcon sx={{ color: '#22C3B3' }} />
+                      <CheckCircleRoundedIcon sx={{ color: 'secondary.light' }} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
                           {item.title}
@@ -310,8 +311,9 @@ export function LoginPage() {
                 width: '100%',
                 maxWidth: 520,
                 borderRadius: 4,
-                border: '1px solid rgba(15, 23, 42, 0.08)',
-                boxShadow: '0 18px 60px rgba(15, 23, 42, 0.10)',
+                border: 1,
+                borderColor: 'divider',
+                boxShadow: 5,
                 p: { xs: 3, sm: 4, md: 5 },
               }}
             >
@@ -381,14 +383,11 @@ export function LoginPage() {
                       px: 2,
                       py: 1.1,
                       borderRadius: 3,
-                      bgcolor: '#FCE7E7',
-                      border: '1px solid rgba(185, 28, 28, 0.12)',
+                      bgcolor: (t) => alpha(t.palette.error.main, 0.08),
+                      border: (t) => `1px solid ${alpha(t.palette.error.main, 0.12)}`,
                     }}
                   >
-                    <Typography
-                      variant="caption"
-                      sx={{ color: '#9F1239', fontWeight: 700 }}
-                    >
+                    <Typography variant="caption" sx={{ color: 'error.dark', fontWeight: 700 }}>
                       Acceso restringido a la red local institucional
                     </Typography>
                   </Paper>

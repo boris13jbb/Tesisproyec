@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, Container, Paper, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -21,9 +22,9 @@ export function AuthLayout({ children, title }: AuthLayoutProps) {
         justifyContent: 'center',
         py: 4,
         px: 2,
-        backgroundColor: '#EAF1F6',
-        backgroundImage:
-          'radial-gradient(900px 420px at 18% 30%, rgba(30, 58, 95, 0.10) 0%, rgba(30, 58, 95, 0) 60%), linear-gradient(165deg, #F4F7FA 0%, #EAF1F6 55%, #F8FAFC 100%)',
+        backgroundColor: 'background.default',
+        backgroundImage: (t) =>
+          `radial-gradient(900px 420px at 18% 30%, ${alpha(t.palette.primary.main, 0.1)} 0%, ${alpha(t.palette.primary.main, 0)} 60%), linear-gradient(165deg, ${t.palette.background.default} 0%, ${alpha(t.palette.primary.main, 0.04)} 55%, ${t.palette.background.paper} 100%)`,
       }}
     >
       <Container maxWidth="sm">
@@ -32,8 +33,9 @@ export function AuthLayout({ children, title }: AuthLayoutProps) {
           sx={{
             p: { xs: 3, sm: 4 },
             borderRadius: 3,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            boxShadow: '0 18px 48px rgba(15, 23, 42, 0.10)',
+            border: 1,
+            borderColor: 'divider',
+            boxShadow: 5,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: title ? 1 : 2.5 }}>

@@ -1246,12 +1246,12 @@ export function DocumentoDetallePage() {
                           sx={{
                             flex: 1,
                             overflow: 'auto',
-                            bgcolor: '#fff',
+                            bgcolor: 'common.white',
                             p: { xs: 1.5, sm: 2.5 },
                             '& .docx-preview': {
                               maxWidth: 980,
                               mx: 'auto',
-                              color: '#0f172a',
+                              color: 'grey.900',
                               lineHeight: 1.6,
                             },
                             '& .docx-preview img': {
@@ -1263,7 +1263,8 @@ export function DocumentoDetallePage() {
                               borderCollapse: 'collapse',
                             },
                             '& .docx-preview td, & .docx-preview th': {
-                              border: '1px solid rgba(15, 23, 42, 0.12)',
+                              border: '1px solid',
+                              borderColor: 'divider',
                               padding: '6px 8px',
                               verticalAlign: 'top',
                             },
@@ -1277,7 +1278,7 @@ export function DocumentoDetallePage() {
                           component="iframe"
                           title={`Vista previa PDF · ${doc.codigo}`}
                           src={previewUrl}
-                          sx={{ flex: 1, width: '100%', minHeight: 360, border: 0, bgcolor: '#fff' }}
+                          sx={{ flex: 1, width: '100%', minHeight: 360, border: 0, bgcolor: 'common.white' }}
                         />
                       ) : null}
 
@@ -1290,7 +1291,7 @@ export function DocumentoDetallePage() {
                             justifyContent: 'center',
                             alignItems: 'center',
                             p: 1,
-                            bgcolor: '#fff',
+                            bgcolor: 'common.white',
                           }}
                         >
                           <Box
@@ -2085,7 +2086,7 @@ export function DocumentoDetallePage() {
         <DialogContent
           sx={{
             p: 0,
-            bgcolor: '#0b1220',
+            bgcolor: 'background.default',
             display: 'flex',
             flexDirection: 'column',
           }}
@@ -2095,18 +2096,19 @@ export function DocumentoDetallePage() {
               sx={{
                 flex: 1,
                 overflow: 'auto',
-                bgcolor: '#fff',
+                bgcolor: 'common.white',
                 p: { xs: 2, md: 4 },
                 '& .docx-preview': {
                   maxWidth: 1100,
                   mx: 'auto',
-                  color: '#0f172a',
+                  color: 'grey.900',
                   lineHeight: 1.65,
                 },
                 '& .docx-preview img': { maxWidth: '100%', height: 'auto' },
                 '& .docx-preview table': { width: '100%', borderCollapse: 'collapse' },
                 '& .docx-preview td, & .docx-preview th': {
-                  border: '1px solid rgba(15, 23, 42, 0.12)',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   padding: '6px 8px',
                   verticalAlign: 'top',
                 },
@@ -2120,7 +2122,7 @@ export function DocumentoDetallePage() {
               component="iframe"
               title={`Vista previa PDF · ${doc?.codigo ?? ''}`}
               src={previewUrl}
-              sx={{ flex: 1, width: '100%', border: 0, bgcolor: '#0b1220' }}
+              sx={{ flex: 1, width: '100%', border: 0, bgcolor: 'background.default' }}
             />
           ) : null}
 
@@ -2143,7 +2145,7 @@ export function DocumentoDetallePage() {
                   maxWidth: '100%',
                   maxHeight: '100%',
                   objectFit: 'contain',
-                  bgcolor: '#fff',
+                  bgcolor: 'common.white',
                   borderRadius: 1,
                 }}
               />

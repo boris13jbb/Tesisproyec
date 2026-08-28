@@ -1,5 +1,6 @@
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import { Box, Paper, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 
 export type EmptyStateProps = {
@@ -34,9 +35,7 @@ export function EmptyState({ title, description, action, dense }: EmptyStateProp
             display: 'grid',
             placeItems: 'center',
             bgcolor: (t) =>
-              t.palette.mode === 'dark'
-                ? 'rgba(59, 168, 182, 0.16)'
-                : 'rgba(30, 124, 137, 0.10)',
+              alpha(t.palette.secondary.main, t.palette.mode === 'dark' ? 0.16 : 0.1),
             color: 'secondary.main',
           }}
         >

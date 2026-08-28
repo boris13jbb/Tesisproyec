@@ -49,7 +49,7 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 ### 2.1 Abrir la pantalla de login
 
 1. Abre el navegador.
-2. Ingresa a `http://localhost:5173/login` (o al puerto que indique el frontend).
+2. Ingresa a `http://localhost:5173/login` (o al puerto que indique el frontend). La portada pública (`/`) y el login usan la **paleta institucional del tema** (azul marino + teal); el formulario no cambia respecto a credenciales, MFA ni recuperación.
 
 ### 2.2 Iniciar sesión
 
@@ -75,7 +75,7 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 
 1. Tras iniciar sesión, en la barra superior presiona tu **avatar / correo** para abrir el menú de cuenta.
 2. Elige **Mi perfil**. También puedes abrir directamente la ruta **`/perfil`**.
-3. Revisa **Información personal** (correo, rol principal, área/dependencia si está asignada, estado y **último ingreso** preferentemente desde el campo **`ultimoLoginAt`**, con respaldo por último **`AUTH_LOGIN_OK`** en auditoría cuando el campo sea nulo).
+3. Revisa **Información personal** (icono de persona; correo, rol principal, área/dependencia si está asignada, chip de **estado** y **último ingreso** preferentemente desde el campo **`ultimoLoginAt`**, con respaldo por último **`AUTH_LOGIN_OK`** en auditoría cuando el campo sea nulo).
 4. En **Actividad reciente** verás las últimas acciones en lenguaje claro (por ejemplo «Inició sesión correctamente», «Cargó documento EXP-…»). No se muestran códigos técnicos ni métricas internas del sistema.
 5. Los mensajes de error en formularios y pantallas usan texto entendible (sin códigos como `DOC_ACCESS_MANAGE` o `HTTP 403`). En **Auditoría** (solo ADMIN) las acciones tienen nombre legible; el código técnico aparece solo al pasar el cursor para soporte.
 5. Para iniciar el **cambio de contraseña** vía recuperación, presiona **Cambiar contraseña** (lleva a **`/recuperar`**; es el mismo flujo que “olvidé mi contraseña”).
@@ -128,7 +128,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 ### 4.1 Qué verás
 
-- **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
+- **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). Las tarjetas KPI usan **colores del tema** (primary, warning, success, error) y se adaptan al modo claro/oscuro. La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
 - Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana**: el badge muestra alertas (ADMIN) o pendientes de revisión (resto). Si hay alertas, la campana lleva a la tarjeta de alertas; si hay pendientes, abre documentos en estado *En revisión*.
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
@@ -146,7 +146,7 @@ Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **
 - **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Reportes · Configuración
 - **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries
 - **Cuenta** (menú lateral, cuando está expandido): Mi perfil. También está en el menú del avatar.
-- En escritorio, use **Ocultar menú** al pie del lateral para dejar solo iconos (la preferencia se guarda en el navegador). En la barra superior, el icono de sol/luna cambia entre tema claro y oscuro (solo dentro de la sesión; el login permanece claro).
+- En escritorio, use **Ocultar menú** al pie del lateral para dejar solo iconos (la preferencia se guarda en el navegador). En la barra superior, el icono de sol/luna cambia entre tema claro y oscuro (solo dentro de la sesión; el login permanece claro). Los hover de tablas, estados vacíos y menú lateral usan la misma paleta **secondary** del tema en ambos modos.
 
 ---
 
@@ -386,8 +386,8 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
    - **Dependencia propietaria** (opcional; puede venir desde su perfil)
    - **Confidencialidad** (por defecto Interno)
 4. Selecciona un **archivo PDF** (`.pdf`) (máx 50 MB). Otros formatos (imágenes, DOCX, XLSX, etc.) son rechazados.
-5. Verifica que el panel **Validaciones automáticas** marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
-6. Presiona **Guardar documento** (botón teal de la cabecera de formulario / acción principal).
+5. Verifica que el panel **Validaciones automáticas** (iconos de sección alineados al tema) marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
+6. Presiona **Guardar documento** (botón principal de la cabecera del formulario).
 
 **Resultado esperado**
 - El documento aparece en el listado y se puede abrir el detalle.

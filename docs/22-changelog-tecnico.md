@@ -24,6 +24,26 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-28 — Tema global: tokens secondary en shell y superficies compartidas
+
+- **Frontend:** `appTheme` (AppBar, menú lateral, inputs), `listSurfaces`, `EmptyState` y badge SGD del menú usan `palette`/`alpha` en lugar de hex sueltos; coherencia en modo oscuro.
+- **Docs:** manual `27` §4.2.
+
+### 2026-08-28 — Panel y detalle documental: paleta del tema en KPI y vista previa
+
+- **Frontend:** `DashboardPage` KPIs usan `accent` de paleta MUI (`primary`/`warning`/`success`/`error`) en lugar de hex. `DocumentoDetallePage` ajusta contenedores de vista previa y pantalla completa a tokens del tema (lienzo del documento en blanco para legibilidad).
+- **Docs:** manual `27` §4.1.
+
+### 2026-08-28 — Pantallas públicas: tokens del tema institucional
+
+- **Frontend:** `LoginPage`, `SplashInicioPage`, `AuthLayout`, `NotFoundPage` y `ForbiddenPage` sustituyen hex fijos por paleta MUI (`primary`, `secondary`, `error`, `background`). Flujos de auth sin cambio.
+- **Docs:** manual `27` §2.1.
+
+### 2026-08-28 — Perfil y Nuevo documento: iconos de sección
+
+- **Frontend:** `PerfilUsuarioPage` usa `SectionHeader`, `ActivoChip` y línea de actividad con color del tema. `NuevoDocumentoPage` sustituye letras D/U/S y hex en zona de carga por `SectionHeader` y `secondary.main`.
+- **Docs:** manual `27` §2.3 y §6 (nuevo documento).
+
 ### 2026-08-28 — Usuarios y roles: iconos de sección y listado unificado
 
 - **Frontend:** `UsuariosPage` elimina `INSTITUTIONAL_TEAL`, letras U/P/M y hex fijos. Directorio en `ListPanel` con `PeopleOutlined`; matrices con `SectionHeader` (`VpnKeyOutlined`, `TableChartOutlined`); chips Activos del tema; botón guardar RBAC `color="secondary"`.

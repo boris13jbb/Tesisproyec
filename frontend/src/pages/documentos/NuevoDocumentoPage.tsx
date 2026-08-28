@@ -1,6 +1,8 @@
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
+import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 import {
   Alert,
   Box,
@@ -16,6 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { isAxiosError } from 'axios';
 import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +30,7 @@ import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
+import { SectionHeader } from '../../components/SectionHeader';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -396,31 +400,13 @@ export function NuevoDocumentoPage() {
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 2 }}>
-              <Box
-                aria-hidden
-                sx={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(30, 124, 137, 0.12)',
-                  color: '#0F4C55',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontWeight: 900,
-                }}
-              >
-                D
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                  Datos del documento
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Metadatos obligatorios
-                </Typography>
-              </Box>
-            </Stack>
+            <Box sx={{ mb: 2 }}>
+              <SectionHeader
+                icon={<DescriptionOutlinedIcon fontSize="small" />}
+                title="Datos del documento"
+                subtitle="Metadatos obligatorios"
+              />
+            </Box>
 
             <Box component="form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
               <Stack spacing={2}>
@@ -624,31 +610,13 @@ export function NuevoDocumentoPage() {
         <Grid size={{ xs: 12, md: 5 }}>
           <Stack spacing={2}>
             <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 2 }}>
-                <Box
-                  aria-hidden
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(30, 124, 137, 0.12)',
-                    color: '#0F4C55',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 900,
-                  }}
-                >
-                  U
-                </Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                    Archivo digital
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Solo PDF (.pdf), máx. 50 MB
-                  </Typography>
-                </Box>
-              </Stack>
+              <Box sx={{ mb: 2 }}>
+                <SectionHeader
+                  icon={<CloudUploadOutlinedIcon fontSize="small" />}
+                  title="Archivo digital"
+                  subtitle="Solo PDF (.pdf), máx. 50 MB"
+                />
+              </Box>
 
               <Box
                 role="button"
@@ -665,20 +633,21 @@ export function NuevoDocumentoPage() {
                 }}
                 sx={{
                   borderRadius: 3,
-                  border: '1px dashed rgba(15, 23, 42, 0.25)',
-                  bgcolor: 'rgba(15, 23, 42, 0.02)',
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                  bgcolor: 'action.hover',
                   px: 2,
                   py: 4,
                   textAlign: 'center',
                   cursor: 'pointer',
                   outline: 'none',
                   '&:focus-visible': {
-                    boxShadow: '0 0 0 3px rgba(30, 124, 137, 0.25)',
+                    boxShadow: (t) => `0 0 0 3px ${alpha(t.palette.secondary.main, 0.25)}`,
                   },
                 }}
               >
-                <CloudUploadOutlinedIcon sx={{ fontSize: 44, color: '#1E7C89' }} aria-hidden />
-                <Typography sx={{ mt: 1.5, fontWeight: 900, color: '#1E7C89' }}>
+                <CloudUploadOutlinedIcon sx={{ fontSize: 44, color: 'secondary.main' }} aria-hidden />
+                <Typography sx={{ mt: 1.5, fontWeight: 900, color: 'secondary.main' }}>
                   Arrastre el archivo aquí o seleccione
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -700,31 +669,13 @@ export function NuevoDocumentoPage() {
             </Paper>
 
             <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', mb: 1.5 }}>
-                <Box
-                  aria-hidden
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(30, 124, 137, 0.12)',
-                    color: '#0F4C55',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 900,
-                  }}
-                >
-                  S
-                </Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-                    Validaciones automáticas
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Comprobaciones antes de guardar
-                  </Typography>
-                </Box>
-              </Stack>
+              <Box sx={{ mb: 1.5 }}>
+                <SectionHeader
+                  icon={<RuleOutlinedIcon fontSize="small" />}
+                  title="Validaciones automáticas"
+                  subtitle="Comprobaciones antes de guardar"
+                />
+              </Box>
 
               <Stack spacing={1}>
                 {validations.map((v) => (

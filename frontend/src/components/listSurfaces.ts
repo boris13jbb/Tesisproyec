@@ -1,4 +1,4 @@
-import type { SxProps, Theme } from '@mui/material/styles';
+import { alpha, type SxProps, type Theme } from '@mui/material/styles';
 
 /** Superficie institucional compartida para filtros y resultados de listados. */
 export const listSurfaceSx: SxProps<Theme> = {
@@ -31,9 +31,7 @@ export const listTableContainerSx: SxProps<Theme> = {
   borderColor: 'divider',
   '& .MuiTableRow-root:hover': {
     backgroundColor: (theme) =>
-      theme.palette.mode === 'dark'
-        ? 'rgba(59, 168, 182, 0.08)'
-        : 'rgba(30, 124, 137, 0.04)',
+      alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.08 : 0.04),
   },
   '& .MuiTableBody-root .MuiTableRow-root:last-child .MuiTableCell-root': {
     borderBottom: 'none',

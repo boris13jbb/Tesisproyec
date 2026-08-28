@@ -94,7 +94,7 @@ function EffectiveControlCard({
         px: { xs: 1.75, md: 2 },
         py: { xs: 1.35, md: 1.5 },
         borderRadius: 2,
-        borderColor: 'rgba(15, 23, 42, 0.09)',
+        borderColor: 'divider',
       }}
     >
       <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.35 }}>
@@ -314,7 +314,7 @@ export function ConfiguracionSeguridadPage() {
         px: { xs: 1.75, md: 2 },
         py: { xs: 1.35, md: 1.5 },
         borderRadius: 2,
-        borderColor: 'rgba(15,23,42,0.09)',
+        borderColor: 'divider',
       }}
     >
       <Stack

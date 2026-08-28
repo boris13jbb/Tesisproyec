@@ -10,16 +10,19 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { ActivoChip } from '../components/ActivoChip';
 import { listSurfaceSx } from '../components/listSurfaces';
 import { PageHeader } from '../components/PageHeader';
+import { SectionHeader } from '../components/SectionHeader';
 import { formatUserActivityLabel } from '../constants/audit-actions';
 import { getApiErrorMessage } from '../utils/api-error-message';
-
-const INSTITUTIONAL_TEAL = '#2D8A99';
 
 const paperCardSx = {
   ...listSurfaceSx,
@@ -122,45 +125,6 @@ function formatActivityTime(iso: string): string {
   }).format(d);
 }
 
-function CardHeaderIcon({
-  letter,
-  title,
-  subtitle,
-}: {
-  letter: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
-      <Box
-        aria-hidden
-        sx={{
-          width: 40,
-          height: 40,
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center',
-          bgcolor: 'rgba(45, 138, 153, 0.15)',
-          color: INSTITUTIONAL_TEAL,
-          fontWeight: 900,
-          fontSize: 15,
-        }}
-      >
-        {letter}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-          {title}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {subtitle}
-        </Typography>
-      </Box>
-    </Stack>
-  );
-}
-
 export function PerfilUsuarioPage() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<AuthProfileResponse | null>(null);
@@ -229,10 +193,10 @@ export function PerfilUsuarioPage() {
             <Chip
               size="small"
               label="INTRANET"
+              variant="outlined"
+              color="primary"
               sx={{
                 alignSelf: { xs: 'flex-start', sm: 'center' },
-                bgcolor: 'rgba(30, 58, 95, 0.08)',
-                color: '#1E3A5F',
                 fontWeight: 800,
                 letterSpacing: 0.4,
               }}
@@ -288,11 +252,13 @@ export function PerfilUsuarioPage() {
           <Grid container spacing={2.5} sx={{ alignItems: 'stretch' }}>
             <Grid size={{ xs: 12, md: 6 }}>
               <Paper component="section" elevation={0} sx={paperCardSx} aria-label="Información personal">
-                <CardHeaderIcon
-                  letter="U"
-                  title="Información personal"
-                  subtitle="Cuenta institucional"
-                />
+                <Box sx={{ mb: 2 }}>
+                  <SectionHeader
+                    icon={<PersonOutlinedIcon fontSize="small" />}
+                    title="Información personal"
+                    subtitle="Cuenta institucional"
+                  />
+                </Box>
                 <Stack spacing={2} sx={{ alignItems: 'center', textAlign: 'center' }}>
                   <Avatar
                     sx={{
@@ -341,13 +307,11 @@ export function PerfilUsuarioPage() {
                       {areaLabel(data.dependencia)}
                     </Typography>
                   </Stack>
-                  <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                  <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2, alignItems: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
                       Estado
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800, textAlign: 'right' }}>
-                      {data.activo ? 'Activo' : 'Inactivo'}
-                    </Typography>
+                    <ActivoChip activo={data.activo} />
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
                     <Typography variant="body2" color="text.secondary">
@@ -378,11 +342,13 @@ export function PerfilUsuarioPage() {
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Paper component="section" elevation={0} sx={paperCardSx} aria-label="Actividad reciente">
-                <CardHeaderIcon
-                  letter="A"
-                  title="Actividad reciente"
-                  subtitle="Últimas acciones que realizó en el sistema"
-                />
+                <Box sx={{ mb: 2 }}>
+                  <SectionHeader
+                    icon={<HistoryOutlinedIcon fontSize="small" />}
+                    title="Actividad reciente"
+                    subtitle="Últimas acciones que realizó en el sistema"
+                  />
+                </Box>
                 <Box sx={{ pl: 0.5 }}>
                   {visibleActivity.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">
@@ -409,7 +375,7 @@ export function PerfilUsuarioPage() {
                                     top: 22,
                                     bottom: 0,
                                     width: 2,
-                                    bgcolor: 'rgba(45, 138, 153, 0.22)',
+                                    bgcolor: (t) => alpha(t.palette.secondary.main, 0.22),
                                   }
                                 : undefined,
                           }}
@@ -450,6 +416,7 @@ export function PerfilUsuarioPage() {
                 <Button
                   type="button"
                   variant="outlined"
+                  color="secondary"
                   fullWidth
                   onClick={() => {
                     void logout();
@@ -458,12 +425,6 @@ export function PerfilUsuarioPage() {
                     mt: 3,
                     py: 1.25,
                     fontWeight: 800,
-                    borderColor: 'rgba(15, 23, 42, 0.2)',
-                    color: 'text.primary',
-                    '&:hover': {
-                      borderColor: 'rgba(15, 23, 42, 0.35)',
-                      bgcolor: 'rgba(15, 23, 42, 0.04)',
-                    },
                   }}
                 >
                   Cerrar sesión de forma segura

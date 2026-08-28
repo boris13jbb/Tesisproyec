@@ -161,12 +161,14 @@ function formatRelativeEs(iso: string): string {
   return formatShortDateEc(iso);
 }
 
+type KpiAccent = 'primary' | 'warning' | 'success' | 'error';
+
 function KpiCard({
   icon,
   title,
   subtitle,
   value,
-  accentColor,
+  accent = 'primary',
   footnote,
   footnotePositive,
   detailLines,
@@ -178,7 +180,7 @@ function KpiCard({
   title: string;
   subtitle: string;
   value: string;
-  accentColor: string;
+  accent?: KpiAccent;
   footnote?: string;
   footnotePositive?: boolean;
   /** Viñetas breves bajo el valor (p. ej. desglose de alertas). */
@@ -188,6 +190,8 @@ function KpiCard({
   interactiveLabel?: string;
   onInteractiveAction?: () => void;
 }) {
+  const theme = useTheme();
+  const accentColor = theme.palette[accent].main;
   const paperInteractiveProps =
     interactive && onInteractiveAction
       ? ({
@@ -775,7 +779,7 @@ export function DashboardPage() {
             title="Documentos"
             subtitle="total"
             value={summaryLoading ? '…' : formattedNumber(summary?.kpis.documentosTotal ?? null)}
-            accentColor="#1E3A5F"
+            accent="primary"
             footnote={
               summaryLoading || summary == null ? undefined : docDeltaEsteMes
             }
@@ -793,7 +797,7 @@ export function DashboardPage() {
             value={
               summaryLoading ? '…' : formattedNumber(summary?.kpis.pendientesRevision ?? null)
             }
-            accentColor="#B45309"
+            accent="warning"
             interactive
             interactiveLabel="Ver documentos pendientes de revisión"
             onInteractiveAction={() => navigate('/documentos?estado=EN_REVISION')}
@@ -806,7 +810,7 @@ export function DashboardPage() {
               title="Usuarios"
               subtitle="activos"
               value={summaryLoading ? '…' : formattedNumber(summary?.kpis.usuariosActivos ?? null)}
-              accentColor="#0F766E"
+              accent="success"
               interactive
               interactiveLabel="Ir a Usuarios y roles"
               onInteractiveAction={() => navigate('/admin/usuarios')}
@@ -820,7 +824,7 @@ export function DashboardPage() {
               title="Alertas"
               subtitle="señales operativas"
               value={summaryLoading || healthLoading ? '…' : String(alertsCount)}
-              accentColor="#B91C1C"
+              accent="error"
               footnote={
                 summaryLoading || healthLoading
                   ? undefined

@@ -43,7 +43,7 @@ import {
   Typography,
   useMediaQuery,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
@@ -236,7 +236,7 @@ function BrandBlock({ open }: { open: boolean }) {
           fontSize: '0.8rem',
           letterSpacing: 0.4,
           flexShrink: 0,
-          boxShadow: '0 4px 12px rgba(30, 124, 137, 0.28)',
+          boxShadow: (t) => `0 4px 12px ${alpha(t.palette.secondary.main, 0.28)}`,
         }}
       >
         SGD

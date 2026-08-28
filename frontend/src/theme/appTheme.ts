@@ -188,11 +188,11 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiAppBar: {
         styleOverrides: {
-          root: {
-            backgroundColor: '#1E3A5F',
+          root: ({ theme }) => ({
+            backgroundColor: theme.palette.primary.main,
             backgroundImage: 'none',
-            color: '#ffffff',
-          },
+            color: theme.palette.primary.contrastText,
+          }),
         },
       },
       MuiDrawer: {
@@ -215,7 +215,10 @@ export function createAppTheme(mode: PaletteMode) {
             transition: 'background-color 120ms ease, color 120ms ease',
             '&.Mui-selected': {
               backgroundColor: alpha(theme.palette.secondary.main, 0.12),
-              color: theme.palette.mode === 'dark' ? theme.palette.secondary.light : '#0F4C55',
+              color:
+                theme.palette.mode === 'dark'
+                  ? theme.palette.secondary.light
+                  : theme.palette.secondary.dark,
               '&:hover': {
                 backgroundColor: alpha(theme.palette.secondary.main, 0.18),
               },
@@ -268,7 +271,7 @@ export function createAppTheme(mode: PaletteMode) {
             borderRadius: 10,
             backgroundColor: theme.palette.background.paper,
             [`&:hover .${outlinedInputClasses.notchedOutline}`]: {
-              borderColor: theme.palette.mode === 'dark' ? '#64748B' : '#94A3B8',
+              borderColor: theme.palette.text.secondary,
             },
             [`&.Mui-focused .${outlinedInputClasses.notchedOutline}`]: {
               borderColor: theme.palette.secondary.main,

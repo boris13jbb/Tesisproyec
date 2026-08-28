@@ -46,6 +46,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import type { Theme } from '@mui/material/styles';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { PageHeader } from '../../components/PageHeader';
@@ -428,16 +429,17 @@ const matrixStickyModuleSx = {
   left: 0,
   zIndex: 2,
   bgcolor: 'background.paper',
-  boxShadow: '4px 0 12px rgba(15, 23, 42, 0.06)',
+  boxShadow: (t: Theme) =>
+    t.palette.mode === 'dark' ? t.shadows[4] : '4px 0 12px rgba(15, 23, 42, 0.06)',
   minWidth: { xs: 200, md: 240 },
   maxWidth: { xs: 280, md: 320 },
-} as const;
+};
 
 const matrixStickyModuleHeadSx = {
   ...matrixStickyModuleSx,
   zIndex: 3,
   bgcolor: 'action.hover',
-} as const;
+};
 
 function MatrixCell({ allowed }: { allowed: boolean }) {
   return (

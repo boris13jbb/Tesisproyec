@@ -262,7 +262,7 @@ Si no cumples eso, la entrada **no se muestra** (pero la API también rechazarí
 | **Dependencia propietaria** | Puede prellenarse desde la dependencia de tu usuario. |
 | **Confidencialidad** | Por defecto *Interno*; define quién podrá ver el expediente después. |
 | **Archivo adjunto** | Solo **PDF** (`.pdf`); límite ~50 MB; validación de extensión, MIME y firma `%PDF`. |
-| **Validaciones automáticas** | Panel que indica si extensión, nombre y metadatos cumplen reglas antes de guardar. |
+| **Validaciones automáticas** | Panel que indica si extensión, nombre y metadatos cumplen reglas antes de guardar (encabezados con iconos del tema, sin letras D/U/S). |
 
 #### Cómo funciona el guardado
 
