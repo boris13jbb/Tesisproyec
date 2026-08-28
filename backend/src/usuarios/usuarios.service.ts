@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,6 +13,10 @@ import { AuditService } from '../auditoria/audit.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
+import {
+  ROLE_SUPERADMIN,
+  ROLES_ASSIGNABLE_BY_ADMIN,
+} from '../auth/role-constants';
 import { PasswordPolicyService } from '../auth/password-policy.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -83,6 +88,59 @@ export class UsuariosService {
       );
     }
     return rows.map((r) => r.id);
+  }
+
+  private async actorRoleCodes(
+    actorUserId: string | null | undefined,
+  ): Promise<string[]> {
+    if (!actorUserId) return [];
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actorUserId },
+      select: { roles: { select: { role: { select: { codigo: true } } } } },
+    });
+    return actor?.roles.map((r) => r.role.codigo) ?? [];
+  }
+
+  private assertSuperadminMutationAllowed(input: {
+    actorRoleCodes: string[];
+    targetRoleCodes: string[];
+    nextRoleCodes?: string[];
+    nextActivo?: boolean;
+  }): void {
+    const actorIsSuper = input.actorRoleCodes.includes(ROLE_SUPERADMIN);
+    const targetIsSuper = input.targetRoleCodes.includes(ROLE_SUPERADMIN);
+    const nextRoles = input.nextRoleCodes;
+
+    if (targetIsSuper && !actorIsSuper) {
+      throw new ForbiddenException(
+        'No puede modificar la cuenta de superadministrador',
+      );
+    }
+    if (nextRoles?.includes(ROLE_SUPERADMIN) && !actorIsSuper) {
+      throw new ForbiddenException(
+        'Solo el superadministrador puede asignar el rol SUPERADMIN',
+      );
+    }
+    if (targetIsSuper && input.nextActivo === false) {
+      throw new ForbiddenException(
+        'No se puede desactivar la cuenta de superadministrador',
+      );
+    }
+    if (targetIsSuper && nextRoles && !nextRoles.includes(ROLE_SUPERADMIN)) {
+      throw new ForbiddenException(
+        'No se puede degradar la cuenta de superadministrador',
+      );
+    }
+    if (!actorIsSuper && nextRoles) {
+      const invalid = nextRoles.filter(
+        (c) => !(ROLES_ASSIGNABLE_BY_ADMIN as readonly string[]).includes(c),
+      );
+      if (invalid.length) {
+        throw new BadRequestException(
+          `Roles no asignables por administrador operativo: ${invalid.join(', ')}`,
+        );
+      }
+    }
   }
 
   private hashOpaqueToken(raw: string): string {
@@ -206,6 +264,14 @@ export class UsuariosService {
     if (!uniqueRoleCodes.length) {
       throw new BadRequestException('Debe asignarse al menos un rol');
     }
+
+    const actorRoles = await this.actorRoleCodes(ctx?.actorUserId);
+    this.assertSuperadminMutationAllowed({
+      actorRoleCodes: actorRoles,
+      targetRoleCodes: [],
+      nextRoleCodes: uniqueRoleCodes,
+      nextActivo: activo,
+    });
 
     const roles = await this.prisma.role.findMany({
       where: { codigo: { in: uniqueRoleCodes } },
@@ -447,6 +513,15 @@ export class UsuariosService {
       ?.map((r) => r.trim().toUpperCase())
       .filter(Boolean);
 
+    const actorRoles = await this.actorRoleCodes(ctx?.actorUserId);
+    const existingRoleCodes = existing.roles.map((r) => r.role.codigo);
+    this.assertSuperadminMutationAllowed({
+      actorRoleCodes: actorRoles,
+      targetRoleCodes: existingRoleCodes,
+      nextRoleCodes: rolesToSet ? Array.from(new Set(rolesToSet)) : undefined,
+      nextActivo: dto.activo,
+    });
+
     let roleRows: { id: string; codigo: string }[] | null = null;
     if (rolesToSet) {
       const unique = Array.from(new Set(rolesToSet));
@@ -620,6 +695,15 @@ export class UsuariosService {
     if (!user) {
       throw new NotFoundException();
     }
+    const actorRoles = await this.actorRoleCodes(ctx?.actorUserId);
+    const targetRoles = await this.prisma.userRole.findMany({
+      where: { userId: id },
+      select: { role: { select: { codigo: true } } },
+    });
+    this.assertSuperadminMutationAllowed({
+      actorRoleCodes: actorRoles,
+      targetRoleCodes: targetRoles.map((r) => r.role.codigo),
+    });
     if (!user.activo) {
       throw new BadRequestException(
         'No se puede cambiar la contraseña de un usuario inactivo',

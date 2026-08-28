@@ -37,6 +37,8 @@ import { isAxiosError } from 'axios';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { userHasAdminAccess } from '../auth/role-utils';
+import { DocumentosMonthlyChart } from '../components/DocumentosMonthlyChart';
 import { useDashboardLcpReporting } from '../perf/useDashboardLcpReporting';
 import { listSurfaceSx } from '../components/listSurfaces';
 import { PageHeader } from '../components/PageHeader';
@@ -74,6 +76,24 @@ type ComplianceMetric = {
   evidence: Record<string, number | string | null>;
 };
 
+type DashboardDocumentosBloque = {
+  total: number;
+  registrados: number;
+  borradores: number;
+  enRevision: number;
+  aprobados: number;
+  rechazados: number;
+  creadosEsteMes: number;
+  acumuladosAnteriores: number;
+};
+
+type DashboardDocumentoPorMesItem = {
+  anio: number;
+  mes: number;
+  nombreMes: string;
+  cantidad: number;
+};
+
 type DashboardSummary = {
   generatedAt: string;
   kpis: {
@@ -84,6 +104,8 @@ type DashboardSummary = {
     alertas: number;
     alertasItems: { codigo: string; mensaje: string }[];
   };
+  documentos: DashboardDocumentosBloque;
+  documentosPorMes: DashboardDocumentoPorMesItem[];
   documentosRecientes: DocumentoRecentRow[];
   compliance: ComplianceMetric[];
   lastSignals: {
@@ -380,7 +402,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const isAdminForLcp = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdminForLcp = userHasAdminAccess(user?.roles);
   useDashboardLcpReporting(isAdminForLcp);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -395,7 +417,7 @@ export function DashboardPage() {
   const [ackInFlight, setAckInFlight] = useState<string | null>(null);
   const [ackError, setAckError] = useState<string | null>(null);
 
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
 
   const aliveRef = useRef(false);
   const isAdminRef = useRef(false);
@@ -566,13 +588,19 @@ export function DashboardPage() {
   const formattedNumber = (n: number | null) =>
     n === null ? '—' : new Intl.NumberFormat('es-EC').format(n);
 
-  const docDeltaEsteMes = useMemo(() => {
-    if (!summary?.kpis) return '';
-    const n = summary.kpis.documentosCreadosEsteMes ?? 0;
+  const docFootnoteEsteMes = useMemo(() => {
+    if (!summary?.documentos) return undefined;
+    const n = summary.documentos.creadosEsteMes ?? 0;
     const formatted = new Intl.NumberFormat('es-EC').format(n);
-    const sign = n > 0 ? '+' : '';
-    return `${sign}${formatted} este mes`;
-  }, [summary?.kpis]);
+    return `${formatted} documento(s) registrado(s) este mes`;
+  }, [summary]);
+
+  const docFootnoteAcumulado = useMemo(() => {
+    if (!summary?.documentos) return undefined;
+    const n = summary.documentos.acumuladosAnteriores ?? 0;
+    const formatted = new Intl.NumberFormat('es-EC').format(n);
+    return `${formatted} documento(s) acumulado(s) en meses anteriores`;
+  }, [summary]);
 
   /** Ítems de alerta: API + comprobaciones locales (mismo shape que `alertasItems`). */
   const alertasItemsMerged = useMemo((): DashboardAlertItemClient[] => {
@@ -634,7 +662,9 @@ export function DashboardPage() {
   };
 
   const displayRole =
-    user?.roles.find((r) => r.codigo === 'ADMIN')?.nombre ?? user?.roles[0]?.nombre ?? 'Usuario';
+    user?.roles.find((r) => r.codigo === 'ADMIN' || r.codigo === 'SUPERADMIN')?.nombre ??
+    user?.roles[0]?.nombre ??
+    'Usuario';
 
   const greetingName = useMemo(() => {
     const joined = `${user?.nombres ?? ''} ${user?.apellidos ?? ''}`.trim();
@@ -781,9 +811,11 @@ export function DashboardPage() {
             value={summaryLoading ? '…' : formattedNumber(summary?.kpis.documentosTotal ?? null)}
             accent="primary"
             footnote={
-              summaryLoading || summary == null ? undefined : docDeltaEsteMes
+              summaryLoading || summary == null
+                ? undefined
+                : [docFootnoteEsteMes, docFootnoteAcumulado].filter(Boolean).join(' · ')
             }
-            footnotePositive={!summaryLoading && (summary?.kpis.documentosCreadosEsteMes ?? 0) > 0}
+            footnotePositive={!summaryLoading && (summary?.documentos?.creadosEsteMes ?? 0) > 0}
             interactive
             interactiveLabel="Ir a bandeja de Documentos"
             onInteractiveAction={() => navigate('/documentos')}
@@ -846,6 +878,60 @@ export function DashboardPage() {
           </Grid>
         ) : null}
       </Grid>
+
+      <Paper elevation={0} sx={{ ...listSurfaceSx, mb: 2.5, p: { xs: 2, md: 2.5 } }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+          Documentos
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Indicadores por estado y registros mensuales (datos reales del sistema).
+        </Typography>
+        <Grid container spacing={2} sx={{ mb: 2.5 }}>
+          {(
+            [
+              ['Total', summary?.documentos?.total, 'primary'],
+              ['Registrados', summary?.documentos?.registrados, 'primary'],
+              ['Borradores', summary?.documentos?.borradores, 'warning'],
+              ['En revisión', summary?.documentos?.enRevision, 'warning'],
+              ['Aprobados', summary?.documentos?.aprobados, 'success'],
+              ['Rechazados', summary?.documentos?.rechazados, 'error'],
+            ] as const
+          ).map(([label, value, accent]) => (
+            <Grid key={label} size={{ xs: 6, sm: 4, md: 2 }}>
+              <Box
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  p: 1.5,
+                  height: '100%',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                  {label}
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 800,
+                    color: `${accent}.main`,
+                    mt: 0.5,
+                  }}
+                >
+                  {summaryLoading ? '…' : formattedNumber(value ?? 0)}
+                </Typography>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+          Documentos registrados por mes
+        </Typography>
+        <DocumentosMonthlyChart
+          items={summary?.documentosPorMes ?? []}
+          loading={summaryLoading}
+        />
+      </Paper>
 
       {isAdmin && !summaryLoading && serverAlertItems.length > 0 ? (
         <Paper

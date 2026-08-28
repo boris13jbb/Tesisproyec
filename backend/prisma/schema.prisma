@@ -349,6 +349,48 @@ model Subserie {
   @@map("subseries")
 }
 
+/// Persona natural o jurídica relacionada con documentos (contraparte / razón social).
+model Contraparte {
+  id          String   @id @default(uuid())
+  tipo        String   @db.VarChar(16) // NATURAL | JURIDICA
+  cedula      String?  @unique @db.VarChar(10)
+  ruc         String?  @unique @db.VarChar(13)
+  nombres     String?  @db.VarChar(120)
+  apellidos   String?  @db.VarChar(120)
+  razonSocial String?  @map("razon_social") @db.VarChar(250)
+  correo      String?  @db.VarChar(255)
+  telefono    String?  @db.VarChar(32)
+  direccion   String?  @db.VarChar(500)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  documentosContraparte Documento[] @relation("DocumentoContraparte")
+
+  @@map("contrapartes")
+}
+
+/// Destinatario/beneficiario del documento cuando aplica (catálogo independiente de contraparte).
+model Beneficiario {
+  id          String   @id @default(uuid())
+  tipo        String   @db.VarChar(16) // NATURAL | JURIDICA
+  cedula      String?  @unique @db.VarChar(10)
+  ruc         String?  @unique @db.VarChar(13)
+  nombres     String?  @db.VarChar(120)
+  apellidos   String?  @db.VarChar(120)
+  razonSocial String?  @map("razon_social") @db.VarChar(250)
+  correo      String?  @db.VarChar(255)
+  telefono    String?  @db.VarChar(32)
+  direccion   String?  @db.VarChar(500)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  documentos Documento[]
+
+  @@map("beneficiarios")
+}
+
 /// Documento registrado (ETAPA 6 — MVP).
 model Documento {
   id                       String   @id @default(uuid())
@@ -356,6 +398,9 @@ model Documento {
   asunto                   String   @db.VarChar(250)
   descripcion              String?  @db.VarChar(1000)
   fechaDocumento           DateTime @map("fecha_documento")
+  fechaVencimiento         DateTime? @map("fecha_vencimiento")
+  /// Responsable institucional (persona o área encargada del documento).
+  responsableInstitucional String?  @map("responsable_institucional") @db.VarChar(250)
   /// Ciclo de vida (catálogo y transiciones en `documento-estado.util.ts`).
   estado                   String   @default("REGISTRADO") @db.VarChar(32)
   nivelConfidencialidad    String   @default("INTERNO") @map("nivel_confidencialidad") @db.VarChar(32)
@@ -363,6 +408,8 @@ model Documento {
   tipoDocumentalId         String   @map("tipo_documental_id")
   subserieId               String   @map("subserie_id")
   dependenciaId            String?  @map("dependencia_id")
+  contraparteId            String?  @map("contraparte_id")
+  beneficiarioId           String?  @map("beneficiario_id")
   /// Política de acceso: INHERIT = reglas actuales; RESTRICTED = solo ACL (y ADMIN) + creador.
   accessPolicy             String   @default("INHERIT") @map("access_policy") @db.VarChar(16)
   createdById              String   @map("created_by_id")
@@ -372,6 +419,8 @@ model Documento {
   tipoDocumental TipoDocumental @relation(fields: [tipoDocumentalId], references: [id], onDelete: Restrict)
   subserie       Subserie       @relation(fields: [subserieId], references: [id], onDelete: Restrict)
   dependencia    Dependencia?    @relation(fields: [dependenciaId], references: [id], onDelete: SetNull)
+  contraparte    Contraparte?    @relation("DocumentoContraparte", fields: [contraparteId], references: [id], onDelete: SetNull)
+  beneficiario   Beneficiario?   @relation(fields: [beneficiarioId], references: [id], onDelete: SetNull)
   createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   eventos        DocumentoEvento[]
   archivos       DocumentoArchivo[]
@@ -382,8 +431,12 @@ model Documento {
   @@index([subserieId])
   @@index([createdById])
   @@index([dependenciaId])
+  @@index([contraparteId])
+  @@index([beneficiarioId])
   @@index([nivelConfidencialidad])
   @@index([accessPolicy])
+  @@index([createdAt])
+  @@index([estado])
   @@map("documentos")
 }
 

@@ -50,6 +50,12 @@ import {
   labelDocumentoEstado,
 } from '../../constants/documento-estado';
 import { getApiErrorMessage } from '../../utils/api-error-message';
+import { fechaEmisionErrorMessage } from '../../utils/text-normalize';
+import {
+  type PartyCatalogRow,
+  partyDisplayLabel,
+  partySelectLabel,
+} from '../../utils/party-label';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { EmptyState } from '../../components/EmptyState';
@@ -80,6 +86,8 @@ type DocumentoRow = {
   asunto: string;
   descripcion: string | null;
   fechaDocumento: string;
+  fechaVencimiento: string | null;
+  responsableInstitucional: string | null;
   estado: string;
   nivelConfidencialidad: string;
   activo: boolean;
@@ -87,6 +95,8 @@ type DocumentoRow = {
   subserieId: string;
   tipoDocumental: TipoOption;
   dependencia: DependenciaOption | null;
+  contraparte: PartyCatalogRow | null;
+  beneficiario: PartyCatalogRow | null;
   subserie: {
     id: string;
     codigo: string;
@@ -139,12 +149,26 @@ type RoleOption = { codigo: string; nombre: string };
 const editSchema = z.object({
   asunto: z.string().min(3).max(250),
   descripcion: z.string().max(1000).optional(),
-  fechaDocumento: z.string().min(10, 'Fecha requerida'),
+  fechaDocumento: z
+    .string()
+    .min(10, 'Fecha requerida')
+    .refine((v) => fechaEmisionErrorMessage(v) === null, {
+      message: 'La fecha de emisión no puede ser posterior a hoy',
+    }),
+  fechaVencimiento: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: 'Fecha de vencimiento inválida',
+    }),
+  responsableInstitucional: z.string().max(250).optional(),
   estado: documentoEstadoSchema,
   activo: z.boolean(),
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Subserie requerida'),
   dependenciaId: z.string().optional(),
+  contraparteId: z.string().optional(),
+  beneficiarioId: z.string().optional(),
   nivelConfidencialidad: z.enum(['PUBLICO', 'INTERNO', 'RESERVADO', 'CONFIDENCIAL']),
 });
 type EditForm = z.infer<typeof editSchema>;
@@ -198,12 +222,16 @@ function fieldLabel(field: string): string {
     asunto: 'Asunto',
     descripcion: 'Descripción',
     fechaDocumento: 'Fecha del documento',
+    fechaVencimiento: 'Fecha de vencimiento',
+    responsableInstitucional: 'Responsable institucional',
     estado: 'Estado',
     activo: 'Activo',
     tipoDocumentalId: 'Tipo documental',
     subserieId: 'Subserie',
     codigo: 'Código',
     dependenciaId: 'Dependencia',
+    contraparteId: 'Contraparte',
+    beneficiarioId: 'Beneficiario',
     nivelConfidencialidad: 'Confidencialidad',
   };
   return map[field] ?? field;
@@ -351,6 +379,8 @@ export function DocumentoDetallePage() {
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
   const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
+  const [contrapartes, setContrapartes] = useState<PartyCatalogRow[]>([]);
+  const [beneficiarios, setBeneficiarios] = useState<PartyCatalogRow[]>([]);
 
   const [eventos, setEventos] = useState<DocumentoEventoRow[]>([]);
   const [archivos, setArchivos] = useState<DocumentoArchivoRow[]>([]);
@@ -510,11 +540,15 @@ export function DocumentoDetallePage() {
       asunto: '',
       descripcion: '',
       fechaDocumento: new Date().toISOString().slice(0, 10),
+      fechaVencimiento: '',
+      responsableInstitucional: '',
       estado: 'REGISTRADO',
       activo: true,
       tipoDocumentalId: '',
       subserieId: '',
       dependenciaId: '',
+      contraparteId: '',
+      beneficiarioId: '',
       nivelConfidencialidad: 'INTERNO',
     },
   });
@@ -645,6 +679,36 @@ export function DocumentoDetallePage() {
       })
       .catch(() => {
         if (!cancelled) setSubseries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get<PartyCatalogRow[]>('/contrapartes')
+      .then((res) => {
+        if (!cancelled) setContrapartes(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setContrapartes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get<PartyCatalogRow[]>('/beneficiarios')
+      .then((res) => {
+        if (!cancelled) setBeneficiarios(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setBeneficiarios([]);
       });
     return () => {
       cancelled = true;
@@ -785,11 +849,15 @@ export function DocumentoDetallePage() {
       asunto: doc.asunto,
       descripcion: doc.descripcion ?? '',
       fechaDocumento: formatDateOnly(doc.fechaDocumento),
+      fechaVencimiento: doc.fechaVencimiento ? formatDateOnly(doc.fechaVencimiento) : '',
+      responsableInstitucional: doc.responsableInstitucional ?? '',
       estado: estadoForm,
       activo: doc.activo,
       tipoDocumentalId: doc.tipoDocumental.id,
       subserieId: doc.subserie.id,
       dependenciaId: doc.dependencia?.id ?? '',
+      contraparteId: doc.contraparte?.id ?? '',
+      beneficiarioId: doc.beneficiario?.id ?? '',
       nivelConfidencialidad: doc.nivelConfidencialidad as EditForm['nivelConfidencialidad'],
     });
     setEditOpen(true);
@@ -803,6 +871,10 @@ export function DocumentoDetallePage() {
         asunto: data.asunto,
         descripcion: data.descripcion || null,
         fechaDocumento: new Date(data.fechaDocumento).toISOString(),
+        fechaVencimiento: data.fechaVencimiento?.trim()
+          ? new Date(data.fechaVencimiento).toISOString()
+          : null,
+        responsableInstitucional: data.responsableInstitucional?.trim() || null,
         estado: data.estado,
         activo: data.activo,
         tipoDocumentalId: data.tipoDocumentalId,
@@ -810,6 +882,8 @@ export function DocumentoDetallePage() {
         dependenciaId: data.dependenciaId?.trim()
           ? data.dependenciaId.trim()
           : null,
+        contraparteId: data.contraparteId?.trim() ? data.contraparteId.trim() : null,
+        beneficiarioId: data.beneficiarioId?.trim() ? data.beneficiarioId.trim() : null,
         nivelConfidencialidad: data.nivelConfidencialidad,
       });
       setEditOpen(false);
@@ -1632,18 +1706,32 @@ export function DocumentoDetallePage() {
                         value={labelConfidencialidad(doc.nivelConfidencialidad)}
                       />
                       <MetaRow
-                        label="Responsable (dependencia)"
+                        label="Dependencia responsable"
                         value={
                           doc.dependencia ? `${doc.dependencia.codigo} — ${doc.dependencia.nombre}` : '—'
                         }
                       />
                       <MetaRow
-                        label="Conservación"
-                        value="—"
+                        label="Contraparte"
+                        value={doc.contraparte ? partyDisplayLabel(doc.contraparte) : '—'}
                       />
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: -0.5, mb: 1 }}>
-                        Plazo de conservación no registrado en el catálogo.
-                      </Typography>
+                      <MetaRow
+                        label="Beneficiario"
+                        value={doc.beneficiario ? partyDisplayLabel(doc.beneficiario) : '—'}
+                      />
+                      <MetaRow
+                        label="Responsable institucional"
+                        value={doc.responsableInstitucional?.trim() || '—'}
+                      />
+                      <MetaRow
+                        label="Fecha de emisión"
+                        value={formatDateOnly(doc.fechaDocumento)}
+                      />
+                      <MetaRow
+                        label="Fecha de vencimiento"
+                        value={doc.fechaVencimiento ? formatDateOnly(doc.fechaVencimiento) : '—'}
+                      />
+                      <MetaRow label="Fecha de registro" value={formatDateTime(doc.createdAt)} />
                       <MetaRow label="Registrado por" value={doc.createdBy.email} />
                     </Stack>
 
@@ -1904,10 +1992,31 @@ export function DocumentoDetallePage() {
               type="date"
               fullWidth
               required
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { max: new Date().toISOString().slice(0, 10) },
+              }}
               error={!!editForm.formState.errors.fechaDocumento}
               helperText={editForm.formState.errors.fechaDocumento?.message}
               {...editForm.register('fechaDocumento')}
+            />
+
+            <TextField
+              label="Fecha de vencimiento (opcional)"
+              type="date"
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              error={!!editForm.formState.errors.fechaVencimiento}
+              helperText={editForm.formState.errors.fechaVencimiento?.message}
+              {...editForm.register('fechaVencimiento')}
+            />
+
+            <TextField
+              label="Responsable institucional (opcional)"
+              fullWidth
+              error={!!editForm.formState.errors.responsableInstitucional}
+              helperText={editForm.formState.errors.responsableInstitucional?.message}
+              {...editForm.register('responsableInstitucional')}
             />
 
             <Controller
@@ -2003,6 +2112,52 @@ export function DocumentoDetallePage() {
                     {dependencias.map((d) => (
                       <MenuItem key={d.id} value={d.id}>
                         {d.codigo} — {d.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+
+            <Controller
+              name="contraparteId"
+              control={editForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="contraparte-edit-label">Contraparte</InputLabel>
+                  <Select
+                    labelId="contraparte-edit-label"
+                    label="Contraparte"
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                  >
+                    <MenuItem value="">(Sin contraparte)</MenuItem>
+                    {contrapartes.map((c) => (
+                      <MenuItem key={c.id} value={c.id}>
+                        {partySelectLabel(c)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+
+            <Controller
+              name="beneficiarioId"
+              control={editForm.control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="beneficiario-edit-label">Beneficiario</InputLabel>
+                  <Select
+                    labelId="beneficiario-edit-label"
+                    label="Beneficiario"
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                  >
+                    <MenuItem value="">(Sin beneficiario)</MenuItem>
+                    {beneficiarios.map((b) => (
+                      <MenuItem key={b.id} value={b.id}>
+                        {partySelectLabel(b)}
                       </MenuItem>
                     ))}
                   </Select>

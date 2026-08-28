@@ -48,6 +48,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { userHasAdminAccess } from '../auth/role-utils';
 import { getBreadcrumbsForPath } from '../nav/breadcrumbs';
 import { ColorModeProvider } from '../theme/ColorModeProvider';
 import { useColorMode } from '../theme/useColorMode';
@@ -101,6 +102,24 @@ const catalogNav: NavItem[] = [
     label: 'Subseries',
     icon: <ListOutlinedIcon fontSize="small" />,
   },
+  {
+    to: '/catalogos/contrapartes',
+    label: 'Contrapartes',
+    icon: <BadgeOutlinedIcon fontSize="small" />,
+  },
+  {
+    to: '/catalogos/beneficiarios',
+    label: 'Beneficiarios',
+    icon: <PersonOutlineOutlinedIcon fontSize="small" />,
+  },
+];
+
+const reportesNav: NavItem[] = [
+  {
+    to: '/reportes',
+    label: 'Reportes institucionales',
+    icon: <AssessmentOutlinedIcon fontSize="small" />,
+  },
 ];
 
 const adminNav: NavItem[] = [
@@ -118,11 +137,6 @@ const adminNav: NavItem[] = [
     to: '/admin/respaldos',
     label: 'Respaldos',
     icon: <BackupOutlinedIcon fontSize="small" />,
-  },
-  {
-    to: '/admin/reportes',
-    label: 'Reportes',
-    icon: <AssessmentOutlinedIcon fontSize="small" />,
   },
   {
     to: '/admin/configuracion',
@@ -326,7 +340,7 @@ function MainLayoutShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
   const canCreateDocumento = useMemo(() => {
     if (isAdmin) return true;
@@ -419,6 +433,16 @@ function MainLayoutShell() {
           )}
           {isAdmin && (
             <>
+              <NavSectionLabel open={open}>Reportes</NavSectionLabel>
+              {reportesNav.map((item) => (
+                <NavButton
+                  key={item.to}
+                  item={item}
+                  selected={isSelected(item.to)}
+                  open={open}
+                  onNavigate={handleNav}
+                />
+              ))}
               <NavSectionLabel open={open}>Administración</NavSectionLabel>
               {adminNav.map((item) => (
                 <NavButton

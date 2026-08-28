@@ -25,7 +25,10 @@ export const NIVELES_CONFIDENCIALIDAD = [
 export class CreateDocumentoDto {
   /** Si se omite o llega vacío, el servidor asigna el siguiente correlativo único. */
   @IsOptional()
-  @ValidateIf((o: CreateDocumentoDto) => typeof o.codigo === 'string' && o.codigo.trim() !== '')
+  @ValidateIf(
+    (o: CreateDocumentoDto) =>
+      typeof o.codigo === 'string' && o.codigo.trim() !== '',
+  )
   @IsString()
   @MinLength(2)
   @MaxLength(64)
@@ -66,4 +69,21 @@ export class CreateDocumentoDto {
   @IsString()
   @IsIn(ESTADOS_INICIALES as unknown as string[])
   estado?: DocumentoEstado;
+
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(250)
+  responsableInstitucional?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  contraparteId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  beneficiarioId?: string | null;
 }

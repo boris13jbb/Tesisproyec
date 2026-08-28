@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,19 +10,23 @@ import {
   buildAuditWhere,
   enrichAuditLogsWithDocumentoCodigo,
 } from './audit-list.util';
+import { AuditoriaService } from './auditoria.service';
 import { AuditQueryDto } from './dto/audit-query.dto';
 
 @Controller('auditoria')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles('ADMIN')
 export class AuditoriaController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
 
   @Get()
   @Permissions(PERM.AUDIT_READ)
   async findAll(@Query() q: AuditQueryDto) {
     const page = Math.max(1, Number(q.page ?? '1'));
-    const pageSize = Math.min(100, Math.max(5, Number(q.pageSize ?? '20')));
+    const pageSize = Math.min(100, Math.max(5, Number(q.pageSize ?? '10')));
     const skip = (page - 1) * pageSize;
 
     const from = q.from ? new Date(q.from) : undefined;
@@ -55,5 +59,34 @@ export class AuditoriaController {
     );
 
     return { page, pageSize, total, items };
+  }
+
+  @Get('stats')
+  @Permissions(PERM.AUDIT_READ)
+  getStats(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('actorUserId') actorUserId?: string,
+    @Query('action') action?: string,
+  ) {
+    return this.auditoriaService.getStats({
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      actorUserId: actorUserId?.trim() || undefined,
+      action: action?.trim() || undefined,
+    });
+  }
+
+  @Get(':id')
+  @Permissions(PERM.AUDIT_READ)
+  async findOne(@Param('id') id: string) {
+    const row = await this.prisma.auditLog.findUnique({ where: { id } });
+    if (!row) {
+      return null;
+    }
+    const [enriched] = await enrichAuditLogsWithDocumentoCodigo(this.prisma, [
+      row,
+    ]);
+    return enriched;
   }
 }

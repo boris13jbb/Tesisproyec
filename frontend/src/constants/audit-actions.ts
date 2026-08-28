@@ -25,6 +25,8 @@ export const AUDIT_ACTION_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'DOC_FILE_UPLOADED', label: 'Carga de archivo en documento' },
   { value: 'DOC_FILE_DOWNLOADED', label: 'Descarga o visualización de archivo' },
   { value: 'DOC_FILE_DELETED', label: 'Eliminación de archivo documental' },
+  { value: 'DOC_CREATED', label: 'Documento creado' },
+  { value: 'DOC_DEACTIVATED', label: 'Documento desactivado' },
   { value: 'DOC_STATE_CHANGED', label: 'Cambio de estado del documento' },
   { value: 'DOC_SUBMITTED_FOR_REVIEW', label: 'Documento enviado a revisión' },
   { value: 'DOC_REVIEW_RESOLVED', label: 'Revisión resuelta (aprobar o rechazar)' },

@@ -1,3 +1,5 @@
+import { ROLE_ADMIN, ROLE_SUPERADMIN } from './role-constants';
+
 export type JwtRequestUser = {
   id: string;
   email: string;
@@ -7,8 +9,14 @@ export type JwtRequestUser = {
   dependenciaId: string | null;
 };
 
+export function jwtUserIsSuperAdmin(u: JwtRequestUser): boolean {
+  return u.roles.some((r) => r.codigo === ROLE_SUPERADMIN);
+}
+
 export function jwtUserIsAdmin(u: JwtRequestUser): boolean {
-  return u.roles.some((r) => r.codigo === 'ADMIN');
+  return u.roles.some(
+    (r) => r.codigo === ROLE_ADMIN || r.codigo === ROLE_SUPERADMIN,
+  );
 }
 
 /** Revisor documental (flujo R-28); puede resolver EN_REVISION → APROBADO/RECHAZADO. */

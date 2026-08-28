@@ -5,6 +5,7 @@ import {
   PERM_DESCRIPTIONS,
   PERM,
 } from '../src/auth/permission-codes';
+import { ROLE_SUPERADMIN } from '../src/auth/role-constants';
 
 const prisma = new PrismaClient();
 
@@ -65,6 +66,8 @@ async function seedRolePermissions(): Promise<void> {
     PERM.DOC_REVISION_RESOLVE,
     PERM.REPORTS_PENDIENTES,
   ]);
+
+  await replaceForRole(ROLE_SUPERADMIN, ALL_PERMISSION_CODES);
 }
 
 async function main() {
@@ -130,6 +133,18 @@ async function main() {
     update: {},
   });
 
+  await prisma.role.upsert({
+    where: { codigo: ROLE_SUPERADMIN },
+    create: {
+      codigo: ROLE_SUPERADMIN,
+      nombre: 'Superadministrador',
+      descripcion:
+        'Cuenta técnica de mantenimiento y contingencia (no asignación cotidiana)',
+      activo: true,
+    },
+    update: {},
+  });
+
   /** Complementario: combinar con USUARIO vía multi-rol para quien deba editar/subir sin ser ADMIN. */
   await prisma.role.upsert({
     where: { codigo: 'EDITOR_DOC' },
@@ -172,6 +187,42 @@ async function main() {
     },
     update: {},
   });
+
+  const superRole = await prisma.role.findUnique({
+    where: { codigo: ROLE_SUPERADMIN },
+  });
+  const superEmail =
+    process.env.SEED_SUPERADMIN_EMAIL?.trim().toLowerCase() ??
+    'superadmin@local.test';
+  const superPassword =
+    process.env.SEED_SUPERADMIN_PASSWORD ?? 'SuperAdmin123!';
+  if (superPassword.length < 8) {
+    throw new Error('SEED_SUPERADMIN_PASSWORD debe tener al menos 8 caracteres');
+  }
+  const superHash = await argon2.hash(superPassword, { type: argon2.argon2id });
+  const superUser = await prisma.user.upsert({
+    where: { email: superEmail },
+    create: {
+      email: superEmail,
+      passwordHash: superHash,
+      nombres: 'Super',
+      apellidos: 'Administrador',
+      activo: true,
+    },
+    update: {
+      passwordHash: superHash,
+      activo: true,
+    },
+  });
+  if (superRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: { userId: superUser.id, roleId: superRole.id },
+      },
+      create: { userId: superUser.id, roleId: superRole.id },
+      update: {},
+    });
+  }
 
   await prisma.dependencia.upsert({
     where: { codigo: 'GADPR-LM' },
@@ -299,7 +350,7 @@ async function main() {
   }
 
   console.log(
-    `Seed OK: usuario ${email} con rol ADMIN; permisos RBAC; catálogos y documento de ejemplo`,
+    `Seed OK: ADMIN ${email}; SUPERADMIN ${superEmail}; permisos RBAC; catálogos y documento de ejemplo`,
   );
 }
 

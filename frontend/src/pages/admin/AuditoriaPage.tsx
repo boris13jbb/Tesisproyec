@@ -20,7 +20,14 @@ import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { FilterPanel } from '../../components/FilterPanel';
@@ -35,6 +42,12 @@ import {
   formatAuditResultLabel,
 } from '../../constants/audit-actions';
 import { getApiErrorMessage } from '../../utils/api-error-message';
+import {
+  trafficLightColor,
+  trafficLightEmoji,
+  trafficLightLabel,
+  type TrafficLightLevel,
+} from '../../utils/traffic-light';
 
 type AuditRow = {
   id: string;
@@ -58,6 +71,17 @@ type UsuarioListItem = {
   email: string;
   nombres: string | null;
   apellidos: string | null;
+};
+
+type AuditStatsResponse = {
+  totales: { registros: number; ok: number; fail: number };
+  documentos: { creados: number; modificados: number; archivosEliminados: number };
+  sensiblesPorUsuario: {
+    actorUserId: string | null;
+    actorEmail: string | null;
+    count: number;
+    nivel: TrafficLightLevel;
+  }[];
 };
 
 type AuditoriaPagedResponse = {
@@ -179,8 +203,10 @@ export function AuditoriaPage() {
   const [appliedTo, setAppliedTo] = useState(todayIso());
 
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [reloadToken, setReloadToken] = useState(0);
+  const [stats, setStats] = useState<AuditStatsResponse | null>(null);
+  const [detailRow, setDetailRow] = useState<AuditRow | null>(null);
 
   const usuarioById = useMemo(() => {
     const map = new Map<string, UsuarioListItem>();
@@ -303,6 +329,10 @@ export function AuditoriaPage() {
         const list = Array.isArray(body?.items) ? body.items : [];
         setRows(list);
         setTotal(typeof body?.total === 'number' ? body.total : list.length);
+        const statsRes = await apiClient.get<AuditStatsResponse>('/auditoria/stats', {
+          params: appliedFilterParams,
+        });
+        if (!cancelled) setStats(statsRes.data);
       } catch (e: unknown) {
         if (cancelled) return;
         setError(
@@ -310,6 +340,7 @@ export function AuditoriaPage() {
         );
         setRows([]);
         setTotal(0);
+        setStats(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -450,6 +481,66 @@ export function AuditoriaPage() {
           unos 10 minutos antes de volver a intentar. Si el bloqueo continúa, contacte al responsable técnico del
           sistema.
         </Alert>
+      ) : null}
+
+      {stats ? (
+        <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
+            Estadísticas del período filtrado
+          </Typography>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Typography variant="caption" color="text.secondary">
+                Registros
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {stats.totales.registros}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Typography variant="caption" color="text.secondary">
+                OK / Fallo
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {stats.totales.ok} / {stats.totales.fail}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Typography variant="caption" color="text.secondary">
+                Docs creados (auditoría)
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {stats.documentos.creados}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Typography variant="caption" color="text.secondary">
+                Archivos eliminados
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {stats.documentos.archivosEliminados}
+              </Typography>
+            </Grid>
+          </Grid>
+          {stats.sensiblesPorUsuario.length > 0 ? (
+            <>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                Acciones sensibles por usuario (semáforo)
+              </Typography>
+              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
+                {stats.sensiblesPorUsuario.map((s) => (
+                  <Chip
+                    key={`${s.actorUserId ?? 'na'}-${s.actorEmail ?? ''}`}
+                    label={`${trafficLightEmoji(s.nivel)} ${s.actorEmail ?? '—'} · ${s.count} · ${trafficLightLabel(s.nivel)}`}
+                    color={trafficLightColor(s.nivel)}
+                    variant="outlined"
+                    size="small"
+                  />
+                ))}
+              </Stack>
+            </>
+          ) : null}
+        </Paper>
       ) : null}
 
       {/* Filtros */}
@@ -598,12 +689,15 @@ export function AuditoriaPage() {
                 <TableCell align="center" sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>
                   Resultado
                 </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 800, py: { xs: 1.05, md: 1 } }}>
+                  Detalle
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {!loading && rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ borderBottom: 'none', py: 2 }}>
+                  <TableCell colSpan={7} sx={{ borderBottom: 'none', py: 2 }}>
                     <EmptyState
                       dense
                       title="Sin eventos en este período"
@@ -673,6 +767,11 @@ export function AuditoriaPage() {
                     <TableCell align="center" sx={{ verticalAlign: 'top' }}>
                       <AuditResultChip row={r} />
                     </TableCell>
+                    <TableCell align="center" sx={{ verticalAlign: 'top' }}>
+                      <IconButton aria-label="Ver detalle" size="small" onClick={() => setDetailRow(r)}>
+                        <VisibilityOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -680,6 +779,48 @@ export function AuditoriaPage() {
           </Table>
         </TableContainer>
       </ListPanel>
+
+      <Dialog open={detailRow != null} onClose={() => setDetailRow(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Detalle de auditoría</DialogTitle>
+        <DialogContent dividers>
+          {detailRow ? (
+            <Stack spacing={1}>
+              <Typography variant="body2">
+                <strong>Fecha/hora:</strong> {formatAuditDateEc(detailRow.createdAt ?? null)}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Usuario:</strong> {usuarioLabel(detailRow)}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Email:</strong> {detailRow.actorEmail ?? '—'}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Acción:</strong> {actionUiLabel(String(detailRow.action))} ({detailRow.action})
+              </Typography>
+              <Typography variant="body2">
+                <strong>Resultado:</strong> {detailRow.result ?? '—'}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Recurso:</strong> {documentUiLabel(detailRow).text}
+              </Typography>
+              <Typography variant="body2">
+                <strong>IP:</strong> {detailRow.ip ?? '—'}
+              </Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                <strong>Equipo:</strong> {uaField(detailRow) ?? '—'}
+              </Typography>
+              {detailRow.metaJson ? (
+                <Box component="pre" sx={{ fontSize: 12, overflow: 'auto', bgcolor: 'action.hover', p: 1, borderRadius: 1 }}>
+                  {detailRow.metaJson}
+                </Box>
+              ) : null}
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailRow(null)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

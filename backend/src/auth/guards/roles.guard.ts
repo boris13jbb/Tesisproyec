@@ -23,7 +23,10 @@ export class RolesGuard implements CanActivate {
       user?: { roles?: { codigo: string }[] };
     }>();
     const codes = req.user?.roles?.map((r) => r.codigo) ?? ([] as string[]);
-    const allowed = required.some((role) => codes.includes(role));
+    const expandedRequired = required.flatMap((role) =>
+      role === 'ADMIN' ? ['ADMIN', 'SUPERADMIN'] : [role],
+    );
+    const allowed = expandedRequired.some((role) => codes.includes(role));
     if (!allowed) {
       throw new ForbiddenException();
     }

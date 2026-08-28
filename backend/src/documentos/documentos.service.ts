@@ -12,6 +12,11 @@ import type { Prisma } from '@prisma/client';
 import type { AuditContext } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { isPrismaCode } from '../common/prisma-util';
+import {
+  assertFechaEmisionNoFutura,
+  parseFechaVencimientoOptional,
+} from '../common/date-validation.util';
+import { normalizeAdministrativeText } from '../common/text-normalize.util';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -53,6 +58,16 @@ function documentoGroupByAll(row: {
   return typeof c._all === 'number' ? c._all : 0;
 }
 
+const partyCatalogSelect = {
+  id: true,
+  tipo: true,
+  cedula: true,
+  ruc: true,
+  nombres: true,
+  apellidos: true,
+  razonSocial: true,
+} as const;
+
 const includeCatalogos = {
   tipoDocumental: { select: { id: true, codigo: true, nombre: true } },
   subserie: {
@@ -64,6 +79,8 @@ const includeCatalogos = {
     },
   },
   dependencia: { select: { id: true, codigo: true, nombre: true } },
+  contraparte: { select: partyCatalogSelect },
+  beneficiario: { select: partyCatalogSelect },
   createdBy: {
     select: { id: true, email: true, nombres: true, apellidos: true },
   },
@@ -74,14 +91,54 @@ type DocumentoSnapshot = {
   asunto: string;
   descripcion: string | null;
   fechaDocumento: Date;
+  fechaVencimiento: Date | null;
+  responsableInstitucional: string | null;
   estado: string;
   nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumentalId: string;
   subserieId: string;
   dependenciaId: string | null;
+  contraparteId: string | null;
+  beneficiarioId: string | null;
   createdById: string;
 };
+
+function documentoToSnapshot(row: {
+  codigo: string;
+  asunto: string;
+  descripcion: string | null;
+  fechaDocumento: Date;
+  fechaVencimiento: Date | null;
+  responsableInstitucional: string | null;
+  estado: string;
+  nivelConfidencialidad: string;
+  activo: boolean;
+  tipoDocumentalId: string;
+  subserieId: string;
+  dependenciaId: string | null;
+  contraparteId: string | null;
+  beneficiarioId: string | null;
+  createdById: string;
+}): DocumentoSnapshot {
+  return {
+    codigo: row.codigo,
+    asunto: row.asunto,
+    descripcion: row.descripcion,
+    fechaDocumento: row.fechaDocumento,
+    fechaVencimiento: row.fechaVencimiento,
+    responsableInstitucional: row.responsableInstitucional,
+    estado: row.estado,
+    nivelConfidencialidad: row.nivelConfidencialidad,
+    activo: row.activo,
+    tipoDocumentalId: row.tipoDocumentalId,
+    subserieId: row.subserieId,
+    dependenciaId: row.dependenciaId,
+    contraparteId: row.contraparteId,
+    beneficiarioId: row.beneficiarioId,
+    createdById: row.createdById,
+  };
+}
 
 @Injectable()
 export class DocumentosService {
@@ -200,7 +257,10 @@ export class DocumentosService {
       return { codigo: `${prefijo}-0001`, prefijo };
     }
 
-    const simpleRe = new RegExp(`^${escapeRegExpSegment(prefijo)}-(\\d+)$`, 'i');
+    const simpleRe = new RegExp(
+      `^${escapeRegExpSegment(prefijo)}-(\\d+)$`,
+      'i',
+    );
     const annualRe = new RegExp(
       `^${escapeRegExpSegment(prefijo)}-(\\d{4})-(\\d{5})$`,
       'i',
@@ -682,7 +742,11 @@ export class DocumentosService {
     }
   }
 
-  async create(dto: CreateDocumentoDto, createdById: string) {
+  async create(
+    dto: CreateDocumentoDto,
+    createdById: string,
+    ctx?: AuditContext,
+  ) {
     await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
     await this.assertSubserieExists(dto.subserieId);
 
@@ -700,10 +764,31 @@ export class DocumentosService {
     const estadoInicial = normalizeDocumentoEstado(dto.estado ?? 'REGISTRADO');
     assertEstadoCreacionPermitido(estadoInicial);
 
-    const fechaDocumento = new Date(dto.fechaDocumento);
-    if (Number.isNaN(fechaDocumento.getTime())) {
-      throw new BadRequestException('Fecha del documento inválida');
+    if (dto.contraparteId) {
+      const c = await this.prisma.contraparte.findUnique({
+        where: { id: dto.contraparteId },
+      });
+      if (!c?.activo) {
+        throw new BadRequestException('Contraparte no encontrada o inactiva');
+      }
     }
+    if (dto.beneficiarioId) {
+      const b = await this.prisma.beneficiario.findUnique({
+        where: { id: dto.beneficiarioId },
+      });
+      if (!b?.activo) {
+        throw new BadRequestException('Beneficiario no encontrado o inactivo');
+      }
+    }
+
+    const fechaDocumento = new Date(dto.fechaDocumento);
+    assertFechaEmisionNoFutura(fechaDocumento);
+    const fechaVencimiento = parseFechaVencimientoOptional(
+      dto.fechaVencimiento,
+    );
+    const responsableInstitucional = normalizeAdministrativeText(
+      dto.responsableInstitucional,
+    );
     const anioCorrelativo = fechaDocumento.getUTCFullYear();
 
     const explicitRaw = dto.codigo?.trim();
@@ -720,12 +805,19 @@ export class DocumentosService {
           const documento = await tx.documento.create({
             data: {
               codigo,
-              asunto: dto.asunto.trim(),
-              descripcion: dto.descripcion?.trim() || null,
+              asunto:
+                normalizeAdministrativeText(dto.asunto.trim()) ??
+                dto.asunto.trim(),
+              descripcion:
+                normalizeAdministrativeText(dto.descripcion?.trim()) ?? null,
               fechaDocumento,
+              fechaVencimiento: fechaVencimiento ?? null,
+              responsableInstitucional,
               tipoDocumentalId: dto.tipoDocumentalId,
               subserieId: dto.subserieId,
               dependenciaId,
+              contraparteId: dto.contraparteId ?? null,
+              beneficiarioId: dto.beneficiarioId ?? null,
               nivelConfidencialidad,
               estado: estadoInicial,
               createdById,
@@ -733,19 +825,7 @@ export class DocumentosService {
             include: includeCatalogos,
           });
 
-          const snapshot: DocumentoSnapshot = {
-            codigo: documento.codigo,
-            asunto: documento.asunto,
-            descripcion: documento.descripcion,
-            fechaDocumento: documento.fechaDocumento,
-            estado: documento.estado,
-            nivelConfidencialidad: documento.nivelConfidencialidad,
-            activo: documento.activo,
-            tipoDocumentalId: documento.tipoDocumentalId,
-            subserieId: documento.subserieId,
-            dependenciaId: documento.dependenciaId,
-            createdById: documento.createdById,
-          };
+          const snapshot = documentoToSnapshot(documento);
 
           await tx.documentoEvento.create({
             data: {
@@ -759,11 +839,30 @@ export class DocumentosService {
           return documento;
         });
 
+        await this.audit.log({
+          action: 'DOC_CREATED',
+          result: 'OK',
+          resource: { type: 'Documento', id: created.id },
+          context: {
+            actorUserId: ctx?.actorUserId ?? createdById,
+            actorEmail: ctx?.actorEmail ?? null,
+            ip: ctx?.ip ?? null,
+            userAgent: ctx?.userAgent ?? null,
+            correlationId: ctx?.correlationId ?? null,
+          },
+          meta: {
+            codigo: created.codigo,
+            estado: created.estado,
+          },
+        });
+
         return created;
       } catch (e: unknown) {
         if (isPrismaCode(e, 'P2002')) {
           if (codigoUsuario) {
-            throw new ConflictException('Ya existe un documento con ese código');
+            throw new ConflictException(
+              'Ya existe un documento con ese código',
+            );
           }
           if (attempt >= maxAttempts - 1) {
             throw new ConflictException(
@@ -818,9 +917,7 @@ export class DocumentosService {
   private assertPdfUpload(file: Express.Multer.File): void {
     const original = (file.originalname || '').trim().toLowerCase();
     if (!original.endsWith('.pdf')) {
-      throw new BadRequestException(
-        'Solo se permiten archivos PDF (.pdf)',
-      );
+      throw new BadRequestException('Solo se permiten archivos PDF (.pdf)');
     }
     const mime = (file.mimetype || '').trim().toLowerCase();
     if (mime && !this.allowedMimes().has(mime)) {
@@ -1126,32 +1223,8 @@ export class DocumentosService {
         include: includeCatalogos,
       });
 
-      const before: DocumentoSnapshot = {
-        codigo: beforeFull.codigo,
-        asunto: beforeFull.asunto,
-        descripcion: beforeFull.descripcion,
-        fechaDocumento: beforeFull.fechaDocumento,
-        estado: beforeFull.estado,
-        nivelConfidencialidad: beforeFull.nivelConfidencialidad,
-        activo: beforeFull.activo,
-        tipoDocumentalId: beforeFull.tipoDocumentalId,
-        subserieId: beforeFull.subserieId,
-        dependenciaId: beforeFull.dependenciaId,
-        createdById: beforeFull.createdById,
-      };
-      const after: DocumentoSnapshot = {
-        codigo: documento.codigo,
-        asunto: documento.asunto,
-        descripcion: documento.descripcion,
-        fechaDocumento: documento.fechaDocumento,
-        estado: documento.estado,
-        nivelConfidencialidad: documento.nivelConfidencialidad,
-        activo: documento.activo,
-        tipoDocumentalId: documento.tipoDocumentalId,
-        subserieId: documento.subserieId,
-        dependenciaId: documento.dependenciaId,
-        createdById: documento.createdById,
-      };
+      const before = documentoToSnapshot(beforeFull);
+      const after = documentoToSnapshot(documento);
       const diff = this.diffDocumento(before, after);
 
       await tx.documentoEvento.create({
@@ -1437,6 +1510,10 @@ export class DocumentosService {
         dto.asunto !== undefined ||
         dto.descripcion !== undefined ||
         dto.fechaDocumento !== undefined ||
+        dto.fechaVencimiento !== undefined ||
+        dto.responsableInstitucional !== undefined ||
+        dto.contraparteId !== undefined ||
+        dto.beneficiarioId !== undefined ||
         dto.tipoDocumentalId !== undefined ||
         dto.subserieId !== undefined ||
         dto.estado !== undefined ||
@@ -1472,6 +1549,10 @@ export class DocumentosService {
       dto.asunto === undefined &&
       dto.descripcion === undefined &&
       dto.fechaDocumento === undefined &&
+      dto.fechaVencimiento === undefined &&
+      dto.responsableInstitucional === undefined &&
+      dto.contraparteId === undefined &&
+      dto.beneficiarioId === undefined &&
       dto.tipoDocumentalId === undefined &&
       dto.subserieId === undefined &&
       dto.estado === undefined &&
@@ -1481,20 +1562,60 @@ export class DocumentosService {
     ) {
       return this.loadDocumentoById(id);
     }
+    if (dto.fechaDocumento !== undefined) {
+      const fd = new Date(dto.fechaDocumento);
+      assertFechaEmisionNoFutura(fd);
+    }
+    if (dto.contraparteId) {
+      const c = await this.prisma.contraparte.findUnique({
+        where: { id: dto.contraparteId },
+      });
+      if (!c?.activo) {
+        throw new BadRequestException('Contraparte no encontrada o inactiva');
+      }
+    }
+    if (dto.beneficiarioId) {
+      const b = await this.prisma.beneficiario.findUnique({
+        where: { id: dto.beneficiarioId },
+      });
+      if (!b?.activo) {
+        throw new BadRequestException('Beneficiario no encontrado o inactivo');
+      }
+    }
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         const documento = await tx.documento.update({
           where: { id },
           data: {
-            ...(dto.asunto !== undefined && { asunto: dto.asunto.trim() }),
+            ...(dto.asunto !== undefined && {
+              asunto:
+                normalizeAdministrativeText(dto.asunto.trim()) ??
+                dto.asunto.trim(),
+            }),
             ...(dto.descripcion !== undefined && {
               descripcion:
                 dto.descripcion === null || dto.descripcion === ''
                   ? null
-                  : dto.descripcion.trim(),
+                  : normalizeAdministrativeText(dto.descripcion.trim()),
             }),
             ...(dto.fechaDocumento !== undefined && {
               fechaDocumento: new Date(dto.fechaDocumento),
+            }),
+            ...(dto.fechaVencimiento !== undefined && {
+              fechaVencimiento: parseFechaVencimientoOptional(
+                dto.fechaVencimiento,
+              ),
+            }),
+            ...(dto.responsableInstitucional !== undefined && {
+              responsableInstitucional: normalizeAdministrativeText(
+                dto.responsableInstitucional,
+              ),
+            }),
+            ...(dto.contraparteId !== undefined && {
+              contraparteId: dto.contraparteId,
+            }),
+            ...(dto.beneficiarioId !== undefined && {
+              beneficiarioId: dto.beneficiarioId,
             }),
             ...(dto.tipoDocumentalId !== undefined && {
               tipoDocumentalId: dto.tipoDocumentalId,
@@ -1514,32 +1635,8 @@ export class DocumentosService {
           include: includeCatalogos,
         });
 
-        const before: DocumentoSnapshot = {
-          codigo: beforeFull.codigo,
-          asunto: beforeFull.asunto,
-          descripcion: beforeFull.descripcion,
-          fechaDocumento: beforeFull.fechaDocumento,
-          estado: beforeFull.estado,
-          nivelConfidencialidad: beforeFull.nivelConfidencialidad,
-          activo: beforeFull.activo,
-          tipoDocumentalId: beforeFull.tipoDocumentalId,
-          subserieId: beforeFull.subserieId,
-          dependenciaId: beforeFull.dependenciaId,
-          createdById: beforeFull.createdById,
-        };
-        const after: DocumentoSnapshot = {
-          codigo: documento.codigo,
-          asunto: documento.asunto,
-          descripcion: documento.descripcion,
-          fechaDocumento: documento.fechaDocumento,
-          estado: documento.estado,
-          nivelConfidencialidad: documento.nivelConfidencialidad,
-          activo: documento.activo,
-          tipoDocumentalId: documento.tipoDocumentalId,
-          subserieId: documento.subserieId,
-          dependenciaId: documento.dependenciaId,
-          createdById: documento.createdById,
-        };
+        const before = documentoToSnapshot(beforeFull);
+        const after = documentoToSnapshot(documento);
         const diff = this.diffDocumento(before, after);
 
         await tx.documentoEvento.create({
@@ -1572,6 +1669,22 @@ export class DocumentosService {
             meta: { from: desde, to: hasta },
           });
         }
+      }
+
+      if (dto.activo === false && beforeFull.activo) {
+        await this.audit.log({
+          action: 'DOC_DEACTIVATED',
+          result: 'OK',
+          resource: { type: 'Documento', id },
+          context: {
+            actorUserId: ctx?.actorUserId ?? updatedById,
+            actorEmail: ctx?.actorEmail ?? null,
+            ip: ctx?.ip ?? null,
+            userAgent: ctx?.userAgent ?? null,
+            correlationId: ctx?.correlationId ?? null,
+          },
+          meta: { codigo: beforeFull.codigo },
+        });
       }
 
       return updated;

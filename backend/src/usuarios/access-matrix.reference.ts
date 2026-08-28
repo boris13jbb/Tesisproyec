@@ -181,7 +181,11 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
 
 export type AccessMatrixReferenceDto = {
   columnas: readonly string[];
-  filas: Array<{ modulo: string; ayuda?: string; porRol: Record<string, boolean> }>;
+  filas: Array<{
+    modulo: string;
+    ayuda?: string;
+    porRol: Record<string, boolean>;
+  }>;
   nota: string;
   generadoEn: string;
 };
@@ -194,8 +198,7 @@ export function buildAccessMatrixReference(): AccessMatrixReferenceDto {
       ...(f.ayuda != null ? { ayuda: f.ayuda } : {}),
       porRol: { ...f.porRol },
     })),
-    nota:
-      'Referencia de capacidades por rol según reglas actuales del servidor. No sustituye políticas corporativas de identidad.',
+    nota: 'Referencia de capacidades por rol según reglas actuales del servidor. No sustituye políticas corporativas de identidad.',
     generadoEn: new Date().toISOString(),
   };
 }

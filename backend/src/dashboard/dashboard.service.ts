@@ -5,6 +5,7 @@ import type { JwtRequestUser } from '../auth/request-user';
 import { jwtUserIsAdmin } from '../auth/request-user';
 import type { AuditResult } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
+import { mesNombreEc } from '../common/date-labels.util';
 import {
   AUDIT_ACTION_BACKUP_VERIFIED,
   BACKUP_META_SOURCE_MANUAL,
@@ -80,6 +81,24 @@ export type DashboardAlertItem = {
   mensaje: string;
 };
 
+export type DashboardDocumentoPorMesItem = {
+  anio: number;
+  mes: number;
+  nombreMes: string;
+  cantidad: number;
+};
+
+export type DashboardDocumentosBloque = {
+  total: number;
+  registrados: number;
+  borradores: number;
+  enRevision: number;
+  aprobados: number;
+  rechazados: number;
+  creadosEsteMes: number;
+  acumuladosAnteriores: number;
+};
+
 export type DashboardSummary = {
   generatedAt: string;
   kpis: {
@@ -93,6 +112,8 @@ export type DashboardSummary = {
     /** Señales activas con texto y código de navegación. */
     alertasItems: DashboardAlertItem[];
   };
+  documentos: DashboardDocumentosBloque;
+  documentosPorMes: DashboardDocumentoPorMesItem[];
   documentosRecientes: DashboardRecentDocumento[];
   compliance: DashboardComplianceMetric[];
   lastSignals: {
@@ -106,6 +127,65 @@ export type DashboardSummary = {
 function clampPercent(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function buildUltimos12MesesRanges(
+  now: Date,
+): { anio: number; mes: number; desde: Date; hasta: Date }[] {
+  const ranges: { anio: number; mes: number; desde: Date; hasta: Date }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const anio = d.getFullYear();
+    const mes = d.getMonth() + 1;
+    const desde = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
+    const hasta = new Date(anio, mes, 0, 23, 59, 59, 999);
+    ranges.push({ anio, mes, desde, hasta });
+  }
+  return ranges;
+}
+
+async function countDocumentosPorEstado(
+  prisma: PrismaService,
+  docWhere: Prisma.DocumentoWhereInput,
+) {
+  const grouped = await prisma.documento.groupBy({
+    by: ['estado'],
+    where: docWhere,
+    _count: { _all: true },
+  });
+  const map = new Map(grouped.map((g) => [g.estado, g._count._all]));
+  const pick = (estado: string) => map.get(estado) ?? 0;
+  const registrados = pick('REGISTRADO');
+  const borradores = pick('BORRADOR');
+  const enRevision = pick('EN_REVISION');
+  const aprobados = pick('APROBADO');
+  const rechazados = pick('RECHAZADO');
+  const total = grouped.reduce((acc, g) => acc + g._count._all, 0);
+  return { total, registrados, borradores, enRevision, aprobados, rechazados };
+}
+
+async function buildDocumentosPorMes(
+  prisma: PrismaService,
+  docWhere: Prisma.DocumentoWhereInput,
+  now: Date,
+): Promise<DashboardDocumentoPorMesItem[]> {
+  const ranges = buildUltimos12MesesRanges(now);
+  const counts = await Promise.all(
+    ranges.map((r) =>
+      prisma.documento.count({
+        where: {
+          ...docWhere,
+          createdAt: { gte: r.desde, lte: r.hasta },
+        },
+      }),
+    ),
+  );
+  return ranges.map((r, idx) => ({
+    anio: r.anio,
+    mes: r.mes,
+    nombreMes: mesNombreEc(r.mes),
+    cantidad: counts[idx] ?? 0,
+  }));
 }
 
 export { AUDIT_ACTION_BACKUP_VERIFIED } from '../backup/backup.constants';
@@ -308,6 +388,8 @@ export class DashboardService {
       docsRecent,
       usuariosActivos,
       activeUsersWithRole,
+      estadosAgg,
+      documentosPorMes,
       loginOk30d,
       loginFail30d,
       authzForbidden30d,
@@ -350,6 +432,8 @@ export class DashboardService {
             },
           })
         : Promise.resolve(null),
+      countDocumentosPorEstado(this.prisma, docWhere),
+      buildDocumentosPorMes(this.prisma, docWhere, now),
       this.prisma.auditLog.count({
         where: { action: 'AUTH_LOGIN_OK', createdAt: { gte: since30d } },
       }),
@@ -418,20 +502,16 @@ export class DashboardService {
 
     const ackMap = isAdmin
       ? await this.loadDashboardAlertAckMap(viewer.id)
-      : new Map<
-          string,
-          { acknowledgedAt: Date; metaJson: string | null }
-        >();
+      : new Map<string, { acknowledgedAt: Date; metaJson: string | null }>();
 
     const alertasItems: DashboardAlertItem[] = [];
     if (pendientesRevision > 0) {
       const ackPend = ackMap.get('PENDIENTES_REVISION');
-      const baseline = this.parsePendientesAckMeta(ackPend?.metaJson ?? null)
-        ?.pendientesAtAck;
+      const baseline = this.parsePendientesAckMeta(
+        ackPend?.metaJson ?? null,
+      )?.pendientesAtAck;
       const showPendientes =
-        !ackPend ||
-        baseline === undefined ||
-        pendientesRevision > baseline;
+        !ackPend || baseline === undefined || pendientesRevision > baseline;
       if (showPendientes) {
         alertasItems.push({
           codigo: 'PENDIENTES_REVISION',
@@ -484,6 +564,22 @@ export class DashboardService {
     }
     const alerts = alertasItems.length;
 
+    const acumuladosAnteriores = Math.max(
+      0,
+      estadosAgg.total - documentosCreadosEsteMes,
+    );
+
+    const documentosBloque: DashboardDocumentosBloque = {
+      total: estadosAgg.total,
+      registrados: estadosAgg.registrados,
+      borradores: estadosAgg.borradores,
+      enRevision: estadosAgg.enRevision,
+      aprobados: estadosAgg.aprobados,
+      rechazados: estadosAgg.rechazados,
+      creadosEsteMes: documentosCreadosEsteMes,
+      acumuladosAnteriores,
+    };
+
     const compliance: DashboardComplianceMetric[] = [
       {
         key: 'access_control',
@@ -499,7 +595,8 @@ export class DashboardService {
       {
         key: 'identity_management',
         title: 'Gestión de identidades',
-        standard: 'Usuarios activos con al menos un rol asignado en el sistema.',
+        standard:
+          'Usuarios activos con al menos un rol asignado en el sistema.',
         percent: clampPercent(identityPercent),
         evidence: {
           users_active: usuariosActivos ?? 0,
@@ -551,6 +648,8 @@ export class DashboardService {
         alertas: alerts,
         alertasItems,
       },
+      documentos: documentosBloque,
+      documentosPorMes,
       documentosRecientes: docsRecent.map((d) => ({
         id: d.id,
         codigo: d.codigo,

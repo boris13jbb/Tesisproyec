@@ -54,4 +54,23 @@ export class UpdateDocumentoDto {
   @IsOptional()
   @IsIn(NIVELES_CONFIDENCIALIDAD as unknown as string[])
   nivelConfidencialidad?: (typeof NIVELES_CONFIDENCIALIDAD)[number];
+
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(250)
+  responsableInstitucional?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_: unknown, v: unknown) => v != null && v !== '')
+  @IsUUID()
+  contraparteId?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_: unknown, v: unknown) => v != null && v !== '')
+  @IsUUID()
+  beneficiarioId?: string | null;
 }

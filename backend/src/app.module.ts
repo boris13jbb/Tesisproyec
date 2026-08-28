@@ -5,7 +5,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { BackupModule } from './backup/backup.module';
 import { ClientPerfModule } from './client-perf/client-perf.module';
-import { RbacModule } from './rbac/rbac.module';
+import { ContrapartesModule } from './contrapartes/contrapartes.module';
+import { BeneficiariosModule } from './beneficiarios/beneficiarios.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { CargosModule } from './cargos/cargos.module';
@@ -21,6 +22,7 @@ import { AuditoriaModule } from './auditoria/auditoria.module';
 import { ForbiddenAuditFilter } from './common/filters/forbidden-audit.filter';
 import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { RbacModule } from './rbac/rbac.module';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -99,6 +101,8 @@ class StartupConfigGuard implements OnModuleInit {
     DashboardModule,
     BackupModule,
     ClientPerfModule,
+    ContrapartesModule,
+    BeneficiariosModule,
     RbacModule,
   ],
   controllers: [AppController],

@@ -34,8 +34,8 @@ export class RbacController {
 
   @Get('roles')
   @Roles('ADMIN', 'USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA')
-  listRoles() {
-    return this.rbac.listRoles();
+  listRoles(@Req() req: Request & { user: JwtRequestUser }) {
+    return this.rbac.listRoles(req.user);
   }
 
   @Get('me/permissions')

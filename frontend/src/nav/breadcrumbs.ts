@@ -11,6 +11,8 @@ const CATALOGO_LABELS: Record<string, string> = {
   'tipos-documentales': 'Tipos documentales',
   series: 'Series',
   subseries: 'Subseries',
+  contrapartes: 'Contrapartes',
+  beneficiarios: 'Beneficiarios',
 };
 
 /**
@@ -58,6 +60,11 @@ export function getBreadcrumbsForPath(
     const detail =
       options?.documentDetailLabel?.trim() || 'Detalle';
     items.push({ label: detail, to: pathname });
+    return items;
+  }
+
+  if (pathname === '/reportes' || pathname === '/admin/reportes') {
+    items.push({ label: 'Reportes', to: '/reportes' });
     return items;
   }
 

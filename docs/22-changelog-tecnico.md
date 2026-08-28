@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-28 — RBAC SUPERADMIN, dashboard documental, auditoría paginada, catálogos contraparte/beneficiario
+
+- **Backend:** rol `SUPERADMIN` en seed; protección de cuenta técnica en `usuarios.service`; permisos `CONTRAPARTES_WRITE` / `BENEFICIARIOS_WRITE`; migración `20260828120000_contrapartes_beneficiarios_documento_fields`; módulos `contrapartes` y `beneficiarios`; validaciones EC cédula/RUC, fechas emisión/vencimiento, mayúsculas administrativas; dashboard `documentosPorMes` + totales por estado; auditoría paginada (10), `GET /auditoria/stats` y detalle por id; `includeCatalogos` con contraparte/beneficiario en documentos.
+- **Frontend:** bloque DOCUMENTOS y gráfico mensual en dashboard; auditoría con stats, semáforo y diálogo detalle; sección menú **Reportes** (`/reportes`); pantallas Contrapartes/Beneficiarios; formularios nuevo/detalle documento con campos opcionales; util `party-label`; etiquetas auditoría `DOC_CREATED` / `DOC_DEACTIVATED`.
+- **Docs:** `04-modelo-base-de-datos.md`, `27-manual-usuario-sgd-gadpr-lm.md`.
+
 ### 2026-08-28 — Tema global: tokens secondary en shell y superficies compartidas
 
 - **Frontend:** `appTheme` (AppBar, menú lateral, inputs), `listSurfaces`, `EmptyState` y badge SGD del menú usan `palette`/`alpha` en lugar de hex sueltos; coherencia en modo oscuro.

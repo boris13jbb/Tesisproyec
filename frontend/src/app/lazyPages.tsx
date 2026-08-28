@@ -88,6 +88,14 @@ export const DependenciasPage = lazy(() =>
   import('../pages/catalogos/DependenciasPage').then((m) => ({ default: m.DependenciasPage })),
 );
 
+export const ContrapartesPage = lazy(() =>
+  import('../pages/catalogos/ContrapartesPage').then((m) => ({ default: m.ContrapartesPage })),
+);
+
+export const BeneficiariosPage = lazy(() =>
+  import('../pages/catalogos/BeneficiariosPage').then((m) => ({ default: m.BeneficiariosPage })),
+);
+
 export const CargosPage = lazy(() =>
   import('../pages/catalogos/CargosPage').then((m) => ({ default: m.CargosPage })),
 );

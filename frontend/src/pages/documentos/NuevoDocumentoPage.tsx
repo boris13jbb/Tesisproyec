@@ -31,6 +31,11 @@ import { useAuth } from '../../auth/useAuth';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { SectionHeader } from '../../components/SectionHeader';
+import { fechaEmisionErrorMessage } from '../../utils/text-normalize';
+import {
+  type PartyCatalogRow,
+  partySelectLabel,
+} from '../../utils/party-label';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -59,10 +64,24 @@ const createSchema = z.object({
     }),
   asunto: z.string().min(3, 'Asunto requerido').max(250),
   descripcion: z.string().max(1000).optional(),
-  fechaDocumento: z.string().min(10, 'Fecha requerida'),
+  fechaDocumento: z
+    .string()
+    .min(10, 'Fecha requerida')
+    .refine((v) => fechaEmisionErrorMessage(v) === null, {
+      message: 'La fecha de emisión no puede ser posterior a hoy',
+    }),
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Clasificación requerida'),
   dependenciaId: z.string().optional(),
+  contraparteId: z.string().optional(),
+  beneficiarioId: z.string().optional(),
+  responsableInstitucional: z.string().max(250).optional(),
+  fechaVencimiento: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: 'Fecha de vencimiento inválida',
+    }),
   nivelConfidencialidad: z.enum(['PUBLICO', 'INTERNO', 'RESERVADO', 'CONFIDENCIAL']),
   estado: z.enum(['BORRADOR', 'REGISTRADO']),
 });
@@ -89,6 +108,8 @@ export function NuevoDocumentoPage() {
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
   const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
+  const [contrapartes, setContrapartes] = useState<PartyCatalogRow[]>([]);
+  const [beneficiarios, setBeneficiarios] = useState<PartyCatalogRow[]>([]);
   const [serieId, setSerieId] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -115,6 +136,10 @@ export function NuevoDocumentoPage() {
       tipoDocumentalId: '',
       subserieId: '',
       dependenciaId: '',
+      contraparteId: '',
+      beneficiarioId: '',
+      responsableInstitucional: '',
+      fechaVencimiento: '',
       nivelConfidencialidad: 'INTERNO',
       estado: 'REGISTRADO',
     },
@@ -126,18 +151,24 @@ export function NuevoDocumentoPage() {
       apiClient.get<TipoOption[]>('/tipos-documentales'),
       apiClient.get<SubserieOption[]>('/subseries'),
       apiClient.get<DependenciaOption[]>('/dependencias'),
+      apiClient.get<PartyCatalogRow[]>('/contrapartes'),
+      apiClient.get<PartyCatalogRow[]>('/beneficiarios'),
     ])
-      .then(([tiposRes, subsRes, depsRes]) => {
+      .then(([tiposRes, subsRes, depsRes, contrapartesRes, beneficiariosRes]) => {
         if (cancelled) return;
         setTipos(tiposRes.data);
         setSubseries(subsRes.data);
         setDependencias(depsRes.data);
+        setContrapartes(contrapartesRes.data);
+        setBeneficiarios(beneficiariosRes.data);
       })
       .catch(() => {
         if (cancelled) return;
         setTipos([]);
         setSubseries([]);
         setDependencias([]);
+        setContrapartes([]);
+        setBeneficiarios([]);
       })
       .finally(() => {
         if (!cancelled) setCatalogosLoaded(true);
@@ -276,6 +307,22 @@ export function NuevoDocumentoPage() {
   const watchedSubserieId = useWatch({ control: form.control, name: 'subserieId' });
   const clasificacionAssigned = !!watchedSubserieId;
 
+  const registradoPorLabel = useMemo(() => {
+    const joined = `${user?.nombres ?? ''} ${user?.apellidos ?? ''}`.trim();
+    if (joined && user?.email) return `${joined} (${user.email})`;
+    return joined || user?.email || '—';
+  }, [user?.nombres, user?.apellidos, user?.email]);
+
+  const fechaRegistroHoy = useMemo(
+    () =>
+      new Intl.DateTimeFormat('es-EC', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date()),
+    [],
+  );
+
   const onPickFile = () => {
     fileInputRef.current?.click();
   };
@@ -346,6 +393,12 @@ export function NuevoDocumentoPage() {
         tipoDocumentalId: data.tipoDocumentalId,
         subserieId: data.subserieId,
         dependenciaId: data.dependenciaId?.trim() ? data.dependenciaId : undefined,
+        contraparteId: data.contraparteId?.trim() ? data.contraparteId : undefined,
+        beneficiarioId: data.beneficiarioId?.trim() ? data.beneficiarioId : undefined,
+        responsableInstitucional: data.responsableInstitucional?.trim() || undefined,
+        fechaVencimiento: data.fechaVencimiento?.trim()
+          ? new Date(data.fechaVencimiento).toISOString()
+          : undefined,
         nivelConfidencialidad: data.nivelConfidencialidad,
         estado: data.estado,
       });
@@ -410,6 +463,18 @@ export function NuevoDocumentoPage() {
 
             <Box component="form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
               <Stack spacing={2}>
+                <TextField
+                  label="Registrado por"
+                  value={registradoPorLabel}
+                  slotProps={{ input: { readOnly: true } }}
+                  helperText="Usuario autenticado; el servidor asigna el creador al guardar."
+                />
+                <TextField
+                  label="Fecha de registro"
+                  value={fechaRegistroHoy}
+                  slotProps={{ input: { readOnly: true } }}
+                  helperText="Se genera automáticamente al guardar (no editable)."
+                />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
                   <TextField
                     label="Código"
@@ -493,6 +558,9 @@ export function NuevoDocumentoPage() {
                       </MenuItem>
                     ))}
                   </Select>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                    Clasificación archivística (cuadro de clasificación); seleccione la serie y luego la subserie.
+                  </Typography>
                 </FormControl>
 
                 <Controller
@@ -518,8 +586,8 @@ export function NuevoDocumentoPage() {
                   control={form.control}
                   render={({ field }) => (
                     <FormControl fullWidth>
-                      <InputLabel id="dep-label">Responsable (dependencia)</InputLabel>
-                      <Select {...field} labelId="dep-label" label="Responsable (dependencia)" value={field.value || ''}>
+                      <InputLabel id="dep-label">Dependencia responsable</InputLabel>
+                      <Select {...field} labelId="dep-label" label="Dependencia responsable" value={field.value || ''}>
                         <MenuItem value="">(Sin asignar)</MenuItem>
                         {dependencias.map((d) => (
                           <MenuItem key={d.id} value={d.id}>
@@ -529,6 +597,74 @@ export function NuevoDocumentoPage() {
                       </Select>
                     </FormControl>
                   )}
+                />
+
+                <Controller
+                  name="contraparteId"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormControl fullWidth>
+                      <InputLabel id="contraparte-label">Contraparte (opcional)</InputLabel>
+                      <Select
+                        {...field}
+                        labelId="contraparte-label"
+                        label="Contraparte (opcional)"
+                        value={field.value || ''}
+                      >
+                        <MenuItem value="">(Sin contraparte)</MenuItem>
+                        {contrapartes.map((c) => (
+                          <MenuItem key={c.id} value={c.id}>
+                            {partySelectLabel(c)}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+
+                <Controller
+                  name="beneficiarioId"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormControl fullWidth>
+                      <InputLabel id="beneficiario-label">Beneficiario (opcional)</InputLabel>
+                      <Select
+                        {...field}
+                        labelId="beneficiario-label"
+                        label="Beneficiario (opcional)"
+                        value={field.value || ''}
+                      >
+                        <MenuItem value="">(Sin beneficiario)</MenuItem>
+                        {beneficiarios.map((b) => (
+                          <MenuItem key={b.id} value={b.id}>
+                            {partySelectLabel(b)}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+
+                <TextField
+                  label="Responsable institucional (opcional)"
+                  {...form.register('responsableInstitucional')}
+                  error={!!form.formState.errors.responsableInstitucional}
+                  helperText={
+                    form.formState.errors.responsableInstitucional?.message ??
+                    'Nombre o cargo del responsable en la institución. Se guarda en mayúsculas.'
+                  }
+                />
+
+                <TextField
+                  label="Fecha de vencimiento (opcional)"
+                  type="date"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  {...form.register('fechaVencimiento')}
+                  error={!!form.formState.errors.fechaVencimiento}
+                  helperText={
+                    form.formState.errors.fechaVencimiento?.message ??
+                    'Puede ser una fecha futura si aplica al documento.'
+                  }
                 />
 
                 <Controller
@@ -562,9 +698,9 @@ export function NuevoDocumentoPage() {
                 />
 
                 <TextField
-                  label="Fecha"
+                  label="Fecha de emisión del documento"
                   type="date"
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: new Date().toISOString().slice(0, 10) } }}
                   {...form.register('fechaDocumento')}
                   error={!!form.formState.errors.fechaDocumento}
                   helperText={form.formState.errors.fechaDocumento?.message}

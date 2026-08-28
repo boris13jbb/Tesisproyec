@@ -6,6 +6,8 @@ import {
   AuditoriaPage,
   CargosPage,
   ClasificacionDocumentalPage,
+  ContrapartesPage,
+  BeneficiariosPage,
   ConfiguracionSeguridadPage,
   DashboardPage,
   DependenciasPage,
@@ -88,11 +90,12 @@ export function App() {
               <Route path="/tramites" element={<FlujoTramitePage />} />
               <Route path="/clasificacion" element={<ClasificacionDocumentalPage />} />
               <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
-              <Route element={<RoleRoute roles={['ADMIN']} />}>
+              <Route element={<RoleRoute roles={['ADMIN', 'SUPERADMIN']} />}>
                 <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
+                <Route path="/reportes" element={<ReportesInstitucionalesPage />} />
+                <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
                 <Route path="/admin/auditoria" element={<AuditoriaPage />} />
                 <Route path="/admin/respaldos" element={<RespaldosSeguridadPage />} />
-                <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
                 <Route path="/admin/configuracion" element={<ConfiguracionSeguridadPage />} />
                 <Route path="/admin/usuarios" element={<UsuariosPage />} />
                 <Route
@@ -106,6 +109,8 @@ export function App() {
                 />
                 <Route path="/catalogos/series" element={<SeriesPage />} />
                 <Route path="/catalogos/subseries" element={<SubseriesPage />} />
+                <Route path="/catalogos/contrapartes" element={<ContrapartesPage />} />
+                <Route path="/catalogos/beneficiarios" element={<BeneficiariosPage />} />
               </Route>
             </Route>
           </Route>

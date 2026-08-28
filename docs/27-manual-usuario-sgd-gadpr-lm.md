@@ -128,7 +128,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 ### 4.1 Qué verás
 
-- **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). Las tarjetas KPI usan **colores del tema** (primary, warning, success, error) y se adaptan al modo claro/oscuro. La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
+- **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). Las tarjetas KPI usan **colores del tema** (primary, warning, success, error) y se adaptan al modo claro/oscuro. La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**. El bloque **Documentos** muestra totales **por estado** (Borrador, Registrado, En revisión, etc.) y un **gráfico de los últimos 12 meses** (registros por mes); la nota al pie explica el criterio sin símbolos confusos tipo «+N».
 - Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana**: el badge muestra alertas (ADMIN) o pendientes de revisión (resto). Si hay alertas, la campana lleva a la tarjeta de alertas; si hay pendientes, abre documentos en estado *En revisión*.
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
@@ -143,8 +143,9 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **`docs/44-guia-secciones-menu-navegacion.md`**.
 
 - **Menú:** Inicio · Documentos · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` o ADMIN)
-- **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Reportes · Configuración
-- **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries
+- **Reportes** (solo `ADMIN`): **Reportes institucionales** (ruta `/reportes`; `/admin/reportes` redirige al mismo módulo)
+- **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Configuración
+- **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries · **Contrapartes** · **Beneficiarios**
 - **Cuenta** (menú lateral, cuando está expandido): Mi perfil. También está en el menú del avatar.
 - En escritorio, use **Ocultar menú** al pie del lateral para dejar solo iconos (la preferencia se guarda en el navegador). En la barra superior, el icono de sol/luna cambia entre tema claro y oscuro (solo dentro de la sesión; el login permanece claro). Los hover de tablas, estados vacíos y menú lateral usan la misma paleta **secondary** del tema en ambos modos.
 
@@ -253,6 +254,19 @@ Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
 3. El listado muestra **icono de subserie**, código en chip y la **serie padre**. Enlaces a **Series** y **Clasificación**.
 4. En la cabecera, **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
 5. **Editar:** puede cambiar **serie** padre, nombre, descripción y **Activa** (el código de subserie no se modifica).
+
+### 6.5 Contrapartes
+
+1. Menú → **Catálogos → Contrapartes** (`/catalogos/contrapartes`).
+2. Revise el listado (tipo, identificación, nombre o razón social, estado).
+3. **Nueva contraparte** (solo ADMIN): elija **Persona natural** (cédula ecuatoriana + nombres/apellidos) o **Persona jurídica** (RUC + razón social). El servidor valida formato y duplicados.
+4. Use estas personas en **Nuevo documento** o **Editar** en el detalle del expediente.
+
+### 6.6 Beneficiarios
+
+1. Menú → **Catálogos → Beneficiarios** (`/catalogos/beneficiarios`).
+2. Misma estructura y validaciones que **Contrapartes** (cédula/RUC ecuatoriano).
+3. **Nuevo beneficiario** (solo ADMIN) y asociación opcional al registrar o editar un documento.
 
 **Resultado esperado**
 - Los catálogos quedan disponibles para el registro documental.
@@ -372,18 +386,23 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 ### 7.4 Crear documento (solo ADMIN)
 
 1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, el botón **Nuevo documento** en la cabecera de la página (si tiene permiso `DOC_CREATE` o es ADMIN).
-2. Los desplegables (**tipo**, **serie**, **clasificación**, **dependencia**) muestran el **catálogo real del servidor**. El sistema puede **prellenar su dependencia** si su usuario tiene dependencia en perfil y ésta existe en catálogo. Si hay un solo tipo documental o una sola serie o una sola subserie aplicable en el árbol, puede seleccionarse automáticamente al cargarse el catálogo.
+2. Los desplegables (**tipo**, **serie**, **clasificación**, **dependencia**, **contraparte**, **beneficiario**) muestran el **catálogo real del servidor**. El sistema puede **prellenar su dependencia** si su usuario tiene dependencia en perfil y ésta existe en catálogo. Si hay un solo tipo documental o una sola serie o una sola subserie aplicable en el árbol, puede seleccionarse automáticamente al cargarse el catálogo.
 3. Completa:
+   - **Registrado por** (solo lectura): muestra su usuario autenticado; el servidor asigna el creador al guardar.
+   - **Fecha de registro** (solo lectura): se genera automáticamente al guardar (`createdAt`); no es editable.
    - **Código (único)**: el servidor **asigna automáticamente** el siguiente correlativo si no lo modifica. La pantalla puede mostrar una **vista previa** (también con **Correlativo servidor**). La convención depende de lo ya registrado: si existen códigos en forma **simple** (`PREFIJO-0001`, `PREFIJO-0002`…), se continúa esa serie; si no, puede usarse el formato **anual** (`PREFIJO-AÑO-00001`…). Solo **ADMIN** puede fijar un código distinto escribiéndolo en el formulario. El prefijo se configura con `DOCUMENTO_CODIGO_PREFIX` en el backend (`DOC` por defecto).
 
    Desde **Documentos**, el cuadro **Registrar documento** se comporta igual: vista previa al abrir y asignación en el servidor si no tocó el campo **Código**.
    - Asunto
    - Descripción (opcional)
-   - Fecha
+   - **Fecha de emisión** (no puede ser posterior a hoy)
+   - **Fecha de vencimiento** (opcional; puede ser futura)
    - Tipo documental
    - Serie y clasificación (subserie)
    - **Estado inicial** (**Registrado** o **Borrador**)
-   - **Dependencia propietaria** (opcional; puede venir desde su perfil)
+   - **Dependencia responsable** (opcional; puede venir desde su perfil)
+   - **Contraparte** y **Beneficiario** (opcionales; catálogos del apartado 6)
+   - **Responsable institucional** (opcional; el servidor guarda el texto en mayúsculas)
    - **Confidencialidad** (por defecto Interno)
 4. Selecciona un **archivo PDF** (`.pdf`) (máx 50 MB). Otros formatos (imágenes, DOCX, XLSX, etc.) son rechazados.
 5. Verifica que el panel **Validaciones automáticas** (iconos de sección alineados al tema) marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
@@ -407,7 +426,7 @@ La pantalla se organiza en dos columnas (en escritorio), con el mismo estilo de 
 
 - **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** / **Aprobar** / **Rechazar** (mismos permisos de siempre).
 - **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
-- **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; dependencia; **Conservación** si no está parametrizada en datos (valor «—») y texto explicativo. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
+- **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 
 Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además el bloque **Acceso al documento (ACL)**:
@@ -494,7 +513,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 
 1. Menú lateral → **Administración** → **Auditoría** (ruta `/admin/auditoria`).
 2. En **Criterios de consulta** elija **Usuario** (**Todos** o un usuario del listado — el servidor filtra por <code>actor_user_id</code>), **Acción** (**Todas** o una acción concreta, coincidencia exacta con el código en base de datos) y las fechas **Desde / Hasta**.
-3. Pulse **Consultar** para aplicar filtros y cargar la tabla (antes de consultar, los cambios en los campos no actualizan el listado). El listado usa el **icono de auditoría** del menú (no una letra «A») y chips de resultado **Correcto** / **No completado** según el tema. Opcional: icono **Actualizar** en la cabecera para repetir la consulta con los mismos filtros y página actual.
+3. Pulse **Consultar** para aplicar filtros y cargar la tabla (antes de consultar, los cambios en los campos no actualizan el listado). El listado muestra **10 registros por página** por defecto. Arriba puede verse el bloque **Estadísticas por usuario** (semáforo verde/ámbar/rojo según actividad reciente). En cada fila, **Ver detalle** abre un diálogo con metadatos completos del evento. El listado usa el **icono de auditoría** del menú (no una letra «A») y chips de resultado **Correcto** / **No completado** según el tema. Opcional: icono **Actualizar** en la cabecera para repetir la consulta con los mismos filtros y página actual.
 4. Opcional: **Exportar Excel** o **Exportar PDF** descargan hasta **5000** registros recientes que cumplan **los filtros ya aplicados**.
 
 **Resultado esperado**

@@ -153,7 +153,7 @@ export class DocumentosController {
   @Permissions(PERM.DOC_CREATE)
   create(
     @Body() dto: CreateDocumentoDto,
-    @Req() req: { user?: { id?: string } },
+    @Req() req: Request & { user?: JwtRequestUser },
   ) {
     const createdById = req.user?.id;
     if (!createdById) {
@@ -161,7 +161,12 @@ export class DocumentosController {
         'Usuario no disponible en request',
       );
     }
-    return this.service.create(dto, createdById);
+    return this.service.create(dto, createdById, {
+      actorUserId: createdById,
+      actorEmail: req.user?.email ?? null,
+      ip: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
   }
 
   @Get(':id/eventos')

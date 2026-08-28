@@ -27,9 +27,14 @@ export class RbacService {
     });
   }
 
-  listRoles() {
+  listRoles(viewer?: { roles?: { codigo: string }[] }) {
+    const viewerIsSuper =
+      viewer?.roles?.some((r) => r.codigo === 'SUPERADMIN') ?? false;
     return this.prisma.role.findMany({
-      where: { activo: true },
+      where: {
+        activo: true,
+        ...(viewerIsSuper ? {} : { codigo: { not: 'SUPERADMIN' } }),
+      },
       orderBy: { codigo: 'asc' },
       select: { id: true, codigo: true, nombre: true },
     });
