@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { isAxiosError } from 'axios';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -31,7 +31,7 @@ import { useAuth } from '../../auth/useAuth';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { SectionHeader } from '../../components/SectionHeader';
-import { fechaEmisionErrorMessage } from '../../utils/text-normalize';
+import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
 import {
   type PartyCatalogRow,
   partySelectLabel,
@@ -64,12 +64,7 @@ const createSchema = z.object({
     }),
   asunto: z.string().min(3, 'Asunto requerido').max(250),
   descripcion: z.string().max(1000).optional(),
-  fechaDocumento: z
-    .string()
-    .min(10, 'Fecha requerida')
-    .refine((v) => fechaEmisionErrorMessage(v) === null, {
-      message: 'La fecha de emisión no puede ser posterior a hoy',
-    }),
+  fechaDocumento: fechaDocumentoEmisionSchema,
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Clasificación requerida'),
   dependenciaId: z.string().optional(),
@@ -425,6 +420,10 @@ export function NuevoDocumentoPage() {
     }
   };
 
+  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
+    void form.handleSubmit(onSubmit)(event);
+  };
+
   return (
     <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
@@ -461,7 +460,7 @@ export function NuevoDocumentoPage() {
               />
             </Box>
 
-            <Box component="form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+            <Box component="form" onSubmit={handleFormSubmit} noValidate>
               <Stack spacing={2}>
                 <TextField
                   label="Registrado por"
@@ -651,7 +650,7 @@ export function NuevoDocumentoPage() {
                   error={!!form.formState.errors.responsableInstitucional}
                   helperText={
                     form.formState.errors.responsableInstitucional?.message ??
-                    'Nombre o cargo del responsable en la institución. Se guarda en mayúsculas.'
+                    'Nombre o cargo de referencia (texto libre). No sustituye al usuario que registra, la dependencia, la contraparte ni el beneficiario. Se guarda en mayúsculas.'
                   }
                 />
 

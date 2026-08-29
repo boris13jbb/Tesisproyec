@@ -6,12 +6,7 @@ import {
 } from '../common/traffic-light.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildAuditWhere } from './audit-list.util';
-
-const SENSITIVE_ACTIONS = [
-  'DOC_FILE_DELETED',
-  'USER_UPDATED',
-  'DOC_STATE_CHANGED',
-] as const;
+import { AUDIT_SENSITIVE_ACTIONS } from './audit-sensitive.util';
 
 export type AuditStatsResponse = {
   desde: string;
@@ -22,10 +17,16 @@ export type AuditStatsResponse = {
     fail: number;
   };
   porAccion: { action: string; count: number }[];
+  porUsuario: {
+    actorUserId: string | null;
+    actorEmail: string | null;
+    count: number;
+  }[];
   documentos: {
     creados: number;
     modificados: number;
     archivosEliminados: number;
+    desactivados: number;
   };
   sensiblesPorUsuario: {
     actorUserId: string | null;
@@ -61,9 +62,11 @@ export class AuditoriaService {
       ok,
       fail,
       porAccionRaw,
+      porUsuarioRaw,
       docCreados,
       docModificados,
       archivosEliminados,
+      docDesactivados,
       sensiblesRaw,
     ] = await Promise.all([
       this.prisma.auditLog.count({ where }),
@@ -71,6 +74,11 @@ export class AuditoriaService {
       this.prisma.auditLog.count({ where: { ...where, result: 'FAIL' } }),
       this.prisma.auditLog.groupBy({
         by: ['action'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.auditLog.groupBy({
+        by: ['actorUserId', 'actorEmail'],
         where,
         _count: { _all: true },
       }),
@@ -86,11 +94,14 @@ export class AuditoriaService {
       this.prisma.auditLog.count({
         where: { ...where, action: 'DOC_FILE_DELETED' },
       }),
+      this.prisma.auditLog.count({
+        where: { ...where, action: 'DOC_DEACTIVATED' },
+      }),
       this.prisma.auditLog.groupBy({
         by: ['actorUserId', 'actorEmail'],
         where: {
           ...where,
-          action: { in: [...SENSITIVE_ACTIONS] },
+          action: { in: [...AUDIT_SENSITIVE_ACTIONS] },
         },
         _count: { _all: true },
       }),
@@ -124,10 +135,19 @@ export class AuditoriaService {
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 12),
+      porUsuario: porUsuarioRaw
+        .map((r) => ({
+          actorUserId: r.actorUserId,
+          actorEmail: r.actorEmail,
+          count: r._count._all,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15),
       documentos: {
         creados: docCreados,
         modificados: docModificados,
         archivosEliminados,
+        desactivados: docDesactivados,
       },
       sensiblesPorUsuario,
     };

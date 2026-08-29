@@ -26,6 +26,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess } from '../../auth/role-utils';
 import { ActivoChip } from '../../components/ActivoChip';
 import { CatalogCodigoChip, CatalogNombreCell } from '../../components/CatalogListCells';
 import { EmptyState } from '../../components/EmptyState';
@@ -60,7 +61,7 @@ type EditForm = z.infer<typeof editSchema>;
 
 export function SeriesPage() {
   const { user } = useAuth();
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
 
   const [rows, setRows] = useState<SerieRow[]>([]);
   const [loading, setLoading] = useState(true);

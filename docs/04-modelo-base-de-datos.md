@@ -76,7 +76,7 @@
 
 | Tabla | Migración | Propósito |
 |-------|-----------|-----------|
-| `documentos` | `20260421180000_*` + **`20260507153000_*`** + **`20260828120000_*`** | Registro documental; FK opcional a `dependencias`; nivel **PUBLICO / INTERNO / RESERVADO / CONFIDENCIAL**; opcionalmente `contraparte_id`, `beneficiario_id`, `fecha_vencimiento`, `responsable_institucional` (texto en mayúsculas en API). |
+| `documentos` | `20260421180000_*` + **`20260507153000_*`** + **`20260828120000_*`** | Registro documental; FK opcional a `dependencias`; nivel **PUBLICO / INTERNO / RESERVADO / CONFIDENCIAL**; opcionalmente `contraparte_id`, `beneficiario_id`, `fecha_vencimiento`, `responsable_institucional` (**texto** de referencia, no FK; ver `docs/53-responsable-institucional-y-serie.md`). |
 | `documento_eventos` | `20260421190000_*` | Historial CREAR/EDITAR dominio documento. |
 | `documento_archivos` / `documento_archivo_eventos` | `20260421193000_*`, `20260421194500_*` | Adjuntos versionados + eventos (p. ej. SUBIDO/DESCARGADO/ELIMINADO). |
 

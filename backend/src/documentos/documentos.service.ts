@@ -29,7 +29,6 @@ import {
   computeSlaEstado,
   diasEnRevision,
   slaDiasRevisionFromEnv,
-  type DocumentoSlaEstado,
 } from './documento-sla.util';
 import { documentoVisibilityWhere } from './documento-scope.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
@@ -37,6 +36,7 @@ import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import {
   assertEstadoCreacionPermitido,
+  assertEstadoNoResuelveRevisionViaPatch,
   assertTransicionEstado,
   normalizeDocumentoEstado,
   type DocumentoEstado,
@@ -358,8 +358,13 @@ export class DocumentosService {
       subserieId?: string;
       fechaDesde?: Date;
       fechaHasta?: Date;
-      slaEstado?: DocumentoSlaEstado | string;
-      sortBy?: 'codigo' | 'fechaDocumento' | 'estado' | 'fechaIngresoRevision' | 'fechaLimiteSla';
+      slaEstado?: string;
+      sortBy?:
+        | 'codigo'
+        | 'fechaDocumento'
+        | 'estado'
+        | 'fechaIngresoRevision'
+        | 'fechaLimiteSla';
       sortDir?: 'asc' | 'desc';
       page?: number;
       pageSize?: number;
@@ -477,7 +482,7 @@ export class DocumentosService {
       q?: string;
       dependenciaId?: string;
       tipoDocumentalId?: string;
-      slaEstado?: DocumentoSlaEstado | string;
+      slaEstado?: string;
       page?: number;
       pageSize?: number;
       sortBy?: 'fechaIngresoRevision' | 'fechaLimiteSla' | 'codigo';
@@ -504,7 +509,9 @@ export class DocumentosService {
     return {
       ...list,
       slaResumen,
-      slaDiasInstitucional: slaDiasRevisionFromEnv(process.env.SLA_DIAS_REVISION),
+      slaDiasInstitucional: slaDiasRevisionFromEnv(
+        process.env.SLA_DIAS_REVISION,
+      ),
     };
   }
 
@@ -1644,10 +1651,9 @@ export class DocumentosService {
     }
 
     if (dto.estado !== undefined) {
-      assertTransicionEstado(
-        beforeFull.estado,
-        normalizeDocumentoEstado(dto.estado.trim()),
-      );
+      const estadoDestino = normalizeDocumentoEstado(dto.estado.trim());
+      assertTransicionEstado(beforeFull.estado, estadoDestino);
+      assertEstadoNoResuelveRevisionViaPatch(beforeFull.estado, estadoDestino);
     }
     if (dto.tipoDocumentalId !== undefined) {
       await this.assertTipoDocumentalExists(dto.tipoDocumentalId);

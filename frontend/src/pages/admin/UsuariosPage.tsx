@@ -49,6 +49,8 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'reac
 import type { Theme } from '@mui/material/styles';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess, userIsSuperAdmin } from '../../auth/role-utils';
+import { isDirectPermissionBlockedForAdmin } from '../../constants/direct-permissions-policy';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import { ListPanel } from '../../components/ListPanel';
@@ -317,22 +319,28 @@ function PermissionCodesPicker({
   catalog,
   value,
   onChange,
+  restrictCriticalForAdmin,
 }: {
   catalog: RbacPermRow[];
   value: string[];
   onChange: (next: string[]) => void;
+  restrictCriticalForAdmin: boolean;
 }) {
   const [q, setQ] = useState('');
   const selected = useMemo(() => new Set(value), [value]);
+  const visibleCatalog = useMemo(() => {
+    if (!restrictCriticalForAdmin) return catalog;
+    return catalog.filter((p) => !isDirectPermissionBlockedForAdmin(p.codigo));
+  }, [catalog, restrictCriticalForAdmin]);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return catalog;
-    return catalog.filter(
+    if (!t) return visibleCatalog;
+    return visibleCatalog.filter(
       (p) =>
         p.codigo.toLowerCase().includes(t) ||
         (p.descripcion ?? '').toLowerCase().includes(t),
     );
-  }, [catalog, q]);
+  }, [visibleCatalog, q]);
 
   return (
     <FormControl fullWidth margin="normal" component="fieldset">
@@ -342,6 +350,9 @@ function PermissionCodesPicker({
       <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
         Opcional. Se suman a los del rol. Vacío = solo hereda del rol. El efecto completo requiere
         nueva sesión o renovación del token.
+        {restrictCriticalForAdmin
+          ? ' No se pueden asignar permisos de revisión, usuarios ni políticas de seguridad como excepción directa.'
+          : ''}
       </Typography>
       {catalog.length === 0 ? (
         <Alert severity="warning">No hay catálogo de permisos. Ejecute el seed del servidor.</Alert>
@@ -455,7 +466,8 @@ function MatrixCell({ allowed }: { allowed: boolean }) {
 
 export function UsuariosPage() {
   const { user } = useAuth();
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
+  const isSuperAdmin = userIsSuperAdmin(user?.roles);
   const [items, setItems] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1406,6 +1418,7 @@ export function UsuariosPage() {
             catalog={sortedPermCatalog}
             value={directPermCodes}
             onChange={setDirectPermCodes}
+            restrictCriticalForAdmin={!isSuperAdmin}
           />
         </DialogContent>
         <DialogActions>
@@ -1507,6 +1520,7 @@ export function UsuariosPage() {
             catalog={sortedPermCatalog}
             value={directPermCodes}
             onChange={setDirectPermCodes}
+            restrictCriticalForAdmin={!isSuperAdmin}
           />
         </DialogContent>
         <DialogActions>

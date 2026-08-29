@@ -2,43 +2,122 @@
 
 ## Estado general
 
-**100 % completado** — código, build/tests automatizados y pruebas E2E (API + UI + verificación manual SUPERADMIN).
+**Cierre de auditoría 2026-08-29: verificación 100 %.** P1–P12 cerradas. Sesión ADMIN de desarrollo usable (`admin.operativo@local.test`) tras enrolamiento MFA por el flujo normal de login. Autorización `DOC_REVISION_SEND` demostrada con prueba HTTP de integración.
 
-Última actualización: 2026-08-28.
+Última actualización: 2026-08-29 (cierre ADMIN runtime + 403 sin `DOC_REVISION_SEND`).
+
+Leyenda: `[x]` completado · `[~]` en proceso · `[ ]` pendiente · `[!]` bloqueado
+
+---
+
+## Diagnóstico (auditoría 2026-08-29)
+
+### Ya implementado (no reconstruir)
+
+- Dashboard por estados, indicador del mes, gráfico mensual, pendientes → `EN_REVISION`.
+- Auditoría paginada y diálogo «Ver detalle».
+- Soft delete, creador JWT, dependencia, contraparte, beneficiario.
+- Cédula/RUC, fecha de registro, vencimiento, mayúsculas, menú Reportes.
+
+### Parcial / con error (esta iteración)
+
+- [x] Bypass `PATCH` → APROBADO/RECHAZADO
+- [x] ADMIN no muta matriz SUPERADMIN
+- [x] Permisos directos no equivalen a SUPERADMIN
+- [x] UI SUPERADMIN vía `userHasAdminAccess`
+- [x] `DOC_REVISION_SEND` en `enviar-revision`
+- [x] Fecha de emisión unificada en ambos formularios
+- [x] Stats: acciones por usuario + `DOC_DEACTIVATED`
+- [x] Semáforo: acciones sensibles ampliadas
+- [x] Responsable institucional: texto, diferenciado (sin FK)
+- [x] Serie: **ACEPTADO FUNCIONALMENTE** (manual, auto si hay una)
+- [x] Agregación mensual dashboard (1 consulta)
+- [x] Tests de dominio (reglas reales, no mocks de negocio)
+
+### Verificación runtime / responsive
+
+- [x] `npm run lint` backend — OK (0 errores)
+- [x] `npm run build` backend — OK
+- [x] `npm test` backend — OK (12 suites, 44 tests)
+- [x] `npm run build` frontend — OK
+- [x] `npm run lint` frontend — OK (0 errores; corregidos `react-hooks` de notificaciones, bandeja, perfil, preview y submit)
+- [x] Smoke API + UI SUPERADMIN: health OK; PATCH APROBADO/RECHAZADO → 400; rechazo sin motivo → 400; dashboard 12 meses; stats `porUsuario` + `desactivados`; flujo REGISTRADO → EN_REVISION → APROBADO/RECHAZADO
+- [x] Login USER (`usuario.prueba@local.test`) — OK; resolver revisión → 403; menú sin Usuarios/Auditoría/Reportes
+- [x] Login ADMIN runtime — `admin.operativo@local.test` (contraseña de desarrollo + MFA TOTP enrolada en `/login`, sin evadir MFA ni cambiar hashes). `admin@local.test` sigue sin coincidir con el seed; no se modificó.
+- [x] ADMIN → SUPERADMIN (`PATCH /usuarios/:id`) → **403**
+- [x] ADMIN → matriz SUPERADMIN (`PUT /rbac/roles/SUPERADMIN/permissions`) → **403**
+- [x] ADMIN revisión documental: pendientes, detalle EN_REVISION, `POST .../resolver-revision` APROBADO y RECHAZADO con motivo (DOC-0011 / DOC-0012)
+- [x] ADMIN UI: Dashboard, Documentos, Auditoría, Usuarios, Reportes
+- [x] Usuario sin `DOC_REVISION_SEND` → `POST /documentos/:id/enviar-revision` **403** (prueba de integración HTTP con `PermissionsGuard` real; ninguna cuenta permanente de BD carecía del permiso)
+- [x] Responsive 1440×900, 1024×768, 768×1024, 390×844 — sin overflow horizontal en Inicio, Documentos, Nuevo documento, Auditoría, Usuarios, Reportes (navegación in-app SUPERADMIN)
 
 ---
 
-## Diagnóstico inicial
+## Cierre de seguridad — fases 33+
 
-### Ya implementado
+### Fase 33 — Bypass de revisión (PATCH)
 
-- RBAC con permisos `DOC_REVISION_SEND` y `DOC_REVISION_RESOLVE` en `permission-codes.ts` y seed.
-- Rol **SUPERADMIN** protegido (no degradar, no desactivar, no asignar por ADMIN) en `usuarios.service.ts`.
-- Rol **ADMIN** con todos los permisos (incluye revisión documental).
-- Rol **USUARIO** con permisos limitados (sin `DOC_REVISION_RESOLVE`).
-- Flujo documental: BORRADOR/REGISTRADO → EN_REVISION → APROBADO/RECHAZADO con auditoría.
-- Dashboard con bloque Documentos por estado, KPIs, pendientes, gráfico mensual 12 meses.
-- Indicador «documentos este mes» sin notación ambigua «+N»; pie con acumulado de meses anteriores.
-- Backend `documentosPorMes` con meses en cero y visibilidad documental.
-- Componente `DocumentosMonthlyChart` (barras MUI, tooltip, responsive).
-- Navegación pendientes → `/documentos?estado=EN_REVISION`.
-- Auditoría paginada (10 por defecto), detalle, estadísticas y semáforo por percentiles.
-- Catálogos Contraparte y Beneficiario con validación cédula/RUC (frontend + backend).
-- Validación fecha emisión no futura; vencimiento puede ser futuro.
-- `createdById` desde JWT en backend (no editable por cliente).
-- Normalización mayúsculas (`text-normalize.util.ts`).
-- Sección **Reportes** independiente en menú lateral (`/reportes`).
-- Soft delete documentos (`activo`).
+- [x] `assertEstadoNoResuelveRevisionViaPatch` en `documento-estado.util.ts`
+- [x] `DocumentosService.update` no resuelve APROBADO/RECHAZADO
+- [x] UI de edición no ofrece Aprobar/Rechazar como destino de PATCH
 
-### Implementado parcialmente
+**Criterio:** PATCH a APROBADO/RECHAZADO → 400; `resolver-revision` sigue siendo el único camino.
 
-- _(Ninguno tras esta iteración.)_
+### Fase 34 — Matriz SUPERADMIN
 
-### No implementado
+- [x] `assertSuperadminRoleMatrixMutationAllowed` (misma política que usuarios)
+- [x] `PUT /rbac/roles/SUPERADMIN/permissions` → 403 si el actor no es SUPERADMIN
 
-- _(Ningún requisito funcional mayor pendiente.)_
+### Fase 35 — Permisos directos
+
+- [x] Lista de códigos no asignables por ADMIN (`DOC_REVISION_RESOLVE`, USERS_*, política, backup)
+- [x] Rechazo de catálogo completo como excepciones
+- [x] SUPERADMIN conserva capacidad superior
+- [x] UI oculta esos códigos si el operador no es SUPERADMIN
+
+### Fase 36 — SUPERADMIN en frontend
+
+- [x] `userHasAdminAccess` / `userIsRevisorOrAdmin` en páginas administrativas y documentos
+
+### Fase 37 — DOC_REVISION_SEND
+
+- [x] `@Permissions(PERM.DOC_REVISION_SEND)` en `POST .../enviar-revision`
+- [x] Seed ya otorga el permiso a USUARIO/EDITOR_DOC/REVISOR/ADMIN/SUPERADMIN
+- [x] Usuario sin `DOC_REVISION_SEND` → 403 (`enviar-revision.authorization.spec.ts`)
+
+### Fase 38 — Fecha de emisión unificada
+
+- [x] `fechaDocumentoEmisionSchema` compartido (Nuevo documento + diálogo Documentos)
+
+### Fase 39 — Auditoría stats y semáforo
+
+- [x] `porUsuario` (top 15)
+- [x] `documentos.desactivados` = `DOC_DEACTIVATED` (aparte de archivos)
+- [x] Semáforo incluye desactivación, cambios de permisos/roles/estado
+
+### Fase 40 — Responsable institucional y serie
+
+- [x] Sin migración a FK (compatibilidad)
+- [x] Textos de ayuda: no es creador / dependencia / contraparte / beneficiario
+- [x] Serie: selección manual + auto si hay una sola; documentado como aceptado
+
+### Fase 41 — Dashboard mensual
+
+- [x] Una `findMany` de `createdAt` + agregación en memoria (visibilidad intacta)
+
+### Fase 42 — Tests de dominio
+
+- [x] RBAC policy, transiciones/PATCH, fechas, cédula/RUC, DTO rechazo, serie mensual
+- [x] `enviar-revision` sin `DOC_REVISION_SEND` → HTTP 403 (guard real)
 
 ---
+
+## Histórico 2026-08-28 (fases 0–32)
+
+El trabajo de esa fecha permanece válido para funcionalidades ya cubiertas. El «100 %» de aquella nota **se retira**: no había tests de dominio ni el cierre de bypass/RBAC de esta auditoría.
+
+---
+
 
 ## Plan por fases
 
@@ -355,7 +434,8 @@
 **Credenciales vigentes en este entorno:**
 
 - `superadmin@local.test` / `SuperAdmin123!` — funciona
-- `admin@local.test` — contraseña distinta al seed por defecto (no es `Admin123!`)
+- `admin.operativo@local.test` — sesión ADMIN usable tras MFA (flujo normal de login)
+- `admin@local.test` — contraseña distinta al seed por defecto (no es `Admin123!`); no se alteró el hash
 
 **Criterio de aceptación:** Build OK; pruebas manuales documentadas abajo.
 
@@ -395,3 +475,19 @@
 | 2026-08-28  | `prisma:generate:clean` + build + test backend | [x]    |
 | 2026-08-28  | Pruebas E2E USUARIO (login, permisos, 403)     | [x]    |
 | 2026-08-28  | Prueba SUPERADMIN vs ADMIN (verificación manual UI) | [x]    |
+| 2026-08-29  | Cierre auditoría: bypass PATCH, RBAC, tests, smoke API | [x]    |
+| 2026-08-29  | Verificación: lint frontend 0, USER 403, responsive 4 VP | [x]    |
+| 2026-08-29  | Login ADMIN runtime (`admin.operativo` + MFA)          | [x]    |
+| 2026-08-29  | Usuario sin DOC_REVISION_SEND → 403                    | [x]    |
+
+---
+
+## Pendientes de esta fase
+
+Ninguno.
+
+## Siguiente fase
+
+**Siguiente fase: desarrollo y ampliación del módulo de Reportes.**
+
+No forma parte de este cierre. El checkpoint de versionado deja el código estable para iniciar esa fase posteriormente.

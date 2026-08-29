@@ -37,7 +37,7 @@ import { isAxiosError } from 'axios';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { userHasAdminAccess } from '../auth/role-utils';
+import { primaryAdminRoleName, userHasAdminAccess } from '../auth/role-utils';
 import { DocumentosMonthlyChart } from '../components/DocumentosMonthlyChart';
 import { useDashboardLcpReporting } from '../perf/useDashboardLcpReporting';
 import { listSurfaceSx } from '../components/listSurfaces';
@@ -662,9 +662,7 @@ export function DashboardPage() {
   };
 
   const displayRole =
-    user?.roles.find((r) => r.codigo === 'ADMIN' || r.codigo === 'SUPERADMIN')?.nombre ??
-    user?.roles[0]?.nombre ??
-    'Usuario';
+    primaryAdminRoleName(user?.roles) ?? user?.roles[0]?.nombre ?? 'Usuario';
 
   const greetingName = useMemo(() => {
     const joined = `${user?.nombres ?? ''} ${user?.apellidos ?? ''}`.trim();

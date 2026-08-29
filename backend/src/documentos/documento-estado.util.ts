@@ -60,3 +60,22 @@ export function assertTransicionEstado(
     );
   }
 }
+
+/**
+ * APROBADO y RECHAZADO solo vía `POST .../resolver-revision` (motivo de rechazo incluido).
+ * El PATCH genérico no puede resolver una revisión.
+ */
+export function assertEstadoNoResuelveRevisionViaPatch(
+  estadoActualRaw: string,
+  estadoNuevo: DocumentoEstado,
+): void {
+  const from = normalizeDocumentoEstado(estadoActualRaw);
+  if (from === estadoNuevo) {
+    return;
+  }
+  if (estadoNuevo === 'APROBADO' || estadoNuevo === 'RECHAZADO') {
+    throw new BadRequestException(
+      'Aprobar o rechazar un documento solo es posible mediante la operación formal de resolución de revisión',
+    );
+  }
+}

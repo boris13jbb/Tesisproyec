@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { userHasAdminAccess } from '../auth/role-utils';
 import { schedulePostLoginPrefetch } from '../perf/postLoginPrefetch';
 
 /**
@@ -22,7 +23,7 @@ export function PostLoginPerfScheduler() {
       return;
     }
     prefetchUserId.current = user.id;
-    const isAdmin = user.roles.some((r) => r.codigo === 'ADMIN');
+    const isAdmin = userHasAdminAccess(user.roles);
     schedulePostLoginPrefetch(isAdmin);
   }, [ready, user]);
 

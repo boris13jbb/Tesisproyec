@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Link as RouterLink } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess } from '../../auth/role-utils';
 import { EmptyState } from '../../components/EmptyState';
 import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
@@ -143,7 +144,7 @@ function buildDisplayCodigo(serie: SerieRow, sub?: SubserieRow) {
 
 export function ClasificacionDocumentalPage() {
   const { user } = useAuth();
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
   const [series, setSeries] = useState<SerieRow[]>([]);
   const [subseries, setSubseries] = useState<SubserieRow[]>([]);
   const [loading, setLoading] = useState(true);

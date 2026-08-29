@@ -136,11 +136,17 @@ export function BandejaTramitesPage() {
   }, [q, dependenciaId, tipoDocumentalId, slaEstado]);
 
   useEffect(() => {
-    void loadCatalogs();
+    const id = window.setTimeout(() => {
+      void loadCatalogs();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [loadCatalogs]);
 
   useEffect(() => {
-    void loadBandeja();
+    const id = window.setTimeout(() => {
+      void loadBandeja();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [loadBandeja]);
 
   const resumen = data?.slaResumen;

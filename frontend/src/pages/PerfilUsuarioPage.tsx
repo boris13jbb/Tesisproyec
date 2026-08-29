@@ -48,6 +48,8 @@ type AuthProfileResponse = {
   activity: { id: string; at: string; action: string; label: string }[];
 };
 
+const EMPTY_ACTIVITY: AuthProfileResponse['activity'] = [];
+
 function initialsForUser(
   nombres: string | null,
   apellidos: string | null,
@@ -80,8 +82,10 @@ function subtitleRole(profile: AuthProfileResponse['usuario']): string {
 }
 
 function primaryRoleLabel(profile: AuthProfileResponse['usuario']): string {
-  const admin = profile.roles.find((r) => r.codigo === 'ADMIN');
-  if (admin) return admin.nombre;
+  const privileged = profile.roles.find(
+    (r) => r.codigo === 'SUPERADMIN' || r.codigo === 'ADMIN',
+  );
+  if (privileged) return privileged.nombre;
   const first = profile.roles[0];
   return first?.nombre ?? '—';
 }
@@ -131,15 +135,16 @@ export function PerfilUsuarioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const activity = profile?.activity ?? EMPTY_ACTIVITY;
   const visibleActivity = useMemo(() => {
-    if (!profile?.activity?.length) return [];
-    return profile.activity
+    if (!activity.length) return [];
+    return activity
       .map((item) => ({
         ...item,
         displayLabel: formatUserActivityLabel(item.label, item.action),
       }))
       .filter((item) => item.displayLabel.length > 0);
-  }, [profile?.activity]);
+  }, [activity]);
 
   useEffect(() => {
     let cancelled = false;

@@ -6,6 +6,7 @@ import {
 import type { JwtRequestUser } from '../auth/request-user';
 import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
 import type { PermissionCode } from '../auth/permission-codes';
+import { assertSuperadminRoleMatrixMutationAllowed } from '../auth/rbac-policy.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../auditoria/audit.service';
 import { PermissionsService } from '../auth/permissions.service';
@@ -77,6 +78,11 @@ export class RbacService {
         invalid,
       });
     }
+
+    assertSuperadminRoleMatrixMutationAllowed({
+      actorRoleCodes: actor.roles.map((r) => r.codigo),
+      roleCodigo: roleCodigo,
+    });
 
     const role = await this.prisma.role.findUnique({
       where: { codigo: roleCodigo },

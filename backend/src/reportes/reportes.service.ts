@@ -203,7 +203,9 @@ export class ReportesService {
       include: {
         dependencia: { select: { codigo: true, nombre: true } },
         cargo: { select: { codigo: true, nombre: true } },
-        roles: { include: { role: { select: { codigo: true, nombre: true } } } },
+        roles: {
+          include: { role: { select: { codigo: true, nombre: true } } },
+        },
       },
     });
     return users.map((u) => ({
@@ -338,10 +340,11 @@ export class ReportesService {
         actorEmail: row.actorEmail ?? '—',
         documentoCodigo: row.resourceCodigo ?? '—',
         documentoId: row.resourceId ?? '',
-        decision:
-          typeof meta.decision === 'string' ? meta.decision : undefined,
+        decision: typeof meta.decision === 'string' ? meta.decision : undefined,
         motivoRechazo:
-          typeof meta.motivoRechazo === 'string' ? meta.motivoRechazo : undefined,
+          typeof meta.motivoRechazo === 'string'
+            ? meta.motivoRechazo
+            : undefined,
       };
     });
   }

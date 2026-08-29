@@ -75,7 +75,17 @@ type UsuarioListItem = {
 
 type AuditStatsResponse = {
   totales: { registros: number; ok: number; fail: number };
-  documentos: { creados: number; modificados: number; archivosEliminados: number };
+  documentos: {
+    creados: number;
+    modificados: number;
+    archivosEliminados: number;
+    desactivados: number;
+  };
+  porUsuario: {
+    actorUserId: string | null;
+    actorEmail: string | null;
+    count: number;
+  }[];
   sensiblesPorUsuario: {
     actorUserId: string | null;
     actorEmail: string | null;
@@ -515,6 +525,14 @@ export function AuditoriaPage() {
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
               <Typography variant="caption" color="text.secondary">
+                Docs desactivados
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {stats.documentos.desactivados ?? 0}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 3 }}>
+              <Typography variant="caption" color="text.secondary">
                 Archivos eliminados
               </Typography>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
@@ -522,6 +540,23 @@ export function AuditoriaPage() {
               </Typography>
             </Grid>
           </Grid>
+          {(stats.porUsuario?.length ?? 0) > 0 ? (
+            <>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                Acciones por usuario
+              </Typography>
+              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                {stats.porUsuario!.map((s) => (
+                  <Chip
+                    key={`${s.actorUserId ?? 'na'}-${s.actorEmail ?? ''}`}
+                    label={`${s.actorEmail ?? '—'} · ${s.count}`}
+                    variant="outlined"
+                    size="small"
+                  />
+                ))}
+              </Stack>
+            </>
+          ) : null}
           {stats.sensiblesPorUsuario.length > 0 ? (
             <>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>

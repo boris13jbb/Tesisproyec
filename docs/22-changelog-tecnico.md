@@ -24,6 +24,39 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-29 — Checkpoint de cierre (revisión tutoría)
+
+- Cierre estable de las correcciones de reunión: RBAC y SUPERADMIN, flujo de revisión documental, Dashboard, Auditoría (stats y semáforo), validaciones (fechas, cédula/RUC, PATCH), datos documentales, responsive, tests de dominio/autorización y QA runtime.
+- Tag previsto: `v1.0-revision-tutor-completada`.
+- **Siguiente fase: desarrollo y ampliación del módulo de Reportes.**
+
+### 2026-08-29 — Cierre ADMIN runtime y 403 sin DOC_REVISION_SEND
+
+- Login ADMIN usable: `admin.operativo@local.test` enroló TOTP por el flujo normal de `/login` (sin reset de BD ni cambio de hashes).
+- ADMIN no muta SUPERADMIN (PATCH usuario 403; PUT matriz 403). Revisión formal APROBADO/RECHAZADO OK.
+- Prueba de integración: usuario autenticado sin `DOC_REVISION_SEND` → `POST /documentos/:id/enviar-revision` 403.
+- Plan: `docs/PLAN_CAMBIOS_REUNION.md` — 100 %.
+
+### 2026-08-29 — Verificación de cierre (lint frontend + runtime)
+
+- Lint frontend: 8 errores `react-hooks` corregidos (efectos diferidos, deps de memo, submit sin `handleSubmit` en render).
+- Login `admin@local.test` sigue 401 (hash distinto al seed); `admin.operativo@local.test` pide MFA. USER `usuario.prueba@local.test` → 403 al resolver revisión.
+- Responsive 1440/1024/768/390 sin overflow horizontal (navegación SUPERADMIN).
+- Plan: `docs/PLAN_CAMBIOS_REUNION.md` — ADMIN marcado `[!]` (superado el mismo día con MFA de `admin.operativo`).
+
+### 2026-08-29 — Cierre de hallazgos de auditoría (RBAC, revisión, stats)
+
+- `PATCH /documentos/:id` ya no puede pasar a APROBADO/RECHAZADO; solo `POST .../resolver-revision`.
+- `PUT /rbac/roles/SUPERADMIN/permissions` prohibido para ADMIN; permisos directos sensibles no asignables por ADMIN.
+- `DOC_REVISION_SEND` en envío a revisión; UI SUPERADMIN unificada; fecha de emisión compartida; stats `porUsuario` + `DOC_DEACTIVATED`; dashboard mensual en una consulta.
+- Tests de dominio Jest. Decisión responsable/serie: `docs/53-responsable-institucional-y-serie.md`.
+- Plan: `docs/PLAN_CAMBIOS_REUNION.md` deja de declarar 100 %.
+
+### 2026-08-29 — Resumen consolidado de entregas 2026-08-28
+
+- Nuevo documento: `docs/52-resumen-cambios-implementados-2026-08-28.md` (contrapartes/beneficiarios, dashboard, auditoría, SLA/notificaciones, bandeja, reportes, commits `1295b44`–`5dae708`).
+- Enlace añadido en `docs/README.md`.
+
 ### 2026-08-28 — R-44/R-27/R-28: notificaciones, bandeja SLA y reportes institucionales ampliados
 
 - **Migración** `20260828140000_sla_notifications`: `documentos.fecha_ingreso_revision`, `fecha_limite_sla`; tabla `user_notifications`.

@@ -7,6 +7,12 @@ import type { AuditResult } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { mesNombreEc } from '../common/date-labels.util';
 import {
+  aggregateCreatedAtByMonth,
+  buildUltimos12MesesRanges,
+  fillDocumentosPorMesSeries,
+} from './documentos-por-mes.util';
+import { fillDocumentosPorEstadoCounts } from './documentos-por-estado.util';
+import {
   AUDIT_ACTION_BACKUP_VERIFIED,
   BACKUP_META_SOURCE_MANUAL,
 } from '../backup/backup.constants';
@@ -129,21 +135,6 @@ function clampPercent(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-function buildUltimos12MesesRanges(
-  now: Date,
-): { anio: number; mes: number; desde: Date; hasta: Date }[] {
-  const ranges: { anio: number; mes: number; desde: Date; hasta: Date }[] = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const anio = d.getFullYear();
-    const mes = d.getMonth() + 1;
-    const desde = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
-    const hasta = new Date(anio, mes, 0, 23, 59, 59, 999);
-    ranges.push({ anio, mes, desde, hasta });
-  }
-  return ranges;
-}
-
 async function countDocumentosPorEstado(
   prisma: PrismaService,
   docWhere: Prisma.DocumentoWhereInput,
@@ -153,15 +144,9 @@ async function countDocumentosPorEstado(
     where: docWhere,
     _count: { _all: true },
   });
-  const map = new Map(grouped.map((g) => [g.estado, g._count._all]));
-  const pick = (estado: string) => map.get(estado) ?? 0;
-  const registrados = pick('REGISTRADO');
-  const borradores = pick('BORRADOR');
-  const enRevision = pick('EN_REVISION');
-  const aprobados = pick('APROBADO');
-  const rechazados = pick('RECHAZADO');
-  const total = grouped.reduce((acc, g) => acc + g._count._all, 0);
-  return { total, registrados, borradores, enRevision, aprobados, rechazados };
+  return fillDocumentosPorEstadoCounts(
+    grouped.map((g) => ({ estado: g.estado, count: g._count._all })),
+  );
 }
 
 async function buildDocumentosPorMes(
@@ -170,22 +155,20 @@ async function buildDocumentosPorMes(
   now: Date,
 ): Promise<DashboardDocumentoPorMesItem[]> {
   const ranges = buildUltimos12MesesRanges(now);
-  const counts = await Promise.all(
-    ranges.map((r) =>
-      prisma.documento.count({
-        where: {
-          ...docWhere,
-          createdAt: { gte: r.desde, lte: r.hasta },
-        },
-      }),
-    ),
-  );
-  return ranges.map((r, idx) => ({
-    anio: r.anio,
-    mes: r.mes,
-    nombreMes: mesNombreEc(r.mes),
-    cantidad: counts[idx] ?? 0,
-  }));
+  const desde = ranges[0]?.desde;
+  const hasta = ranges[ranges.length - 1]?.hasta;
+  if (!desde || !hasta) {
+    return [];
+  }
+  const rows = await prisma.documento.findMany({
+    where: {
+      ...docWhere,
+      createdAt: { gte: desde, lte: hasta },
+    },
+    select: { createdAt: true },
+  });
+  const counts = aggregateCreatedAtByMonth(rows.map((r) => r.createdAt));
+  return fillDocumentosPorMesSeries(ranges, counts, mesNombreEc);
 }
 
 export { AUDIT_ACTION_BACKUP_VERIFIED } from '../backup/backup.constants';

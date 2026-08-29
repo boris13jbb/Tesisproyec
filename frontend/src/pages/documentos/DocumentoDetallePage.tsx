@@ -50,7 +50,7 @@ import {
   labelDocumentoEstado,
 } from '../../constants/documento-estado';
 import { getApiErrorMessage } from '../../utils/api-error-message';
-import { fechaEmisionErrorMessage } from '../../utils/text-normalize';
+import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
 import {
   type PartyCatalogRow,
   partyDisplayLabel,
@@ -58,6 +58,7 @@ import {
 } from '../../utils/party-label';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess, userIsRevisorOrAdmin } from '../../auth/role-utils';
 import { EmptyState } from '../../components/EmptyState';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
@@ -149,12 +150,7 @@ type RoleOption = { codigo: string; nombre: string };
 const editSchema = z.object({
   asunto: z.string().min(3).max(250),
   descripcion: z.string().max(1000).optional(),
-  fechaDocumento: z
-    .string()
-    .min(10, 'Fecha requerida')
-    .refine((v) => fechaEmisionErrorMessage(v) === null, {
-      message: 'La fecha de emisión no puede ser posterior a hoy',
-    }),
+  fechaDocumento: fechaDocumentoEmisionSchema,
   fechaVencimiento: z
     .string()
     .optional()
@@ -352,7 +348,7 @@ export function DocumentoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
   const canManageDocAccess = useMemo(() => {
     if (isAdmin) return true;
@@ -465,7 +461,7 @@ export function DocumentoDetallePage() {
     } catch {
       // no-op: fallos de popup blocker u otros
     }
-  }, [doc?.codigo, previewDocxHtml, previewUrl]);
+  }, [doc, previewDocxHtml, previewUrl]);
 
   const historiaRef = useRef<HTMLDivElement | null>(null);
 
@@ -500,13 +496,12 @@ export function DocumentoDetallePage() {
     };
   }, [archivoUltimaVersion]);
 
-  const esRevisorOAdmin =
-    user?.roles.some((r) => r.codigo === 'ADMIN' || r.codigo === 'REVISOR') ??
-    false;
+  const esRevisorOAdmin = userIsRevisorOrAdmin(user?.roles);
   const puedeEnviarRevision = Boolean(
     doc &&
       doc.estado === 'REGISTRADO' &&
-      (isAdmin || user?.id === doc.createdBy.id),
+      (isAdmin || user?.id === doc.createdBy.id) &&
+      (myPermissionCodes?.includes('DOC_REVISION_SEND') ?? false),
   );
   const puedeResolverRevision = Boolean(
     doc && doc.estado === 'EN_REVISION' && esRevisorOAdmin,
@@ -864,7 +859,7 @@ export function DocumentoDetallePage() {
   };
 
   const onEdit = editForm.handleSubmit(async (data) => {
-    if (!id) return;
+    if (!id || !doc) return;
     setError(null);
     try {
       await apiClient.patch(`/documentos/${id}`, {
@@ -875,7 +870,7 @@ export function DocumentoDetallePage() {
           ? new Date(data.fechaVencimiento).toISOString()
           : null,
         responsableInstitucional: data.responsableInstitucional?.trim() || null,
-        estado: data.estado,
+        ...(data.estado !== doc.estado ? { estado: data.estado } : {}),
         activo: data.activo,
         tipoDocumentalId: data.tipoDocumentalId,
         subserieId: data.subserieId,
@@ -1694,7 +1689,7 @@ export function DocumentoDetallePage() {
                         value={`${doc.tipoDocumental.codigo} — ${doc.tipoDocumental.nombre}`}
                       />
                       <MetaRow
-                        label="Serie"
+                        label="Serie documental"
                         value={`${doc.subserie.serie.codigo} — ${doc.subserie.serie.nombre}`}
                       />
                       <MetaRow
@@ -1720,7 +1715,7 @@ export function DocumentoDetallePage() {
                         value={doc.beneficiario ? partyDisplayLabel(doc.beneficiario) : '—'}
                       />
                       <MetaRow
-                        label="Responsable institucional"
+                        label="Responsable institucional (referencia, texto)"
                         value={doc.responsableInstitucional?.trim() || '—'}
                       />
                       <MetaRow
@@ -2015,7 +2010,10 @@ export function DocumentoDetallePage() {
               label="Responsable institucional (opcional)"
               fullWidth
               error={!!editForm.formState.errors.responsableInstitucional}
-              helperText={editForm.formState.errors.responsableInstitucional?.message}
+              helperText={
+                editForm.formState.errors.responsableInstitucional?.message ??
+                'Persona o cargo de referencia en la institución (texto). No es el usuario que registró, ni la dependencia, ni la contraparte.'
+              }
               {...editForm.register('responsableInstitucional')}
             />
 
@@ -2031,7 +2029,11 @@ export function DocumentoDetallePage() {
                     value={field.value}
                     onChange={field.onChange}
                   >
-                    {DOCUMENTO_ESTADOS.map((cod) => (
+                    {DOCUMENTO_ESTADOS.filter(
+                      (cod) =>
+                        (cod !== 'APROBADO' && cod !== 'RECHAZADO') ||
+                        cod === field.value,
+                    ).map((cod) => (
                       <MenuItem key={cod} value={cod}>
                         {labelDocumentoEstado(cod)}
                       </MenuItem>
@@ -2043,7 +2045,7 @@ export function DocumentoDetallePage() {
                     </Typography>
                   ) : (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>
-                      Solo transiciones válidas entre estados (el servidor rechaza saltos ilegales).
+                      Aprobar o rechazar se hace con los botones de revisión, no desde este formulario.
                     </Typography>
                   )}
                 </FormControl>

@@ -12,6 +12,8 @@
 
 Las **series** son el **nivel superior** del cuadro de clasificación archivística (ISO 15489): agrupan documentos por función o área institucional (administración, secretaría, etc.). Cada serie puede tener **subseries** hijas; el expediente, en el MVP, se clasifica en una **subserie**, pero la serie define la rama del árbol.
 
+**Decisión 2026-08-29:** la serie **no se infiere automáticamente** desde usuario, dependencia ni contraparte (no hay regla institucional inequívoca). La selección sigue siendo **Serie → Subserie**; si el catálogo tiene una sola serie o una sola subserie aplicable, el formulario puede preseleccionarla. Estado: **aceptado funcionalmente**.
+
 | Uso en el sistema | Dónde se aplica |
 |-------------------|-----------------|
 | **Cuadro de clasificación** | Árbol izquierdo en **Clasificación** (`/clasificacion`) — nodos de primer nivel bajo el fondo. |

@@ -1,5 +1,9 @@
 /** Estados operativos del SLA de revisión documental. */
-export type DocumentoSlaEstado = 'EN_PLAZO' | 'POR_VENCER' | 'VENCIDO' | 'SIN_SLA';
+export type DocumentoSlaEstado =
+  | 'EN_PLAZO'
+  | 'POR_VENCER'
+  | 'VENCIDO'
+  | 'SIN_SLA';
 
 const MS_PER_DAY = 86_400_000;
 

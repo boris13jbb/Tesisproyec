@@ -418,7 +418,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
    - **Estado inicial** (**Registrado** o **Borrador**)
    - **Dependencia responsable** (opcional; puede venir desde su perfil)
    - **Contraparte** y **Beneficiario** (opcionales; catálogos del apartado 6)
-   - **Responsable institucional** (opcional; el servidor guarda el texto en mayúsculas)
+   - **Responsable institucional** (opcional; texto de referencia — persona o cargo —. **No** es quien registra el documento, **ni** la dependencia, **ni** la contraparte, **ni** el beneficiario. El servidor lo guarda en mayúsculas.)
    - **Confidencialidad** (por defecto Interno)
 4. Selecciona un **archivo PDF** (`.pdf`) (máx 50 MB). Otros formatos (imágenes, DOCX, XLSX, etc.) son rechazados.
 5. Verifica que el panel **Validaciones automáticas** (iconos de sección alineados al tema) marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
@@ -427,7 +427,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 **Resultado esperado**
 - El documento aparece en el listado y se puede abrir el detalle.
 
-**Nota sobre el ciclo de vida:** en el **detalle**, un ADMIN puede avanzar el **estado** solo por **transiciones válidas** (por ejemplo **Registrado → En revisión → Aprobado/Rechazado → Archivado**). Si eliges una transición incorrecta, el sistema mostrará un error. En estado **Archivado** no se pueden subir ni eliminar archivos adjuntos.
+**Nota sobre el ciclo de vida:** **Aprobar** y **Rechazar** solo se hacen en el **detalle** con los botones de revisión (el rechazo exige motivo). Editar metadatos **no** permite saltar a Aprobado/Rechazado. Un documento **Archivado** no admite subir ni eliminar adjuntos.
 
 ---
 
@@ -440,7 +440,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 
 La pantalla se organiza en dos columnas (en escritorio), con el mismo estilo de **tarjetas** que el panel y la bandeja:
 
-- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** / **Aprobar** / **Rechazar** (mismos permisos de siempre).
+- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** (requiere permiso `DOC_REVISION_SEND` y ser el registrador o un administrador) / **Aprobar** / **Rechazar** (REVISOR, ADMIN o SUPERADMIN).
 - **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
 - **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
@@ -458,11 +458,11 @@ En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de conf
 
 Cuando el documento está en estado **Registrado**:
 
-1. Quien lo **registró** en el sistema o un **ADMIN** puede pulsar **Enviar a revisión**. El estado pasa a **En revisión**.
+1. Quien lo **registró** o un usuario con acceso administrativo (**ADMIN** / **SUPERADMIN**) puede pulsar **Enviar a revisión** si además tiene el permiso **`DOC_REVISION_SEND`**. El estado pasa a **En revisión**.
 
 Cuando está **En revisión**:
 
-1. Un usuario con rol **REVISOR** o **ADMIN** puede pulsar **Aprobar** o **Rechazar**.
+1. Un usuario con rol **REVISOR**, **ADMIN** o **SUPERADMIN** puede pulsar **Aprobar** o **Rechazar**. No se puede cambiar a esos estados editando el documento (PATCH).
 2. Si pulsas **Rechazar**, se abre un diálogo donde debes escribir el **motivo del rechazo** (obligatorio, mínimo 3 caracteres, máximo 2000); el texto queda registrado en **Auditoría** junto con la decisión.
 
 **Consulta rápida de pendientes**
@@ -475,8 +475,8 @@ Cuando está **En revisión**:
 
 **Fallos típicos**
 
-- **403** al resolver: tu usuario no es **REVISOR** ni **ADMIN**.
-- **403** al enviar: solo el usuario que creó el registro documental (o **ADMIN**) puede enviar ese documento a revisión.
+- **403** al resolver: tu usuario no es **REVISOR**, **ADMIN** ni **SUPERADMIN**, o no tiene **`DOC_REVISION_RESOLVE`**.
+- **403** al enviar: falta **`DOC_REVISION_SEND`**, o no eres quien registró el documento (salvo ADMIN/SUPERADMIN).
 - Estado incorrecto (p. ej. ya archivado o no está en «Registrado»): el backend rechaza la operación con un mensaje de validación.
 - Rechazo **sin motivo** o motivo demasiado corto: validación del servidor (**400**) o mensaje en el propio diálogo antes de confirmar.
 

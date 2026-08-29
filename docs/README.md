@@ -78,6 +78,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [20-problemas-detectados.md](./20-problemas-detectados.md) | Registro de incidencias |
 | [21-riesgos-pendientes.md](./21-riesgos-pendientes.md) | Registro de riesgos |
 | [22-changelog-tecnico.md](./22-changelog-tecnico.md) | Historial técnico y sesiones ngrok |
+| [52-resumen-cambios-implementados-2026-08-28.md](./52-resumen-cambios-implementados-2026-08-28.md) | **Resumen entregas 2026-08-28** — contrapartes/beneficiarios, dashboard, auditoría, SLA, bandeja, reportes |
 | [23-entorno-local-xampp-ngrok.md](./23-entorno-local-xampp-ngrok.md) | XAMPP, puertos, ngrok |
 | [25-ui-ux-diseno-sistema-institucional.md](./25-ui-ux-diseno-sistema-institucional.md) | UI/UX institucional, IA, design system, ISO/ASVS |
 | [45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md) | **Principio UI** — solo controles reales; qué no mostrar hasta implementar |
@@ -94,6 +95,8 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [44-guia-secciones-menu-navegacion.md](./44-guia-secciones-menu-navegacion.md) | **Guía del menú lateral** — qué hay en cada sección y cómo funciona |
 | [45-principio-ui-controles-reales.md](./45-principio-ui-controles-reales.md) | Principio UI — solo controles reales |
 | [27-manual-usuario-sgd-gadpr-lm.md](./27-manual-usuario-sgd-gadpr-lm.md) | Manual de usuario (paso a paso) |
+| [PLAN_CAMBIOS_REUNION.md](./PLAN_CAMBIOS_REUNION.md) | Plan por fases de correcciones de reunión (checklist; **no** 100 % tras auditoría 2026-08-29) |
+| [53-responsable-institucional-y-serie.md](./53-responsable-institucional-y-serie.md) | Decisión: responsable como texto; serie sin automatizar |
 | [etapa-0-auditoria-inicial-y-diagnostico.md](./etapa-0-auditoria-inicial-y-diagnostico.md) | Informe de auditoría ETAPA 0 (**histórico 2026-04-19**); ver `29` para cierre vigente |
 
 **Nota:** el documento único de changelog técnico es **`22-changelog-tecnico.md`**.

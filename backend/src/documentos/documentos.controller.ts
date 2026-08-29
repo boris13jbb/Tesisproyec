@@ -115,7 +115,8 @@ export class DocumentosController {
     @Query('slaEstado') slaEstado?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
-    @Query('sortBy') sortBy?: 'fechaIngresoRevision' | 'fechaLimiteSla' | 'codigo',
+    @Query('sortBy')
+    sortBy?: 'fechaIngresoRevision' | 'fechaLimiteSla' | 'codigo',
     @Query('sortDir') sortDir?: 'asc' | 'desc',
   ) {
     return this.service.findBandejaTramites(req.user, {
@@ -288,6 +289,7 @@ export class DocumentosController {
 
   @Post(':id/enviar-revision')
   @HttpCode(200)
+  @Permissions(PERM.DOC_REVISION_SEND)
   enviarRevision(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request & { user: JwtRequestUser },

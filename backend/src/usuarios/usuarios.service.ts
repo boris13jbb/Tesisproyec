@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,9 +13,9 @@ import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
 import {
-  ROLE_SUPERADMIN,
-  ROLES_ASSIGNABLE_BY_ADMIN,
-} from '../auth/role-constants';
+  assertDirectPermissionsAssignableByActor,
+  assertSuperadminUserMutationAllowed,
+} from '../auth/rbac-policy.util';
 import { PasswordPolicyService } from '../auth/password-policy.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -61,13 +60,18 @@ export class UsuariosService {
     private readonly mail: MailService,
   ) {}
 
-  /** Resuelve IDs de `permissions` para códigos directos; valida catálogo y filas en BD. */
+  /** Resuelve IDs de `permissions` para códigos directos; valida catálogo, política y filas en BD. */
   private async resolveDirectPermissionIds(
     codesInput: string[],
+    actorRoleCodes: string[],
   ): Promise<string[]> {
     const unique = Array.from(
       new Set(codesInput.map((c) => c.trim()).filter(Boolean)),
     );
+    assertDirectPermissionsAssignableByActor({
+      actorRoleCodes,
+      codes: unique,
+    });
     const invalid = unique.filter((c) => !this.allowedDirectPermCodes.has(c));
     if (invalid.length) {
       throw new BadRequestException({
@@ -107,40 +111,7 @@ export class UsuariosService {
     nextRoleCodes?: string[];
     nextActivo?: boolean;
   }): void {
-    const actorIsSuper = input.actorRoleCodes.includes(ROLE_SUPERADMIN);
-    const targetIsSuper = input.targetRoleCodes.includes(ROLE_SUPERADMIN);
-    const nextRoles = input.nextRoleCodes;
-
-    if (targetIsSuper && !actorIsSuper) {
-      throw new ForbiddenException(
-        'No puede modificar la cuenta de superadministrador',
-      );
-    }
-    if (nextRoles?.includes(ROLE_SUPERADMIN) && !actorIsSuper) {
-      throw new ForbiddenException(
-        'Solo el superadministrador puede asignar el rol SUPERADMIN',
-      );
-    }
-    if (targetIsSuper && input.nextActivo === false) {
-      throw new ForbiddenException(
-        'No se puede desactivar la cuenta de superadministrador',
-      );
-    }
-    if (targetIsSuper && nextRoles && !nextRoles.includes(ROLE_SUPERADMIN)) {
-      throw new ForbiddenException(
-        'No se puede degradar la cuenta de superadministrador',
-      );
-    }
-    if (!actorIsSuper && nextRoles) {
-      const invalid = nextRoles.filter(
-        (c) => !(ROLES_ASSIGNABLE_BY_ADMIN as readonly string[]).includes(c),
-      );
-      if (invalid.length) {
-        throw new BadRequestException(
-          `Roles no asignables por administrador operativo: ${invalid.join(', ')}`,
-        );
-      }
-    }
+    assertSuperadminUserMutationAllowed(input);
   }
 
   private hashOpaqueToken(raw: string): string {
@@ -291,6 +262,7 @@ export class UsuariosService {
     if (dto.directPermissionCodes !== undefined) {
       directPermIdsCreate = await this.resolveDirectPermissionIds(
         dto.directPermissionCodes,
+        actorRoles,
       );
     }
 
@@ -547,6 +519,7 @@ export class UsuariosService {
     if (dto.directPermissionCodes !== undefined) {
       directPermIdsUpdate = await this.resolveDirectPermissionIds(
         dto.directPermissionCodes,
+        actorRoles,
       );
       const cur = await this.prisma.userPermission.findMany({
         where: { userId: id },

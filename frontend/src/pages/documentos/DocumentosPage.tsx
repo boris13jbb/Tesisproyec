@@ -34,13 +34,14 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess } from '../../auth/role-utils';
 import { EmptyState } from '../../components/EmptyState';
 import { DocumentoListCard } from '../../components/DocumentoListCard';
 import { FilterPanel } from '../../components/FilterPanel';
@@ -54,6 +55,7 @@ import {
   documentoEstadoCreacionSchema,
   documentoEstadoSchema,
 } from '../../constants/documento-estado';
+import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
 import { getApiErrorMessage } from '../../utils/api-error-message';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
@@ -139,7 +141,7 @@ const createSchema = z.object({
     }),
   asunto: z.string().min(3).max(250),
   descripcion: z.string().max(1000).optional(),
-  fechaDocumento: z.string().min(10, 'Fecha requerida'),
+  fechaDocumento: fechaDocumentoEmisionSchema,
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
   subserieId: z.string().min(1, 'Subserie requerida'),
   dependenciaId: z.string().optional(),
@@ -186,7 +188,7 @@ export function DocumentosPage() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
-  const isAdmin = user?.roles.some((r) => r.codigo === 'ADMIN') ?? false;
+  const isAdmin = userHasAdminAccess(user?.roles);
   const esRevisor = user?.roles.some((r) => r.codigo === 'REVISOR') ?? false;
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(
     null,
@@ -553,41 +555,43 @@ export function DocumentosPage() {
     [createForm],
   );
 
-  useEffect(() => {
-    if (!createOpen || !canCreateDocumento) return;
+  const openCreateDialog = () => {
     const fecha = new Date().toISOString().slice(0, 10);
     createForm.reset({ ...createFormDefaults, fechaDocumento: fecha });
+    setCreateOpen(true);
     void prefetchCreateCodigo(fecha, true).catch(() => {
       createForm.setValue('codigo', '', { shouldValidate: true });
     });
-  }, [createOpen, canCreateDocumento, createForm, prefetchCreateCodigo]);
+  };
 
-  const onCreate = createForm.handleSubmit(async (data) => {
-    setError(null);
-    try {
-      const trimmedCodigo = data.codigo.trim();
-      const body: Record<string, unknown> = {
-        asunto: data.asunto,
-        descripcion: data.descripcion || undefined,
-        fechaDocumento: new Date(data.fechaDocumento).toISOString(),
-        tipoDocumentalId: data.tipoDocumentalId,
-        subserieId: data.subserieId,
-        dependenciaId: data.dependenciaId?.trim() || undefined,
-        nivelConfidencialidad: data.nivelConfidencialidad,
-        estado: data.estado,
-      };
-      if (createCodigoUsuarioRef.current && trimmedCodigo) {
-        body.codigo = trimmedCodigo;
+  const onCreate = (event: FormEvent<HTMLFormElement>) => {
+    void createForm.handleSubmit(async (data) => {
+      setError(null);
+      try {
+        const trimmedCodigo = data.codigo.trim();
+        const body: Record<string, unknown> = {
+          asunto: data.asunto,
+          descripcion: data.descripcion || undefined,
+          fechaDocumento: new Date(data.fechaDocumento).toISOString(),
+          tipoDocumentalId: data.tipoDocumentalId,
+          subserieId: data.subserieId,
+          dependenciaId: data.dependenciaId?.trim() || undefined,
+          nivelConfidencialidad: data.nivelConfidencialidad,
+          estado: data.estado,
+        };
+        if (createCodigoUsuarioRef.current && trimmedCodigo) {
+          body.codigo = trimmedCodigo;
+        }
+        await apiClient.post('/documentos', body);
+        setCreateOpen(false);
+        createForm.reset({ ...createFormDefaults });
+        createCodigoUsuarioRef.current = false;
+        await load();
+      } catch (err: unknown) {
+        setError(getApiErrorMessage(err, 'No se pudo crear el documento.'));
       }
-      await apiClient.post('/documentos', body);
-      setCreateOpen(false);
-      createForm.reset({ ...createFormDefaults });
-      createCodigoUsuarioRef.current = false;
-      await load();
-    } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'No se pudo crear el documento.'));
-    }
-  });
+    })(event);
+  };
 
   const subserieLabel = useMemo(() => {
     const map = new Map<string, string>();
@@ -629,7 +633,7 @@ export function DocumentosPage() {
                 </>
               )}
               {canCreateDocumento && (
-                <Button variant="contained" color="secondary" size="small" onClick={() => setCreateOpen(true)}>
+                <Button variant="contained" color="secondary" size="small" onClick={openCreateDialog}>
                   Nuevo documento
                 </Button>
               )}
@@ -1342,7 +1346,10 @@ export function DocumentosPage() {
             <TextField
               label="Fecha del documento"
               type="date"
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { max: new Date().toISOString().slice(0, 10) },
+              }}
               {...createForm.register('fechaDocumento')}
               error={!!createForm.formState.errors.fechaDocumento}
               helperText={createForm.formState.errors.fechaDocumento?.message}
