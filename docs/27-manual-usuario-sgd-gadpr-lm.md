@@ -573,7 +573,15 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 1. Menú lateral → **Administración** → **Reportes** (ruta `/admin/reportes`).
 2. Elija **Periodo** (mes), **Área** (dependencia, opcional), **Tipo documental** (opcional) y el **formato preferido** para limitar botones PDF/XLSX.
 3. Pulse **Generar** para aplicar los filtros al gráfico **Documentos por tipo** (máx. 6 tipos con más volumen en el mes; barras con colores del tema) y para las exportaciones de inventario.
-4. En **Reportes disponibles** puede:
+4. En **Reporte de documentos por usuario** (sección principal):
+   - Elija **Periodo**, **Usuario** (todos o persona: «Nombres Apellidos — correo»), **Área**, **Tipo**, **Estado** (Borrador / Registrado / En revisión / Aprobado / Rechazado / Archivado) y **Formato**.
+   - Pulse **Generar reporte**.
+   - Revise las tarjetas KPI (total, aprobados, rechazados, en revisión, registrados) calculadas en el servidor.
+   - Si eligió **Todos los usuarios**, verá además **Resumen por usuario**.
+   - En **Detalle de documentos** aparecen código, asunto, tipo, dependencia, creador, estado (chip), revisor, fecha de revisión y motivo de rechazo (solo si el estado es Rechazado; proviene de la auditoría `DOC_REVIEW_RESOLVED`).
+   - Use **Ver** para abrir el expediente existente (`/documentos/:id`).
+   - Exporte el mismo resultado filtrado a **PDF** o **Excel** (el Excel incluye hoja «Resumen por usuario»).
+5. En **Reportes disponibles** puede:
    - Descargar inventario en **PDF / XLSX** (respeta filtros aplicados).
    - Descargar **auditoría** en PDF/XLSX (rango del periodo).
    - **Pendientes de revisión** (PDF/XLSX).
@@ -589,6 +597,8 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 
 - **403:** el usuario no es ADMIN para indicadores o exports administrativos.
 - Gráfico vacío: no hay documentos activos en el periodo para el ámbito del administrador.
+- Reporte por usuario vacío: no hay documentos activos que cumplan periodo/usuario/área/tipo/estado; el mensaje indica «No existen documentos para los filtros seleccionados.»
+- Motivo de rechazo en «—»: el documento no está rechazado o no hay evento `DOC_REVIEW_RESOLVED` con `motivoRechazo` en auditoría.
 
 ---
 

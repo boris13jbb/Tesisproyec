@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-30 — Reportes: documentos por usuario (JSON / PDF / Excel)
+
+- **Backend:** `GET /reportes/documentos-por-usuario` (+ `.pdf` / `.xlsx`); filtros `createdByUserId`, `estado`, `tipoDocumentalId`, `dependenciaId`, `fechaDesde`/`fechaHasta`; resumen KPI y `porUsuario`; revisor/motivo desde última auditoría `DOC_REVIEW_RESOLVED` (sin migración).
+- **Frontend:** sección «Reporte de documentos por usuario» en `ReportesInstitucionalesPage` (`DocumentsByUserReportSection`).
+- **Manual:** §12 actualizado. Tests: `documentos-por-usuario.util.spec.ts`, `documentos-por-usuario.service.spec.ts`.
+
 ### 2026-08-29 — Checkpoint de cierre (revisión tutoría)
 
 - Cierre estable de las correcciones de reunión: RBAC y SUPERADMIN, flujo de revisión documental, Dashboard, Auditoría (stats y semáforo), validaciones (fechas, cédula/RUC, PATCH), datos documentales, responsive, tests de dominio/autorización y QA runtime.

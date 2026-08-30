@@ -25,6 +25,7 @@ import { apiClient } from '../../api/client';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { SectionHeader } from '../../components/SectionHeader';
+import { DocumentsByUserReportSection } from './reports/DocumentsByUserReportSection';
 
 const paperCardSx = {
   ...listSurfaceSx,
@@ -405,6 +406,12 @@ export function ReportesInstitucionalesPage() {
           <strong>Generar</strong>.
         </Typography>
       </Paper>
+
+      <DocumentsByUserReportSection
+        monthChoices={monthChoices}
+        dependencias={dependencias}
+        tipos={tipos}
+      />
 
       <Box
         sx={{

@@ -1,13 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { JwtRequestUser } from '../auth/request-user';
 import {
   buildAuditWhere,
   enrichAuditLogsWithDocumentoCodigo,
 } from '../auditoria/audit-list.util';
+import { esEstadoDocumentoValido } from '../documentos/documento-estado.util';
 import { documentoWhereLibre } from '../documentos/documento-q-filter.util';
 import { documentoVisibilityWhere } from '../documentos/documento-scope.util';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildDocumentosPorUsuarioSummary,
+  buildResumenPorUsuario,
+  buildRevisionFromAudit,
+  type AuditReviewRow,
+  type DocumentosPorUsuarioSummary,
+  type ResumenPorUsuarioRow,
+} from './documentos-por-usuario.util';
 
 export type AuditReportFilter = {
   action?: string;
@@ -35,6 +44,49 @@ export type DocumentosReportFilter = {
   fechaHasta?: Date;
   sortBy?: 'codigo' | 'fechaDocumento' | 'estado';
   sortDir?: 'asc' | 'desc';
+};
+
+/** Filtros del reporte institucional «Documentos por usuario». */
+export type DocumentosPorUsuarioFilter = {
+  createdByUserId?: string;
+  estado?: string;
+  tipoDocumentalId?: string;
+  dependenciaId?: string;
+  fechaDesde?: Date;
+  fechaHasta?: Date;
+};
+
+export type DocumentosPorUsuarioItem = {
+  id: string;
+  codigo: string;
+  asunto: string;
+  tipoDocumental: { id: string; codigo: string; nombre: string };
+  dependencia: { id: string; codigo: string; nombre: string } | null;
+  creadoPor: {
+    id: string;
+    nombres: string | null;
+    apellidos: string | null;
+    email: string;
+  };
+  fechaDocumento: Date;
+  estado: string;
+  revision: {
+    revisadoPor: {
+      id: string | null;
+      nombres: string | null;
+      apellidos: string | null;
+      email: string;
+    } | null;
+    fecha: Date;
+    decision: string;
+    motivoRechazo: string | null;
+  } | null;
+};
+
+export type DocumentosPorUsuarioReport = {
+  items: DocumentosPorUsuarioItem[];
+  summary: DocumentosPorUsuarioSummary;
+  porUsuario: ResumenPorUsuarioRow[];
 };
 
 @Injectable()
@@ -347,6 +399,156 @@ export class ReportesService {
             : undefined,
       };
     });
+  }
+
+  /**
+   * Reporte institucional: documentos por usuario creador + última resolución
+   * DOC_REVIEW_RESOLVED (revisor, fecha, decisión, motivo de rechazo).
+   * Respeta documentoVisibilityWhere (anti-IDOR). Sin N+1 de auditoría.
+   */
+  async findDocumentosPorUsuario(
+    filter: DocumentosPorUsuarioFilter,
+    viewer: JwtRequestUser,
+  ): Promise<DocumentosPorUsuarioReport> {
+    const estadoRaw = filter.estado?.trim();
+    if (estadoRaw && !esEstadoDocumentoValido(estadoRaw)) {
+      throw new BadRequestException('Estado documental no válido');
+    }
+    const estado = estadoRaw ? estadoRaw.toUpperCase() : undefined;
+    const createdByUserId = filter.createdByUserId?.trim() || undefined;
+
+    const baseWhere: Prisma.DocumentoWhereInput = {
+      activo: true,
+      ...(estado ? { estado } : {}),
+      ...(createdByUserId ? { createdById: createdByUserId } : {}),
+      ...(filter.tipoDocumentalId
+        ? { tipoDocumentalId: filter.tipoDocumentalId }
+        : {}),
+      ...(filter.dependenciaId ? { dependenciaId: filter.dependenciaId } : {}),
+      ...(filter.fechaDesde || filter.fechaHasta
+        ? {
+            fechaDocumento: {
+              ...(filter.fechaDesde ? { gte: filter.fechaDesde } : {}),
+              ...(filter.fechaHasta ? { lte: filter.fechaHasta } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const vis = documentoVisibilityWhere(viewer);
+    const where: Prisma.DocumentoWhereInput = vis
+      ? { AND: [baseWhere, vis] }
+      : baseWhere;
+
+    const MAX_ROWS = 5000;
+    const docs = await this.prisma.documento.findMany({
+      where,
+      orderBy: [{ fechaDocumento: 'desc' }, { codigo: 'asc' }],
+      take: MAX_ROWS,
+      select: {
+        id: true,
+        codigo: true,
+        asunto: true,
+        fechaDocumento: true,
+        estado: true,
+        createdById: true,
+        tipoDocumental: {
+          select: { id: true, codigo: true, nombre: true },
+        },
+        dependencia: {
+          select: { id: true, codigo: true, nombre: true },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    const docIds = docs.map((d) => d.id);
+    const reviewByDoc = await this.loadLatestReviewResolutions(docIds);
+
+    const reviewerIds = Array.from(
+      new Set(
+        Array.from(reviewByDoc.values())
+          .map((r) => r.actorUserId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const reviewers = reviewerIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: reviewerIds } },
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            email: true,
+          },
+        })
+      : [];
+    const reviewerMap = new Map(reviewers.map((u) => [u.id, u]));
+
+    const items: DocumentosPorUsuarioItem[] = docs.map((d) => {
+      const audit = reviewByDoc.get(d.id);
+      return {
+        id: d.id,
+        codigo: d.codigo,
+        asunto: d.asunto,
+        tipoDocumental: d.tipoDocumental,
+        dependencia: d.dependencia,
+        creadoPor: d.createdBy,
+        fechaDocumento: d.fechaDocumento,
+        estado: d.estado,
+        revision: buildRevisionFromAudit(audit, reviewerMap),
+      };
+    });
+
+    const summary = buildDocumentosPorUsuarioSummary(docs.map((d) => d.estado));
+    const porUsuario = buildResumenPorUsuario(
+      docs.map((d) => ({
+        createdById: d.createdById,
+        estado: d.estado,
+        creadoPor: d.createdBy,
+      })),
+    );
+
+    return { items, summary, porUsuario };
+  }
+
+  /** Último DOC_REVIEW_RESOLVED por documento (batch, sin N+1). */
+  private async loadLatestReviewResolutions(
+    documentoIds: string[],
+  ): Promise<Map<string, AuditReviewRow>> {
+    if (documentoIds.length === 0) return new Map();
+
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        action: 'DOC_REVIEW_RESOLVED',
+        resourceType: 'Documento',
+        resourceId: { in: documentoIds },
+        result: 'OK',
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        resourceId: true,
+        actorUserId: true,
+        actorEmail: true,
+        createdAt: true,
+        metaJson: true,
+      },
+    });
+
+    const map = new Map<string, AuditReviewRow>();
+    for (const row of logs) {
+      const id = row.resourceId?.trim();
+      if (!id || map.has(id)) continue;
+      map.set(id, row);
+    }
+    return map;
   }
 
   async findProximosVencimiento(viewer: JwtRequestUser, diasAhead = 30) {
