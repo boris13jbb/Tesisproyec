@@ -1,6 +1,10 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ALL_PERMISSION_CODES, PERM } from './permission-codes';
-import { ROLE_SUPERADMIN, ROLES_ASSIGNABLE_BY_ADMIN } from './role-constants';
+import {
+  ROLE_ADMIN,
+  ROLE_SUPERADMIN,
+  ROLES_ASSIGNABLE_BY_ADMIN,
+} from './role-constants';
 
 /**
  * Permisos que un ADMIN operativo no puede otorgar como `user_permissions`.
@@ -60,6 +64,18 @@ export function assertSuperadminUserMutationAllowed(input: {
     );
   }
   if (!actorIsSuper && nextRoles) {
+    const targetHadAdmin = input.targetRoleCodes.includes(ROLE_ADMIN);
+    const nextHasAdmin = nextRoles.includes(ROLE_ADMIN);
+    if (nextHasAdmin && !targetHadAdmin) {
+      throw new ForbiddenException(
+        'Solo el superadministrador puede asignar el rol Administrador.',
+      );
+    }
+    if (targetHadAdmin && !nextHasAdmin) {
+      throw new ForbiddenException(
+        'Solo el superadministrador puede revocar el rol Administrador.',
+      );
+    }
     const invalid = nextRoles.filter(
       (c) => !(ROLES_ASSIGNABLE_BY_ADMIN as readonly string[]).includes(c),
     );

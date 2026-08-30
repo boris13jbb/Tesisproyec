@@ -164,28 +164,22 @@ La pantalla **Administración de identidades** se organiza en **tres pestañas**
 
 La tabla de usuarios reproduce `GET /usuarios`; la matriz de referencia `GET /usuarios/matriz-acceso-referencia` (lectura; no persiste cambios).
 
-La **capacidad efectiva** combina rol JWT + **permisos en base de datos** por rol (`role_permissions`) y, opcionalmente, **permisos adicionales** por cuenta (`user_permissions`), aplicados por el servidor. En **Roles y permisos** puede marcar capacidades por rol con **Guardar permisos** (tras confirmación si hay cambios; API `PUT /rbac/roles/:codigo/permissions`; auditoría **`ROLE_PERMISSIONS_UPDATED`**).
+La **capacidad efectiva** combina **todos los roles activos** del usuario + **permisos adicionales** (`user_permissions`). Cada permiso heredado indica de qué rol proviene; los adicionales se gestionan aparte. En **Roles y permisos** active o desactive capacidades por rol con **interruptores (switches)**; cada cambio se guarda al instante (API `PUT /rbac/roles/:codigo/permissions`; auditoría **`ROLE_PERMISSIONS_UPDATED`**).
 
-**Los usuarios** se administran con **un rol institucional**, complemento opcional **Editor documental** y **permisos adicionales** en **Crear usuario** / **Editar usuario**. Los permisos adicionales se **suman** al rol. En edición verá **permisos heredados del rol** (solo lectura) y **permisos adicionales** (editables). Cambios fuertes quedan en auditoría (**`USER_DIRECT_PERMISSIONS_UPDATED`**). Tras cambios de acceso, conviene **volver a iniciar sesión** para ver el efecto completo.
+**Los usuarios** admiten **varios roles simultáneos** (p. ej. Usuario + Revisor). Use **Gestionar acceso** para activar/desactivar roles con un clic. Solo el **Super Administrador** puede asignar o revocar el rol **Administrador** (confirmación obligatoria). Los permisos heredados del rol **no** pueden revocarse individualmente por usuario; para retirarlos quite el rol o modifique el rol en la pestaña **Roles y permisos**. Cambios quedan en auditoría (**`ROLE_ASSIGNED`**, **`ROLE_REVOKED`**, **`USER_DIRECT_PERMISSIONS_UPDATED`**). Tras cambios sensibles, el usuario afectado debe **volver a iniciar sesión** (se revocan refresh tokens en el servidor).
 
 **Los roles** siguen siendo obligatorios (al menos uno): si un rol no tiene permisos en BD, la API puede responder `403` aun con el mismo código de rol en la cuenta.
 
 1. En el menú lateral, entra a **Administración → Usuarios y roles**.
-2. Pestaña **Usuarios**: usa **Buscar usuario**, filtros **Estado** (Todos / Activos / Inactivos) y **Rol**. Revisa la tabla (nombre + correo, rol con chips, **Área / Dependencia**, **Activo** / **Inactivo**, **Último acceso** con tooltip de fecha exacta). Chip **Super Administrador** indica cuenta protegida.
-3. Para crear un usuario:
-   - Presiona **+ Crear usuario**
-   - Completa **Correo**, **Contraseña temporal**, (opcional) **Nombres/Apellidos**, **Dependencia/Cargo**, **Rol institucional** y, si aplica, **Editor documental · Permiso adicional**. Opcionalmente asigne **Permisos adicionales** (buscador por nombre o código).
-   - Deja marcada **“Enviar al correo un enlace…”** (recomendado).
-   - Presiona **Crear**
-4. Para editar (menú **⋮ Acciones**):
-   - **Ver detalles** / **Editar usuario** / **Cambiar rol**: datos, rol y dependencia.
-   - **Permisos adicionales**: excepciones solo para esa cuenta (heredados del rol aparecen bloqueados).
-   - **Restablecer contraseña** o **Activar** / **Desactivar** (acciones sensibles separadas; **Super Administrador** no se desactiva salvo cuenta SUPERADMIN).
-5. Pestaña **Roles y permisos**:
-   - Elija **Rol a configurar**, revise módulos (Documentos, Revisiones, etc.), use **Buscar permiso**.
-   - **Guardar permisos** solo tras revisar el diálogo de confirmación; **Cancelar cambios** descarta edición local.
-6. Pestaña **Matriz de acceso**:
-   - Compare capacidades por rol; en móvil use el selector **Ver rol** (lista vertical). En escritorio puede resaltar una columna de rol.
+2. Pestaña **Usuarios**: usa **Buscar usuario**, filtros **Estado** y **Rol**. Revisa la tabla (todos los roles activos en chips, permisos adicionales si aplica).
+3. Menú **⋮ Acciones** → **Gestionar acceso**:
+   - **Roles asignados:** interruptores para Usuario, Revisor, Auditor, Consulta, Editor documental y (solo SUPERADMIN) Administrador.
+   - **Acceso efectivo:** resumen y panel expandible con origen de cada permiso.
+   - **Permisos adicionales:** interruptores solo para excepciones (heredados aparecen bloqueados).
+4. **Editar datos:** correo, nombres, dependencia y cargo (sin roles; use **Gestionar acceso** para roles).
+5. **Crear usuario:** datos + rol inicial + permisos adicionales opcionales.
+6. Pestaña **Roles y permisos:** elija rol, active/desactive permisos con switches (guardado inmediato).
+7. Pestaña **Matriz de acceso:** comparación visual de referencia.
 
 **Resultado esperado**
 - El listado de usuarios refleja altas/edición; la matriz de referencia muestra vista comparativa por rol.

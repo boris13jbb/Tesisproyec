@@ -9,7 +9,19 @@ export const ROLE_OPTIONS = [
 
 export type RoleCode = (typeof ROLE_OPTIONS)[number];
 
-/** Roles institucionales principales (uno por cuenta). EDITOR_DOC es complemento. */
+/** Roles asignables mediante switches (excluye SUPERADMIN). */
+export const ASSIGNABLE_ROLE_SWITCHES = [
+  'USUARIO',
+  'REVISOR',
+  'AUDITOR',
+  'CONSULTA',
+  'EDITOR_DOC',
+  'ADMIN',
+] as const;
+
+export type AssignableRoleSwitch = (typeof ASSIGNABLE_ROLE_SWITCHES)[number];
+
+/** Roles institucionales principales — compatibilidad con formularios legacy. */
 export const PRIMARY_ROLE_OPTIONS = ['USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA', 'ADMIN'] as const;
 
 export type PrimaryRoleCode = (typeof PRIMARY_ROLE_OPTIONS)[number];
@@ -76,20 +88,35 @@ export function isRoleCode(value: string): value is RoleCode {
 }
 
 export function composeRoleCodes(primary: PrimaryRoleCode, editorDoc: boolean): RoleCode[] {
-  if (primary === 'ADMIN') return ['ADMIN'];
-  return editorDoc ? [primary, 'EDITOR_DOC'] : [primary];
+  const roles = new Set<RoleCode>([primary]);
+  if (editorDoc) roles.add('EDITOR_DOC');
+  return [...roles];
+}
+
+export function normalizeUserRoleCodes(codes: string[]): string[] {
+  return [...new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
+
+export function userHasAssignableRole(codes: string[], roleCode: string): boolean {
+  return codes.some((c) => c === roleCode);
 }
 
 export function parseRoleCodes(codes: string[]): {
   primary: PrimaryRoleCode;
   editorDoc: boolean;
   extrasDropped: string[];
+  allRoles: string[];
 } {
-  const set = new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean));
+  const allRoles = normalizeUserRoleCodes(codes);
+  const set = new Set(allRoles);
   const primary = PRIMARY_ROLE_PRECEDENCE.find((c) => set.has(c)) ?? 'USUARIO';
-  const editorDoc = set.has('EDITOR_DOC') && primary !== 'ADMIN';
-  const extrasDropped = [...set].filter((c) => c !== primary && c !== 'EDITOR_DOC');
-  return { primary, editorDoc, extrasDropped };
+  const editorDoc = set.has('EDITOR_DOC');
+  const extrasDropped = allRoles.filter(
+    (c) => c !== primary && c !== 'EDITOR_DOC' && c !== 'SUPERADMIN',
+  );
+  return { primary, editorDoc, extrasDropped, allRoles };
 }
 
 export function userHasRoleCode(

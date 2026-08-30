@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-30 — Gestión visual de roles y permisos (SUPERADMIN / ADMIN)
+
+- **Backend:** `ADMIN` retirado de `ROLES_ASSIGNABLE_BY_ADMIN`; solo SUPERADMIN puede asignar o revocar rol Administrador. Auditoría `ROLE_ASSIGNED` / `ROLE_REVOKED` al cambiar roles; revocación de refresh tokens en cambios sensibles (ADMIN, REVISOR) y permisos directos.
+- **Frontend:** drawer **Gestionar acceso** en Usuarios con switches multi-rol, panel de permisos efectivos (origen heredado vs adicional), permisos adicionales con un clic, pestaña Roles y permisos con switches inmediatos sobre `role_permissions`.
+- Manual: `27-manual-usuario-sgd-gadpr-lm.md`; roles: `07-modulo-roles-permisos.md`.
+
 ### 2026-08-30 — Retiro de Series y Subseries
 
 - **Prisma:** migración `20260830170000_remove_series_subseries`. Quita FK e índice `documentos.subserie_id`, tablas `subseries` y `series`, y permisos `SERIES_WRITE` / `SUBSERIES_WRITE`. Los documentos existentes se conservan (código, asunto, tipo, dependencia, archivos, auditoría).

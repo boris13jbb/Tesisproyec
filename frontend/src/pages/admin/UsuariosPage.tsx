@@ -54,6 +54,7 @@ import { userHasAdminAccess, userIsSuperAdmin } from '../../auth/role-utils';
 import { AccessMatrix } from '../../components/admin/AccessMatrix';
 import { AdditionalPermissionsSection } from '../../components/admin/AdditionalPermissionsSection';
 import { RolePermissionsPanel } from '../../components/admin/RolePermissionsPanel';
+import { UserAccessDrawer } from '../../components/admin/UserAccessDrawer';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import { ListPanel } from '../../components/ListPanel';
@@ -144,8 +145,6 @@ function RoleChips({ u }: { u: Usuario }) {
     );
   }
   const isSuper = userIsSuperAdminAccount(u.roles);
-  const primaryParsed = parseRoleCodes(u.roles.map((r) => r.codigo));
-  const showPrimaryOnly = !isSuper;
 
   return (
     <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -160,37 +159,18 @@ function RoleChips({ u }: { u: Usuario }) {
           />
         </Tooltip>
       ) : null}
-      {showPrimaryOnly ? (
-        <>
+      {u.roles
+        .filter((r) => r.codigo !== 'SUPERADMIN')
+        .map((r) => (
           <Chip
+            key={r.codigo}
             size="small"
-            label={ROLE_DISPLAY_NAME[primaryParsed.primary]}
-            color={primaryParsed.primary === 'ADMIN' ? 'primary' : 'default'}
+            label={roleChipLabel(r)}
+            color={r.codigo === 'ADMIN' ? 'primary' : 'default'}
+            variant={r.codigo === 'EDITOR_DOC' ? 'outlined' : 'filled'}
             sx={{ fontWeight: 700 }}
           />
-          {primaryParsed.editorDoc ? (
-            <Chip
-              size="small"
-              label={`${ROLE_DISPLAY_NAME.EDITOR_DOC} · adicional`}
-              variant="outlined"
-              sx={{ fontWeight: 600 }}
-            />
-          ) : null}
-        </>
-      ) : (
-        u.roles
-          .filter((r) => r.codigo !== 'SUPERADMIN')
-          .map((r) => (
-            <Chip
-              key={r.codigo}
-              size="small"
-              label={roleChipLabel(r)}
-              color={r.codigo === 'ADMIN' ? 'primary' : 'default'}
-              variant={r.codigo === 'EDITOR_DOC' ? 'outlined' : 'filled'}
-              sx={{ fontWeight: 700 }}
-            />
-          ))
-      )}
+        ))}
     </Stack>
   );
 }
@@ -320,7 +300,8 @@ export function UsuariosPage() {
   const [userSearch, setUserSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterRol, setFilterRol] = useState('');
-  const [editFocusPermissions, setEditFocusPermissions] = useState(false);
+  const [accessDrawerOpen, setAccessDrawerOpen] = useState(false);
+  const [accessUsuario, setAccessUsuario] = useState<Usuario | null>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -330,7 +311,6 @@ export function UsuariosPage() {
   const [cargoId, setCargoId] = useState<string>('');
   const [primaryRole, setPrimaryRole] = useState<PrimaryRoleCode>('USUARIO');
   const [editorDocComplement, setEditorDocComplement] = useState(false);
-  const [extrasDropped, setExtrasDropped] = useState<string[]>([]);
   /** Códigos de `Permission`; se aplican solo a ese usuario (`user_permissions`). */
   const [directPermCodes, setDirectPermCodes] = useState<string[]>([]);
   const [invitarPorCorreo, setInvitarPorCorreo] = useState(true);
@@ -388,14 +368,6 @@ export function UsuariosPage() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!editOpen || !editFocusPermissions) return;
-    const t = window.setTimeout(() => {
-      document.getElementById('edit-permisos-adicionales')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 150);
-    return () => window.clearTimeout(t);
-  }, [editOpen, editFocusPermissions]);
-
   const resetIdentityForm = () => {
     setEmail('');
     setPassword('');
@@ -405,7 +377,6 @@ export function UsuariosPage() {
     setCargoId('');
     setPrimaryRole('USUARIO');
     setEditorDocComplement(false);
-    setExtrasDropped([]);
     setDirectPermCodes([]);
     setInvitarPorCorreo(true);
   };
@@ -454,7 +425,17 @@ export function UsuariosPage() {
     }
   };
 
-  const openEdit = (u: Usuario, focusPermissions = false) => {
+  const openAccessDrawer = (u: Usuario) => {
+    setAccessUsuario(u);
+    setAccessDrawerOpen(true);
+  };
+
+  const handleAccessUpdated = (updated: Usuario) => {
+    setAccessUsuario(updated);
+    setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+  };
+
+  const openEdit = (u: Usuario) => {
     setSelected(u);
     setEmail(u.email);
     setNombres(u.nombres ?? '');
@@ -464,9 +445,7 @@ export function UsuariosPage() {
     const parsed = parseRoleCodes(u.roles.map((r) => r.codigo));
     setPrimaryRole(parsed.primary);
     setEditorDocComplement(parsed.editorDoc);
-    setExtrasDropped(parsed.extrasDropped);
     setDirectPermCodes([...(u.directPermissionCodes ?? [])].sort((a, b) => a.localeCompare(b)));
-    setEditFocusPermissions(focusPermissions);
     setEditOpen(true);
   };
 
@@ -480,12 +459,9 @@ export function UsuariosPage() {
         apellidos: apellidos.trim() || null,
         dependenciaId: dependenciaId || null,
         cargoId: cargoId || null,
-        roles: composeRoleCodes(primaryRole, editorDocComplement),
-        directPermissionCodes: directPermCodes,
       });
       setEditOpen(false);
       setSelected(null);
-      setExtrasDropped([]);
       await load();
     } catch (err: unknown) {
       setError(
@@ -883,10 +859,16 @@ export function UsuariosPage() {
                 if (!actionsUsuario) return;
                 const u = actionsUsuario;
                 closeActionsMenu();
-                openEdit(u, false);
+                openAccessDrawer(u);
               }}
             >
-              <ListItemText primary="Ver detalles" secondary="Datos, rol y dependencia" />
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <VpnKeyOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Gestionar acceso"
+                secondary="Roles, permisos efectivos y adicionales"
+              />
             </MenuItem>
             <MenuItem
               dense
@@ -894,32 +876,10 @@ export function UsuariosPage() {
                 if (!actionsUsuario) return;
                 const u = actionsUsuario;
                 closeActionsMenu();
-                openEdit(u, false);
+                openEdit(u);
               }}
             >
-              <ListItemText primary="Editar usuario" />
-            </MenuItem>
-            <MenuItem
-              dense
-              onClick={() => {
-                if (!actionsUsuario) return;
-                const u = actionsUsuario;
-                closeActionsMenu();
-                openEdit(u, false);
-              }}
-            >
-              <ListItemText primary="Cambiar rol" secondary="Rol institucional y complementos" />
-            </MenuItem>
-            <MenuItem
-              dense
-              onClick={() => {
-                if (!actionsUsuario) return;
-                const u = actionsUsuario;
-                closeActionsMenu();
-                openEdit(u, true);
-              }}
-            >
-              <ListItemText primary="Permisos adicionales" secondary="Excepciones solo para esta cuenta" />
+              <ListItemText primary="Editar datos" secondary="Correo, nombres, dependencia y cargo" />
             </MenuItem>
             <MenuItem
               dense
@@ -1072,8 +1032,7 @@ export function UsuariosPage() {
             catalog={sortedPermCatalog}
             value={directPermCodes}
             onChange={setDirectPermCodes}
-            primaryRole={primaryRole}
-            editorDocComplement={editorDocComplement}
+            roleCodes={composeRoleCodes(primaryRole, editorDocComplement)}
             restrictCriticalForAdmin={!isSuperAdmin}
           />
         </DialogContent>
@@ -1092,8 +1051,6 @@ export function UsuariosPage() {
         onClose={() => {
           setEditOpen(false);
           setSelected(null);
-          setExtrasDropped([]);
-          setEditFocusPermissions(false);
         }}
         fullWidth
         maxWidth="md"
@@ -1111,7 +1068,7 @@ export function UsuariosPage() {
             ) : null}
           </Stack>
         </DialogTitle>
-        <DialogContent dividers id={editFocusPermissions ? 'edit-permisos-adicionales' : undefined}>
+        <DialogContent dividers>
           {selected ? (
             <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -1130,7 +1087,7 @@ export function UsuariosPage() {
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Rol
+                    Roles
                   </Typography>
                   <Box sx={{ mt: 0.25 }}>
                     <RoleChips u={selected} />
@@ -1151,7 +1108,20 @@ export function UsuariosPage() {
                 <Alert severity="info" icon={<ShieldOutlinedIcon />} sx={{ mt: 1.5 }}>
                   <strong>Super Administrador</strong> — Cuenta protegida del sistema.
                 </Alert>
-              ) : null}
+              ) : (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<VpnKeyOutlinedIcon />}
+                  sx={{ mt: 1.5, textTransform: 'none', fontWeight: 700 }}
+                  onClick={() => {
+                    setEditOpen(false);
+                    openAccessDrawer(selected);
+                  }}
+                >
+                  Gestionar acceso
+                </Button>
+              )}
             </Paper>
           ) : null}
 
@@ -1214,32 +1184,12 @@ export function UsuariosPage() {
               ))}
             </Select>
           </FormControl>
-          <RoleAssignmentFields
-            idPrefix="editar"
-            primaryRole={primaryRole}
-            onPrimaryRoleChange={onPrimaryRoleChange}
-            editorDocComplement={editorDocComplement}
-            onEditorDocChange={setEditorDocComplement}
-            extrasDropped={extrasDropped}
-            disabled={selectedIsSuperAdmin}
-          />
-          <Box id="edit-permisos-adicionales">
-            <AdditionalPermissionsSection
-              catalog={sortedPermCatalog}
-              value={directPermCodes}
-              onChange={setDirectPermCodes}
-              primaryRole={primaryRole}
-              editorDocComplement={editorDocComplement}
-              restrictCriticalForAdmin={!isSuperAdmin}
-            />
-          </Box>
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
               setEditOpen(false);
               setSelected(null);
-              setExtrasDropped([]);
             }}
             variant="text"
           >
@@ -1287,6 +1237,19 @@ export function UsuariosPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <UserAccessDrawer
+        open={accessDrawerOpen}
+        usuario={accessUsuario}
+        catalog={sortedPermCatalog}
+        isSuperAdmin={isSuperAdmin}
+        onClose={() => {
+          setAccessDrawerOpen(false);
+          setAccessUsuario(null);
+        }}
+        onUpdated={handleAccessUpdated}
+        onError={setError}
+      />
     </Box>
   );
 }

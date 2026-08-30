@@ -38,6 +38,56 @@ describe('rbac-policy.util', () => {
       ).toThrow(ForbiddenException);
     });
 
+    it('impide que ADMIN asigne rol ADMIN', () => {
+      expect(() =>
+        assertSuperadminUserMutationAllowed({
+          actorRoleCodes: ['ADMIN'],
+          targetRoleCodes: ['USUARIO'],
+          nextRoleCodes: ['USUARIO', 'ADMIN'],
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('impide que ADMIN revoque rol ADMIN', () => {
+      expect(() =>
+        assertSuperadminUserMutationAllowed({
+          actorRoleCodes: ['ADMIN'],
+          targetRoleCodes: ['USUARIO', 'ADMIN'],
+          nextRoleCodes: ['USUARIO'],
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('permite que SUPERADMIN asigne rol ADMIN', () => {
+      expect(() =>
+        assertSuperadminUserMutationAllowed({
+          actorRoleCodes: ['SUPERADMIN'],
+          targetRoleCodes: ['USUARIO'],
+          nextRoleCodes: ['USUARIO', 'ADMIN'],
+        }),
+      ).not.toThrow();
+    });
+
+    it('permite que SUPERADMIN revoque rol ADMIN', () => {
+      expect(() =>
+        assertSuperadminUserMutationAllowed({
+          actorRoleCodes: ['SUPERADMIN'],
+          targetRoleCodes: ['USUARIO', 'ADMIN'],
+          nextRoleCodes: ['USUARIO'],
+        }),
+      ).not.toThrow();
+    });
+
+    it('permite que ADMIN asigne USUARIO y REVISOR', () => {
+      expect(() =>
+        assertSuperadminUserMutationAllowed({
+          actorRoleCodes: ['ADMIN'],
+          targetRoleCodes: ['USUARIO'],
+          nextRoleCodes: ['USUARIO', 'REVISOR'],
+        }),
+      ).not.toThrow();
+    });
+
     it('permite que SUPERADMIN actualice su cuenta sin degradar', () => {
       expect(() =>
         assertSuperadminUserMutationAllowed({

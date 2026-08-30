@@ -9,9 +9,11 @@ export const ROLES_ASSIGNABLE_BY_ADMIN = [
   'REVISOR',
   'AUDITOR',
   'CONSULTA',
-  'ADMIN',
   'EDITOR_DOC',
 ] as const;
+
+/** Rol privilegiado: solo SUPERADMIN puede asignarlo o revocarlo. */
+export const ROLE_ASSIGNABLE_ONLY_BY_SUPERADMIN = ROLE_ADMIN;
 
 /** Roles ocultos en UI de asignación para quien no es SUPERADMIN. */
 export const ROLES_HIDDEN_FROM_ASSIGNMENT = [ROLE_SUPERADMIN] as const;

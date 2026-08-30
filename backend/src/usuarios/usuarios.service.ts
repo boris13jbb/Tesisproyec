@@ -11,6 +11,7 @@ import type { AuditContext } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ROLE_ADMIN } from '../auth/role-constants';
 import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
 import {
   assertDirectPermissionsAssignableByActor,
@@ -104,6 +105,70 @@ export class UsuariosService {
       select: { roles: { select: { role: { select: { codigo: true } } } } },
     });
     return actor?.roles.map((r) => r.role.codigo) ?? [];
+  }
+
+  private async revokeUserRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  /** Registra asignaciones/revocaciones individuales de roles con trazabilidad. */
+  private async auditRoleChanges(input: {
+    userId: string;
+    antes: string[];
+    despues: string[];
+    ctx?: AuditContext;
+    targetEmail?: string | null;
+  }): Promise<void> {
+    const antesSet = new Set(input.antes);
+    const despuesSet = new Set(input.despues);
+    const assigned = input.despues.filter((r) => !antesSet.has(r));
+    const revoked = input.antes.filter((r) => !despuesSet.has(r));
+    const auditCtx = {
+      actorUserId: input.ctx?.actorUserId ?? null,
+      actorEmail: input.ctx?.actorEmail ?? null,
+      ip: input.ctx?.ip ?? null,
+      userAgent: input.ctx?.userAgent ?? null,
+      correlationId: input.ctx?.correlationId ?? null,
+    };
+    for (const role of assigned) {
+      await this.audit.log({
+        action: 'ROLE_ASSIGNED',
+        result: 'OK',
+        resource: { type: 'User', id: input.userId },
+        context: auditCtx,
+        meta: {
+          role,
+          targetEmail: input.targetEmail ?? null,
+          roles: input.despues,
+        },
+      });
+    }
+    for (const role of revoked) {
+      await this.audit.log({
+        action: 'ROLE_REVOKED',
+        result: 'OK',
+        resource: { type: 'User', id: input.userId },
+        context: auditCtx,
+        meta: {
+          role,
+          targetEmail: input.targetEmail ?? null,
+          roles: input.despues,
+        },
+      });
+    }
+  }
+
+  private rolesRequireSessionRevocation(antes: string[], despues: string[]): boolean {
+    const antesSet = new Set(antes);
+    const despuesSet = new Set(despues);
+    const changed = [...antesSet].some((r) => !despuesSet.has(r))
+      || [...despuesSet].some((r) => !antesSet.has(r));
+    if (!changed) return false;
+    const sensitive = new Set<string>([ROLE_ADMIN, 'REVISOR', 'SUPERADMIN']);
+    return [...antesSet, ...despuesSet].some((r) => sensitive.has(r));
   }
 
   private assertSuperadminMutationAllowed(input: {
@@ -600,6 +665,21 @@ export class UsuariosService {
 
       const updatedSanitized = this.sanitize(updated);
 
+      if (roleRows) {
+        const antesRoles = existingRoleCodes.slice().sort();
+        const despuesRoles = updated.roles.map((r) => r.role.codigo).sort();
+        await this.auditRoleChanges({
+          userId: id,
+          antes: antesRoles,
+          despues: despuesRoles,
+          ctx,
+          targetEmail: existing.email,
+        });
+        if (this.rolesRequireSessionRevocation(antesRoles, despuesRoles)) {
+          await this.revokeUserRefreshTokens(id);
+        }
+      }
+
       if (
         dto.directPermissionCodes !== undefined &&
         antesDirectSorted !== undefined
@@ -625,6 +705,7 @@ export class UsuariosService {
             despues,
           },
         });
+        await this.revokeUserRefreshTokens(id);
       }
 
       await this.audit.log({

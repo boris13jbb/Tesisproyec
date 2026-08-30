@@ -22,9 +22,8 @@ import {
   PERMISSION_MODULE_ORDER,
 } from '../../constants/permission-display';
 import {
-  composeRoleCodes,
+  normalizeUserRoleCodes,
   ROLE_DISPLAY_NAME,
-  type PrimaryRoleCode,
 } from '../../constants/role-display';
 import { PermissionRow } from './PermissionRow';
 
@@ -34,8 +33,8 @@ type AdditionalPermissionsSectionProps = {
   catalog: RbacPermRow[];
   value: string[];
   onChange: (next: string[]) => void;
-  primaryRole: PrimaryRoleCode;
-  editorDocComplement: boolean;
+  /** Códigos de rol activos del usuario (multi-rol). */
+  roleCodes: string[];
   restrictCriticalForAdmin: boolean;
 };
 
@@ -43,18 +42,14 @@ export function AdditionalPermissionsSection({
   catalog,
   value,
   onChange,
-  primaryRole,
-  editorDocComplement,
+  roleCodes,
   restrictCriticalForAdmin,
 }: AdditionalPermissionsSectionProps) {
   const [search, setSearch] = useState('');
   const [inherited, setInherited] = useState<string[]>([]);
   const [inheritedLoading, setInheritedLoading] = useState(false);
 
-  const roleCodes = useMemo(
-    () => composeRoleCodes(primaryRole, editorDocComplement),
-    [primaryRole, editorDocComplement],
-  );
+  const normalizedRoleCodes = useMemo(() => normalizeUserRoleCodes(roleCodes), [roleCodes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +57,7 @@ export function AdditionalPermissionsSection({
       setInheritedLoading(true);
       try {
         const sets = await Promise.all(
-          roleCodes.map(async (codigo) => {
+          normalizedRoleCodes.map(async (codigo) => {
             const res = await apiClient.get<{ codigos: string[] }>(
               `/rbac/roles/${encodeURIComponent(codigo)}/permissions`,
             );
@@ -81,7 +76,7 @@ export function AdditionalPermissionsSection({
     return () => {
       cancelled = true;
     };
-  }, [roleCodes]);
+  }, [normalizedRoleCodes]);
 
   const visibleCatalog = useMemo(() => {
     let list = catalog;
@@ -101,7 +96,7 @@ export function AdditionalPermissionsSection({
 
   const additionalOnly = value.filter((c) => !inheritedSet.has(c));
 
-  const roleSummary = roleCodes
+  const roleSummary = normalizedRoleCodes
     .map((c) => ROLE_DISPLAY_NAME[c as keyof typeof ROLE_DISPLAY_NAME] ?? c)
     .join(' · ');
 

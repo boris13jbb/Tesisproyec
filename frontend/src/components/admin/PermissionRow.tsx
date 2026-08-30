@@ -5,6 +5,7 @@ import {
   Chip,
   FormControlLabel,
   Stack,
+  Switch,
   Typography,
 } from '@mui/material';
 import {
@@ -20,6 +21,8 @@ type PermissionRowProps = {
   disabled?: boolean;
   onToggle: () => void;
   showStatusHint?: boolean;
+  useSwitch?: boolean;
+  originHint?: string;
 };
 
 export function PermissionRow({
@@ -29,9 +32,17 @@ export function PermissionRow({
   disabled,
   onToggle,
   showStatusHint = true,
+  useSwitch = false,
+  originHint,
 }: PermissionRowProps) {
   const critical = isCriticalPermission(codigo);
   const desc = permissionDescription(codigo, serverDescription);
+
+  const control = useSwitch ? (
+    <Switch size="small" checked={checked} onChange={() => onToggle()} disabled={disabled} />
+  ) : (
+    <Checkbox size="small" checked={checked} onChange={onToggle} sx={{ mt: 0.25 }} disabled={disabled} />
+  );
 
   return (
     <FormControlLabel
@@ -44,13 +55,13 @@ export function PermissionRow({
         px: 0.5,
         borderRadius: 1,
         bgcolor: checked ? 'action.selected' : 'transparent',
+        ...(useSwitch ? { justifyContent: 'space-between', width: '100%' } : {}),
       }}
       disabled={disabled}
-      control={
-        <Checkbox size="small" checked={checked} onChange={onToggle} sx={{ mt: 0.25 }} />
-      }
+      control={control}
+      labelPlacement={useSwitch ? 'start' : 'end'}
       label={
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <Typography variant="body2" sx={{ fontWeight: 700 }}>
               {permissionLabel(codigo)}
@@ -65,7 +76,7 @@ export function PermissionRow({
                 sx={{ height: 22, fontWeight: 700 }}
               />
             ) : null}
-            {showStatusHint ? (
+            {showStatusHint && !originHint ? (
               <Typography variant="caption" color={checked ? 'success.main' : 'text.secondary'}>
                 {checked ? 'Permitido' : 'No permitido'}
               </Typography>
@@ -76,13 +87,20 @@ export function PermissionRow({
               {desc}
             </Typography>
           ) : null}
-          <Typography
-            variant="caption"
-            color="text.disabled"
-            sx={{ display: 'block', fontFamily: 'ui-monospace, monospace', fontSize: '0.68rem' }}
-          >
-            {codigo}
-          </Typography>
+          {originHint ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+              {originHint}
+            </Typography>
+          ) : null}
+          {!useSwitch ? (
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ display: 'block', fontFamily: 'ui-monospace, monospace', fontSize: '0.68rem' }}
+            >
+              {codigo}
+            </Typography>
+          ) : null}
         </Box>
       }
     />

@@ -8,6 +8,8 @@ describe('AUDIT_SENSITIVE_ACTIONS', () => {
         'DOC_FILE_DELETED',
         'USER_DIRECT_PERMISSIONS_UPDATED',
         'ROLE_PERMISSIONS_UPDATED',
+        'ROLE_ASSIGNED',
+        'ROLE_REVOKED',
         'DOC_STATE_CHANGED',
         'USER_UPDATED',
       ]),
