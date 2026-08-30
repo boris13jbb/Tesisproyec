@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { isPrismaCode } from '../common/prisma-util';
+import {
+  normalizeAdministrativeCodigo,
+  normalizeAdministrativeText,
+  normalizeOptionalAdministrativeText,
+} from '../common/text-normalize.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCargoDto } from './dto/create-cargo.dto';
 import { UpdateCargoDto } from './dto/update-cargo.dto';
@@ -53,14 +58,19 @@ export class CargosService {
   }
 
   async create(dto: CreateCargoDto) {
-    const codigo = dto.codigo.trim().toUpperCase();
+    const codigo = normalizeAdministrativeCodigo(dto.codigo);
+    const nombre = normalizeAdministrativeText(dto.nombre);
+    if (!nombre) {
+      throw new BadRequestException('Nombre de cargo requerido');
+    }
     await this.assertDependenciaExists(dto.dependenciaId ?? null);
     try {
       return await this.prisma.cargo.create({
         data: {
           codigo,
-          nombre: dto.nombre.trim(),
-          descripcion: dto.descripcion?.trim() || null,
+          nombre,
+          descripcion:
+            normalizeOptionalAdministrativeText(dto.descripcion) ?? null,
           dependenciaId: dto.dependenciaId ?? null,
         },
         include: cargoInclude,
@@ -90,12 +100,12 @@ export class CargosService {
       return await this.prisma.cargo.update({
         where: { id },
         data: {
-          ...(dto.nombre !== undefined && { nombre: dto.nombre.trim() }),
+          ...(dto.nombre !== undefined && {
+            nombre: normalizeAdministrativeText(dto.nombre) ?? '',
+          }),
           ...(dto.descripcion !== undefined && {
             descripcion:
-              dto.descripcion === null || dto.descripcion === ''
-                ? null
-                : dto.descripcion.trim(),
+              normalizeOptionalAdministrativeText(dto.descripcion) ?? null,
           }),
           ...(dto.activo !== undefined && { activo: dto.activo }),
           ...(dto.dependenciaId !== undefined && {

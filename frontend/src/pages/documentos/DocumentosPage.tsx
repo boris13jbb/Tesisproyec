@@ -50,16 +50,7 @@ import {
   documentoEstadoChipColor,
   documentoEstadoSchema,
 } from '../../constants/documento-estado';
-
 type TipoOption = { id: string; codigo: string; nombre: string };
-type SerieOption = { id: string; codigo: string; nombre: string };
-type SubserieOption = {
-  id: string;
-  codigo: string;
-  nombre: string;
-  serieId: string;
-  serie: SerieOption;
-};
 
 type DependenciaOption = {
   id: string;
@@ -78,12 +69,6 @@ type DocumentoRow = {
   activo: boolean;
   tipoDocumental: TipoOption;
   dependencia: DependenciaOption | null;
-  subserie: {
-    id: string;
-    codigo: string;
-    nombre: string;
-    serie: SerieOption;
-  };
   createdBy: { id: string; email: string; nombres: string | null; apellidos: string | null };
 };
 
@@ -113,15 +98,6 @@ function labelResponsableBandeja(row: DocumentoRow): { primary: string; title?: 
   }
   if (nombreUsuario.length > 0) return { primary: nombreUsuario, title: email };
   return { primary: email.length > 0 ? email : '—' };
-}
-
-function labelClasificacionBandeja(row: DocumentoRow): { line: string; title: string } {
-  const ser = row.subserie.serie;
-  const ss = row.subserie;
-  return {
-    line: `${ser.nombre} · ${ss.nombre}`,
-    title: `${ser.codigo} / ${ss.codigo} — ${ser.nombre} · ${ss.nombre}`,
-  };
 }
 
 type DocumentosViewMode = 'cards' | 'table';
@@ -163,7 +139,6 @@ export function DocumentosPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
-  const [subseries, setSubseries] = useState<SubserieOption[]>([]);
 
   const [rows, setRows] = useState<DocumentoRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -173,8 +148,6 @@ export function DocumentosPage() {
   const [q, setQ] = useState('');
   const [estado, setEstado] = useState('');
   const [tipoDocumentalId, setTipoDocumentalId] = useState('');
-  const [serieId, setSerieId] = useState('');
-  const [subserieId, setSubserieId] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [archivoNombre, setArchivoNombre] = useState('');
@@ -247,21 +220,6 @@ export function DocumentosPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get<SubserieOption[]>('/subseries')
-      .then((res) => {
-        if (!cancelled) setSubseries(res.data);
-      })
-      .catch(() => {
-        if (!cancelled) setSubseries([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
@@ -273,8 +231,6 @@ export function DocumentosPage() {
           estado: estadoFiltrado || undefined,
           likert: likertFiltrado || undefined,
           tipoDocumentalId: tipoDocumentalId || undefined,
-          serieId: serieId || undefined,
-          subserieId: subserieId || undefined,
           fechaDesde: fechaDesde ? new Date(fechaDesde).toISOString() : undefined,
           fechaHasta: fechaHasta ? new Date(fechaHasta).toISOString() : undefined,
           archivoNombre: archivoNombre || undefined,
@@ -302,8 +258,6 @@ export function DocumentosPage() {
     estadoFiltrado,
     likertFiltrado,
     tipoDocumentalId,
-    serieId,
-    subserieId,
     fechaDesde,
     fechaHasta,
     sortBy,
@@ -315,19 +269,6 @@ export function DocumentosPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza lista con filtros/paginación
     void load();
   }, [load]);
-
-  const series = useMemo(() => {
-    const map = new Map<string, SerieOption>();
-    for (const s of subseries) {
-      map.set(s.serie.id, s.serie);
-    }
-    return Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [subseries]);
-
-  const subseriesFiltered = useMemo(() => {
-    if (!serieId) return subseries;
-    return subseries.filter((s) => s.serie.id === serieId);
-  }, [subseries, serieId]);
 
   const onApplyFilters = () => {
     setPage(1);
@@ -349,8 +290,6 @@ export function DocumentosPage() {
     );
     setIncluirInactivos(false);
     setTipoDocumentalId('');
-    setSerieId('');
-    setSubserieId('');
     setFechaDesde('');
     setFechaHasta('');
     setArchivoNombre('');
@@ -382,8 +321,6 @@ export function DocumentosPage() {
       q: q || undefined,
       estado: estadoFiltrado || undefined,
       tipoDocumentalId: tipoDocumentalId || undefined,
-      serieId: serieId || undefined,
-      subserieId: subserieId || undefined,
       fechaDesde: fechaDesde ? new Date(fechaDesde).toISOString() : undefined,
       fechaHasta: fechaHasta ? new Date(fechaHasta).toISOString() : undefined,
       archivoNombre: archivoNombre || undefined,
@@ -397,8 +334,6 @@ export function DocumentosPage() {
     q,
     estadoFiltrado,
     tipoDocumentalId,
-    serieId,
-    subserieId,
     fechaDesde,
     fechaHasta,
     archivoNombre,
@@ -484,14 +419,6 @@ export function DocumentosPage() {
       setError('No se pudo exportar pendientes de revisión a PDF.');
     }
   };
-
-  const subserieLabel = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of subseries) {
-      map.set(s.id, `${s.serie.codigo} / ${s.codigo} — ${s.nombre}`);
-    }
-    return map;
-  }, [subseries]);
 
   return (
     <>
@@ -704,27 +631,6 @@ export function DocumentosPage() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ flex: '1 1 160px', minWidth: { xs: '100%', sm: '160px' } }} fullWidth>
-              <InputLabel id="serie-filter-label">Serie</InputLabel>
-              <Select
-                labelId="serie-filter-label"
-                label="Serie"
-                value={serieId}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSerieId(v);
-                  setSubserieId('');
-                }}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                {series.map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.codigo}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
             <TextField
               label="Desde"
               type="date"
@@ -777,23 +683,6 @@ export function DocumentosPage() {
                   '& > *': { minWidth: 0 },
                 }}
               >
-                <FormControl size="small" sx={{ flex: '1 1 220px', minWidth: { xs: '100%', sm: '200px' } }} fullWidth>
-                  <InputLabel id="subserie-filter-label">Clasificación</InputLabel>
-                  <Select
-                    labelId="subserie-filter-label"
-                    label="Clasificación"
-                    value={subserieId}
-                    onChange={(e) => setSubserieId(e.target.value)}
-                  >
-                    <MenuItem value="">Todas</MenuItem>
-                    {subseriesFiltered.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {subserieLabel.get(s.id)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
                 <TextField
                   label="Adjunto: nombre"
                   value={archivoNombre}
@@ -937,7 +826,6 @@ export function DocumentosPage() {
               ) : (
                 <Stack spacing={1.25} role="list" aria-label="Documentos en tarjetas">
                   {rows.map((row) => {
-                    const cls = labelClasificacionBandeja(row);
                     const resp = labelResponsableBandeja(row);
                     return (
                       <DocumentoListCard
@@ -947,8 +835,6 @@ export function DocumentosPage() {
                         estado={row.estado}
                         fechaLabel={new Date(row.fechaDocumento).toISOString().slice(0, 10)}
                         tipoNombre={row.tipoDocumental.nombre}
-                        clasificacionLine={cls.line}
-                        clasificacionTitle={cls.title}
                         responsablePrimary={resp.primary}
                         responsableTitle={resp.title}
                         activo={row.activo}
@@ -972,7 +858,7 @@ export function DocumentosPage() {
               size="small"
               aria-label="Tabla de documentos"
               sx={{
-                minWidth: { xs: 920, md: '100%' },
+                minWidth: { xs: 760, md: '100%' },
                 tableLayout: 'fixed',
                 '& .MuiTableCell-root': {
                   verticalAlign: 'middle',
@@ -989,17 +875,14 @@ export function DocumentosPage() {
                   >
                     Código{sortLabel('codigo')}
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.secondary', width: '22%' }}>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.secondary', width: '28%' }}>
                     Asunto
                   </TableCell>
-                  <TableCell width="11%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                  <TableCell width="16%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
                     Tipo
                   </TableCell>
-                  <TableCell width="17%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                    Clasificación
-                  </TableCell>
-                  <TableCell width="14%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                    Responsable
+                  <TableCell width="18%" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                    Responsable / Dependencia
                   </TableCell>
                   <TableCell
                     width="12%"
@@ -1023,12 +906,11 @@ export function DocumentosPage() {
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={8}>Cargando…</TableCell>
+                    <TableCell colSpan={7}>Cargando…</TableCell>
                   </TableRow>
                 )}
                 {!loading &&
                   rows.map((row) => {
-                    const cls = labelClasificacionBandeja(row);
                     const resp = labelResponsableBandeja(row);
                     return (
                       <TableRow
@@ -1050,17 +932,6 @@ export function DocumentosPage() {
                           {row.asunto}
                         </TableCell>
                         <TableCell>{row.tipoDocumental.nombre}</TableCell>
-                        <TableCell
-                          sx={{
-                            maxWidth: 220,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={cls.title}
-                        >
-                          {cls.line}
-                        </TableCell>
                         <TableCell
                           sx={{
                             maxWidth: 200,
@@ -1102,7 +973,7 @@ export function DocumentosPage() {
                   })}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} sx={{ py: 0 }}>
+                    <TableCell colSpan={7} sx={{ py: 0 }}>
                       <EmptyState
                         dense
                         title="No hay documentos que coincidan con los criterios."

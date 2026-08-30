@@ -1,3 +1,5 @@
+> **Retirado el 2026-08-30.** El sistema ya **no** usa Series ni Subseries. Los documentos se clasifican por **Tipo documental** y **Dependencia**. Migración: `20260830170000_remove_series_subseries`. Este documento se conserva como referencia histórica.
+
 # Catálogo de Subseries — cómo funciona
 
 **Pantalla:** Subseries  
@@ -14,7 +16,7 @@ Las **subseries** son la **subdivisión concreta** bajo una **serie** en el cuad
 
 | Uso en el sistema | Dónde se aplica |
 |-------------------|-----------------|
-| **Nuevo documento** | Campo obligatorio de clasificación (desplegable de subserie). |
+| **Nuevo documento** | Campo obligatorio **Clasificación documental** (un selector; el valor enviado es la subserie). |
 | **Clasificación** | Nodos hijos bajo cada serie en el árbol; ficha y conteos por subserie. |
 | **Listados y búsqueda** | Columnas y filtros serie/subserie en **Documentos**. |
 | **Reportes y exportaciones** | Texto de clasificación (ej. `ADM/ADM-CORR — Correspondencia`). |
@@ -41,7 +43,7 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 ### 3.1 Encabezado
 
 - **Título:** Subseries  
-- **Texto:** catálogo jerárquico bajo series; rol ADMIN; enlaces a **Series** y **Clasificación**.
+- **Texto:** las subseries permiten clasificar con mayor precisión los documentos dentro de una serie; rol ADMIN; enlaces a **Series** y **Clasificación**.
 - El listado usa icono de subserie (no letras «SS»).
 
 ### 3.2 Controles superiores

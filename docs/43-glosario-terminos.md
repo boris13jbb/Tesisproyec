@@ -171,8 +171,6 @@ Los términos están agrupados por tema. Dentro de cada grupo van en orden alfab
 | `DEPENDENCIAS_WRITE` | Crear/editar dependencias. |
 | `CARGOS_WRITE` | Crear/editar cargos. |
 | `TIPOS_DOCUMENTALES_WRITE` | Crear/editar tipos documentales. |
-| `SERIES_WRITE` | Crear/editar series. |
-| `SUBSERIES_WRITE` | Crear/editar subseries. |
 | `DOC_READ` | Consultar documentos (listado, detalle, tablón). |
 | `DOC_CREATE` | Registrar nuevos documentos. |
 | `DOC_UPDATE` | Editar metadatos de documentos. |

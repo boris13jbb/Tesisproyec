@@ -14,8 +14,6 @@ export const PERM = {
   DEPENDENCIAS_WRITE: 'DEPENDENCIAS_WRITE',
   CARGOS_WRITE: 'CARGOS_WRITE',
   TIPOS_DOCUMENTALES_WRITE: 'TIPOS_DOCUMENTALES_WRITE',
-  SERIES_WRITE: 'SERIES_WRITE',
-  SUBSERIES_WRITE: 'SUBSERIES_WRITE',
   CONTRAPARTES_WRITE: 'CONTRAPARTES_WRITE',
   BENEFICIARIOS_WRITE: 'BENEFICIARIOS_WRITE',
 
@@ -60,12 +58,10 @@ export const PERM_DESCRIPTIONS: Record<PermissionCode, string> = {
   DEPENDENCIAS_WRITE: 'Crear o editar dependencias (catálogo).',
   CARGOS_WRITE: 'Crear o editar cargos (catálogo).',
   TIPOS_DOCUMENTALES_WRITE: 'Crear o editar tipos documentales.',
-  SERIES_WRITE: 'Crear o editar series documentales.',
-  SUBSERIES_WRITE: 'Crear o editar subseries documentales.',
   CONTRAPARTES_WRITE: 'Crear o editar contrapartes (persona natural/jurídica).',
   BENEFICIARIOS_WRITE: 'Crear o editar beneficiarios del documento.',
 
-  DOC_READ: 'Consultar listados, detalle, tablón y clasificación documental.',
+  DOC_READ: 'Consultar listados, detalle y tablón de documentos.',
   DOC_CREATE: 'Registrar nuevos documentos administrativamente.',
   DOC_UPDATE: 'Editar metadatos de documentos administrativamente.',
   DOC_ACCESS_MANAGE:

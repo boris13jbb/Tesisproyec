@@ -90,7 +90,6 @@ export class ReportesController {
       { header: 'Confidencialidad', key: 'nivelConfidencialidad', width: 16 },
       { header: 'Dependencia', key: 'dependenciaCodigo', width: 16 },
       { header: 'Tipo documental', key: 'tipoDocumental', width: 28 },
-      { header: 'Clasificación', key: 'clasificacion', width: 30 },
       { header: 'Adjuntos', key: 'archivosActivos', width: 10 },
       { header: 'Creado por', key: 'createdBy', width: 22 },
       { header: 'Creado el', key: 'createdAt', width: 20 },
@@ -106,7 +105,6 @@ export class ReportesController {
         nivelConfidencialidad: d.nivelConfidencialidad,
         dependenciaCodigo: d.dependenciaCodigo,
         tipoDocumental: d.tipoDocumental,
-        clasificacion: d.clasificacion,
         archivosActivos: d.archivosActivos,
         createdBy: d.createdBy,
         createdAt: d.createdAt.toISOString().replace('T', ' ').slice(0, 19),
@@ -168,9 +166,7 @@ export class ReportesController {
         );
       doc
         .fillColor('gray')
-        .text(
-          `${d.tipoDocumental} | ${d.clasificacion} | Creado por: ${d.createdBy}`,
-        )
+        .text(`${d.tipoDocumental} | Creado por: ${d.createdBy}`)
         .fillColor('black');
       if (d.descripcion) {
         doc
@@ -204,8 +200,6 @@ export class ReportesController {
     @Query('estado') estado?: string,
     @Query('tipoDocumentalId') tipoDocumentalId?: string,
     @Query('dependenciaId') dependenciaId?: string,
-    @Query('serieId') serieId?: string,
-    @Query('subserieId') subserieId?: string,
     @Query('fechaDesde') fechaDesde?: string,
     @Query('fechaHasta') fechaHasta?: string,
     @Query('sortBy') sortBy?: 'codigo' | 'fechaDocumento' | 'estado',
@@ -222,8 +216,6 @@ export class ReportesController {
         estado,
         tipoDocumentalId,
         dependenciaId,
-        serieId,
-        subserieId,
         fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
         fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
         sortBy,
@@ -244,7 +236,6 @@ export class ReportesController {
       { header: 'Dependencia', key: 'dependenciaCodigo', width: 16 },
       { header: 'Activo', key: 'activo', width: 10 },
       { header: 'Tipo documental', key: 'tipoDocumental', width: 28 },
-      { header: 'Clasificación', key: 'clasificacion', width: 30 },
       { header: 'Adjuntos', key: 'archivosActivos', width: 10 },
       { header: 'Creado por', key: 'createdBy', width: 22 },
       { header: 'Creado el', key: 'createdAt', width: 20 },
@@ -261,7 +252,6 @@ export class ReportesController {
         dependenciaCodigo: d.dependenciaCodigo,
         activo: d.activo ? 'Sí' : 'No',
         tipoDocumental: d.tipoDocumental,
-        clasificacion: d.clasificacion,
         archivosActivos: d.archivosActivos,
         createdBy: d.createdBy,
         createdAt: d.createdAt.toISOString().replace('T', ' ').slice(0, 19),
@@ -288,8 +278,6 @@ export class ReportesController {
     @Query('estado') estado?: string,
     @Query('tipoDocumentalId') tipoDocumentalId?: string,
     @Query('dependenciaId') dependenciaId?: string,
-    @Query('serieId') serieId?: string,
-    @Query('subserieId') subserieId?: string,
     @Query('fechaDesde') fechaDesde?: string,
     @Query('fechaHasta') fechaHasta?: string,
     @Query('sortBy') sortBy?: 'codigo' | 'fechaDocumento' | 'estado',
@@ -306,8 +294,6 @@ export class ReportesController {
         estado,
         tipoDocumentalId,
         dependenciaId,
-        serieId,
-        subserieId,
         fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
         fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
         sortBy,
@@ -354,9 +340,7 @@ export class ReportesController {
         );
       doc
         .fillColor('gray')
-        .text(
-          `${d.tipoDocumental} | ${d.clasificacion} | Creado por: ${d.createdBy}`,
-        )
+        .text(`${d.tipoDocumental} | Creado por: ${d.createdBy}`)
         .fillColor('black');
       if (d.descripcion) {
         doc

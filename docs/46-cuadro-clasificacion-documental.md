@@ -1,3 +1,5 @@
+> **Retirado el 2026-08-30.** La ruta `/clasificacion` y el cuadro Serie → Subserie ya no existen en el sistema vigente. La clasificación operativa es **Tipo documental** + **Dependencia**.
+
 # Cuadro de clasificación documental — cómo funciona
 
 **Pantalla:** Cuadro de clasificación documental  

@@ -38,8 +38,6 @@ export type DocumentosReportFilter = {
   estado?: string;
   tipoDocumentalId?: string;
   dependenciaId?: string;
-  serieId?: string;
-  subserieId?: string;
   fechaDesde?: Date;
   fechaHasta?: Date;
   sortBy?: 'codigo' | 'fechaDocumento' | 'estado';
@@ -153,8 +151,6 @@ export class ReportesService {
         ? { tipoDocumentalId: filter.tipoDocumentalId }
         : {}),
       ...(filter.dependenciaId ? { dependenciaId: filter.dependenciaId } : {}),
-      ...(filter.subserieId ? { subserieId: filter.subserieId } : {}),
-      ...(filter.serieId ? { subserie: { serieId: filter.serieId } } : {}),
       ...(filter.fechaDesde || filter.fechaHasta
         ? {
             fechaDocumento: {
@@ -197,13 +193,6 @@ export class ReportesService {
       include: {
         tipoDocumental: { select: { codigo: true, nombre: true } },
         dependencia: { select: { codigo: true, nombre: true } },
-        subserie: {
-          select: {
-            codigo: true,
-            nombre: true,
-            serie: { select: { codigo: true, nombre: true } },
-          },
-        },
         createdBy: { select: { email: true } },
         archivos: {
           where: { activo: true },
@@ -223,7 +212,6 @@ export class ReportesService {
       dependenciaCodigo: d.dependencia?.codigo ?? '—',
       activo: d.activo,
       tipoDocumental: `${d.tipoDocumental.codigo} — ${d.tipoDocumental.nombre}`,
-      clasificacion: `${d.subserie.serie.codigo}/${d.subserie.codigo} — ${d.subserie.nombre}`,
       createdBy: d.createdBy.email,
       createdAt: d.createdAt,
       archivosActivos: d.archivos.length,
@@ -577,13 +565,6 @@ export class ReportesService {
       include: {
         tipoDocumental: { select: { codigo: true, nombre: true } },
         dependencia: { select: { codigo: true, nombre: true } },
-        subserie: {
-          select: {
-            codigo: true,
-            nombre: true,
-            serie: { select: { codigo: true, nombre: true } },
-          },
-        },
         createdBy: { select: { email: true } },
         archivos: { where: { activo: true }, select: { id: true } },
       },

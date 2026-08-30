@@ -305,7 +305,6 @@ export function FlujoTramitePage() {
                                 asunto={doc.asunto}
                                 estado={doc.estado}
                                 tipoNombre={doc.tipoDocumental.nombre}
-                                clasificacionTitle={tituloTipo}
                                 responsablePrimary={lugar}
                                 onOpen={() => void navigate(`/documentos/${doc.id}`)}
                               />

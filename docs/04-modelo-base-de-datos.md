@@ -11,7 +11,7 @@
 | Elemento | Situación |
 |----------|-----------|
 | `backend/prisma/schema.prisma` | **Existe** — `provider = "mysql"`. Prisma **5.22.0** fijado en `backend/package.json` (la línea base del proyecto no asume Prisma 7). |
-| `backend/prisma/migrations/` | **26** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
+| `backend/prisma/migrations/` | **27** migraciones ordenadas cronológicamente (ver tabla inferior). Aplicar con `npx prisma migrate deploy` o `migrate dev` desde `backend/` con MySQL activo. |
 | `DATABASE_URL` | Definir en `backend/.env` (plantilla en `.env.example`). Crear la base vacía en phpMyAdmin antes de migrar. |
 | Cliente generado | Tras cambios en el schema: `npm run prisma:generate` en `backend/` (o `npx prisma generate`). En Windows ante **EPERM**: `npm run prisma:generate:clean`. |
 | Cierre ETAPA 2 | Evidencias formales en **`docs/31-etapa-2-cierre-y-evidencias.md`**. |
@@ -43,6 +43,8 @@
 | 21 | `20260509160000_editor_doc_role` | Rol `EDITOR_DOC` y enlaces por defecto en `role_permissions` si faltaban. |
 | 22 | `20260510090000_user_permissions` | Permisos directos por usuario: tabla `user_permissions` (además de `role_permissions`). |
 | 23 | `20260828120000_contrapartes_beneficiarios_documento_fields` | Catálogos `contrapartes` y `beneficiarios` (persona natural/jurídica, cédula/RUC EC); en `documentos`: `fecha_vencimiento`, `responsable_institucional`, FK opcionales `contraparte_id`, `beneficiario_id`; índices en `created_at`, `estado` y FKs. |
+| 24 | `20260828140000_sla_notifications` | Campos SLA de revisión y notificaciones. |
+| 25 | `20260830170000_remove_series_subseries` | **Retiro de clasificación Serie/Subserie:** se elimina `documentos.subserie_id` (FK + índice), tablas `subseries` y `series`, y permisos `SERIES_WRITE`/`SUBSERIES_WRITE`. No borra documentos ni archivos. |
 
 ### Tablas resumen por dominio
 
@@ -68,15 +70,16 @@
 |-------|-----------|-----------|
 | `dependencias` | `20260421120000_*` | Unidades organizativas. |
 | `cargos` | `20260421140000_*` | Puestos; FK opcional a `dependencias`. |
-| `tipos_documentales` | `20260421160000_*` | Tipologías. |
-| `series` / `subseries` | `20260421170000_*` | Clasificación documental. |
+| `tipos_documentales` | `20260421160000_*` | Tipologías (clasificación documental vigente). |
 | `contrapartes` / `beneficiarios` | `20260828120000_*` | Personas naturales o jurídicas (cédula/RUC ecuatoriano validado en API); vinculables opcionalmente desde `documentos`. |
+
+> Las tablas `series` / `subseries` existieron desde `20260421170000_*` y se **retiraron** en `20260830170000_remove_series_subseries`. El documento ya no tiene `subserie_id`.
 
 **Gestión documental y archivos**
 
 | Tabla | Migración | Propósito |
 |-------|-----------|-----------|
-| `documentos` | `20260421180000_*` + **`20260507153000_*`** + **`20260828120000_*`** | Registro documental; FK opcional a `dependencias`; nivel **PUBLICO / INTERNO / RESERVADO / CONFIDENCIAL**; opcionalmente `contraparte_id`, `beneficiario_id`, `fecha_vencimiento`, `responsable_institucional` (**texto** de referencia, no FK; ver `docs/53-responsable-institucional-y-serie.md`). |
+| `documentos` | `20260421180000_*` + **`20260507153000_*`** + **`20260828120000_*`** + **`20260830170000_*`** | Registro documental; FK a tipo documental y opcional a `dependencias`; nivel **PUBLICO / INTERNO / RESERVADO / CONFIDENCIAL**; opcionalmente `contraparte_id`, `beneficiario_id`, `fecha_vencimiento`, `responsable_institucional` (**texto** de referencia, no FK). **Sin** Serie/Subserie. |
 | `documento_eventos` | `20260421190000_*` | Historial CREAR/EDITAR dominio documento. |
 | `documento_archivos` / `documento_archivo_eventos` | `20260421193000_*`, `20260421194500_*` | Adjuntos versionados + eventos (p. ej. SUBIDO/DESCARGADO/ELIMINADO). |
 

@@ -1,7 +1,7 @@
 import { Chip, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
-/** Código de catálogo en chip (mismo patrón en series, dependencias, etc.). */
+/** Código de catálogo en chip (tipos documentales, dependencias, etc.). */
 export function CatalogCodigoChip({ codigo }: { codigo: string }) {
   return (
     <Chip

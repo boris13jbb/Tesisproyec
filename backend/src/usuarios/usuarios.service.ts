@@ -17,6 +17,7 @@ import {
   assertSuperadminUserMutationAllowed,
 } from '../auth/rbac-policy.util';
 import { PasswordPolicyService } from '../auth/password-policy.service';
+import { normalizeAdministrativeText } from '../common/text-normalize.util';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 
@@ -272,8 +273,8 @@ export class UsuariosService {
           data: {
             email,
             passwordHash,
-            nombres: dto.nombres?.trim() || null,
-            apellidos: dto.apellidos?.trim() || null,
+            nombres: normalizeAdministrativeText(dto.nombres),
+            apellidos: normalizeAdministrativeText(dto.apellidos),
             dependenciaId: dto.dependenciaId ?? null,
             cargoId: dto.cargoId ?? null,
             activo,
@@ -537,11 +538,11 @@ export class UsuariosService {
             passwordHash,
             nombres:
               dto.nombres !== undefined
-                ? dto.nombres?.trim() || null
+                ? normalizeAdministrativeText(dto.nombres)
                 : undefined,
             apellidos:
               dto.apellidos !== undefined
-                ? dto.apellidos?.trim() || null
+                ? normalizeAdministrativeText(dto.apellidos)
                 : undefined,
             dependenciaId:
               dto.dependenciaId === undefined ? undefined : dto.dependenciaId,

@@ -24,6 +24,19 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-30 — Retiro de Series y Subseries
+
+- **Prisma:** migración `20260830170000_remove_series_subseries`. Quita FK e índice `documentos.subserie_id`, tablas `subseries` y `series`, y permisos `SERIES_WRITE` / `SUBSERIES_WRITE`. Los documentos existentes se conservan (código, asunto, tipo, dependencia, archivos, auditoría).
+- **API:** se eliminan `SeriesModule` y `SubseriesModule`; `POST/PATCH /documentos` ya no exige `subserieId`; listados y reportes dejan de filtrar por serie/subserie.
+- **UI:** menú Catálogos sin Series/Subseries; ruta `/clasificacion` retirada; formulario, detalle, bandeja y exportaciones sin clasificación Serie/Subserie. El clasificador vigente es **Tipo documental** + **Dependencia**.
+- Manual: `27-manual-usuario-sgd-gadpr-lm.md`. Modelo: `04-modelo-base-de-datos.md`.
+
+### 2026-08-30 — Clasificación documental unificada (Serie → Subserie)
+
+- **Frontend (UX):** en Nuevo documento y Editar, un solo selector **Clasificación documental** agrupado por serie; el valor sigue siendo `subserieId`. Detalle y bandeja muestran `Serie → Subserie` (códigos secundarios). Catálogos Series/Subseries se mantienen.
+- **Base de datos:** sin cambios de schema ni migraciones (`Documento.subserieId` + `Subserie.serieId`).
+- Manual: `27-manual-usuario-sgd-gadpr-lm.md`; fichas `50` / `51`.
+
 ### 2026-08-30 — Rediseño UX Administración → Usuarios y roles
 
 - **Frontend:** pestañas Usuarios / Roles y permisos / Matriz de acceso; permisos humanizados (`permission-display.ts`, `role-display.ts`).

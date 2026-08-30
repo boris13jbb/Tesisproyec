@@ -1,3 +1,5 @@
+> **Retirado el 2026-08-30.** El sistema ya **no** usa Series ni Subseries. La clasificación vigente es **Tipo documental** + **Dependencia**. Migración: `20260830170000_remove_series_subseries`. Este documento se conserva como referencia histórica.
+
 # Catálogo de Series — cómo funciona
 
 **Pantalla:** Series  
@@ -12,13 +14,15 @@
 
 Las **series** son el **nivel superior** del cuadro de clasificación archivística (ISO 15489): agrupan documentos por función o área institucional (administración, secretaría, etc.). Cada serie puede tener **subseries** hijas; el expediente, en el MVP, se clasifica en una **subserie**, pero la serie define la rama del árbol.
 
-**Decisión 2026-08-29:** la serie **no se infiere automáticamente** desde usuario, dependencia ni contraparte (no hay regla institucional inequívoca). La selección sigue siendo **Serie → Subserie**; si el catálogo tiene una sola serie o una sola subserie aplicable, el formulario puede preseleccionarla. Estado: **aceptado funcionalmente**.
+**Decisión 2026-08-29:** la serie **no se infiere** desde usuario, dependencia ni contraparte (no hay regla institucional inequívoca). Estado: **aceptado funcionalmente**.
+
+**UX 2026-08-30:** en **Nuevo documento** / **Editar** el usuario elige un solo campo **Clasificación documental** (valor = subserie). La serie se deduce de `Subserie.serieId`. Si el catálogo tiene **una sola** clasificación activa, el formulario puede preseleccionarla. Si hay varias, el usuario debe elegir. El catálogo **Series** sigue siendo obligatorio para estructurar el cuadro (ISO 15489).
 
 | Uso en el sistema | Dónde se aplica |
 |-------------------|-----------------|
 | **Cuadro de clasificación** | Árbol izquierdo en **Clasificación** (`/clasificacion`) — nodos de primer nivel bajo el fondo. |
 | **Tabla de retención** | Una fila por serie activa en la pantalla de clasificación. |
-| **Alta documental** | Contexto indirecto: el usuario elige **subserie**, que pertenece a una serie. |
+| **Alta documental** | El usuario elige **Clasificación documental** (subserie); la serie queda implícita. |
 | **Búsqueda y listados** | Columnas y filtros muestran serie/subserie del expediente. |
 
 Sin series activas, el árbol de clasificación y el mantenimiento de subseries quedan incompletos.
@@ -43,7 +47,7 @@ Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403*
 ### 3.1 Encabezado
 
 - **Título:** Series  
-- **Texto:** catálogo del cuadro de clasificación; rol ADMIN; enlaces a **Subseries** y **Clasificación**.
+- **Texto:** las series agrupan documentos de una misma función o área documental; rol ADMIN; enlaces a **Subseries** y **Clasificación**.
 - El listado usa el mismo panel que Documentos (icono de carpeta, no letra «S»).
 
 ### 3.2 Controles superiores

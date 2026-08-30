@@ -51,12 +51,14 @@ import {
 } from '../../constants/documento-estado';
 import { getApiErrorMessage } from '../../utils/api-error-message';
 import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
+import { bindAdministrativeRegister } from '../../utils/form-text';
 import {
   buildFileEventDisplay,
   formatDateTimeEc,
   formatFileSize,
   formatMimeType,
 } from '../../utils/file-meta-format';
+import { normalizeAdministrativeText, toAdministrativeInputUppercase } from '../../utils/text-normalize';
 import {
   type PartyCatalogRow,
   partyDisplayLabel,
@@ -72,14 +74,6 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { useRegisterBreadcrumbDetail } from '../../layouts/useBreadcrumbDetail';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
-type SerieOption = { id: string; codigo: string; nombre: string };
-type SubserieOption = {
-  id: string;
-  codigo: string;
-  nombre: string;
-  serieId: string;
-  serie: SerieOption;
-};
 
 type DependenciaOption = {
   id: string;
@@ -99,17 +93,10 @@ type DocumentoRow = {
   nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumentalId: string;
-  subserieId: string;
   tipoDocumental: TipoOption;
   dependencia: DependenciaOption | null;
   contraparte: PartyCatalogRow | null;
   beneficiario: PartyCatalogRow | null;
-  subserie: {
-    id: string;
-    codigo: string;
-    nombre: string;
-    serie: SerieOption;
-  };
   createdBy: { id: string; email: string };
   createdAt: string;
   updatedAt: string;
@@ -167,7 +154,6 @@ const editSchema = z.object({
   estado: documentoEstadoSchema,
   activo: z.boolean(),
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
-  subserieId: z.string().min(1, 'Subserie requerida'),
   dependenciaId: z.string().optional(),
   contraparteId: z.string().optional(),
   beneficiarioId: z.string().optional(),
@@ -226,7 +212,6 @@ function fieldLabel(field: string): string {
     estado: 'Estado',
     activo: 'Activo',
     tipoDocumentalId: 'Tipo documental',
-    subserieId: 'Subserie',
     codigo: 'Código',
     dependenciaId: 'Dependencia',
     contraparteId: 'Contraparte',
@@ -285,7 +270,15 @@ const nestedItemSx = {
   },
 } as const;
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function MetaRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <Box
       sx={{
@@ -299,6 +292,11 @@ function MetaRow({ label, value }: { label: string; value: string }) {
         {label}
       </Typography>
       <Typography sx={{ fontWeight: 700, wordBreak: 'break-word' }}>{value}</Typography>
+      {hint ? (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+          Código: {hint}
+        </Typography>
+      ) : null}
     </Box>
   );
 }
@@ -376,7 +374,6 @@ export function DocumentoDetallePage() {
   const [doc, setDoc] = useState<DocumentoRow | null>(null);
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
-  const [subseries, setSubseries] = useState<SubserieOption[]>([]);
   const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
   const [contrapartes, setContrapartes] = useState<PartyCatalogRow[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<PartyCatalogRow[]>([]);
@@ -470,14 +467,6 @@ export function DocumentoDetallePage() {
 
   useRegisterBreadcrumbDetail(doc?.codigo);
 
-  const subserieLabel = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of subseries) {
-      map.set(s.id, `${s.serie.codigo} / ${s.codigo} — ${s.nombre}`);
-    }
-    return map;
-  }, [subseries]);
-
   const docArchivado = doc?.estado === 'ARCHIVADO';
 
   /** Mayor versión numérica (coherente con orden del API tras `orderBy version desc`). */
@@ -543,7 +532,6 @@ export function DocumentoDetallePage() {
       estado: 'REGISTRADO',
       activo: true,
       tipoDocumentalId: '',
-      subserieId: '',
       dependenciaId: '',
       contraparteId: '',
       beneficiarioId: '',
@@ -662,21 +650,6 @@ export function DocumentoDetallePage() {
       })
       .catch(() => {
         if (!cancelled) setDependencias([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get<SubserieOption[]>('/subseries')
-      .then((res) => {
-        if (!cancelled) setSubseries(res.data);
-      })
-      .catch(() => {
-        if (!cancelled) setSubseries([]);
       });
     return () => {
       cancelled = true;
@@ -852,7 +825,6 @@ export function DocumentoDetallePage() {
       estado: estadoForm,
       activo: doc.activo,
       tipoDocumentalId: doc.tipoDocumental.id,
-      subserieId: doc.subserie.id,
       dependenciaId: doc.dependencia?.id ?? '',
       contraparteId: doc.contraparte?.id ?? '',
       beneficiarioId: doc.beneficiario?.id ?? '',
@@ -866,17 +838,20 @@ export function DocumentoDetallePage() {
     setError(null);
     try {
       await apiClient.patch(`/documentos/${id}`, {
-        asunto: data.asunto,
-        descripcion: data.descripcion || null,
+        asunto: normalizeAdministrativeText(data.asunto),
+        descripcion: data.descripcion?.trim()
+          ? normalizeAdministrativeText(data.descripcion)
+          : null,
         fechaDocumento: new Date(data.fechaDocumento).toISOString(),
         fechaVencimiento: data.fechaVencimiento?.trim()
           ? new Date(data.fechaVencimiento).toISOString()
           : null,
-        responsableInstitucional: data.responsableInstitucional?.trim() || null,
+        responsableInstitucional: data.responsableInstitucional?.trim()
+          ? normalizeAdministrativeText(data.responsableInstitucional)
+          : null,
         ...(data.estado !== doc.estado ? { estado: data.estado } : {}),
         activo: data.activo,
         tipoDocumentalId: data.tipoDocumentalId,
-        subserieId: data.subserieId,
         dependenciaId: data.dependenciaId?.trim()
           ? data.dependenciaId.trim()
           : null,
@@ -927,7 +902,7 @@ export function DocumentoDetallePage() {
     try {
       const body =
         decision === 'RECHAZADO'
-          ? { decision, motivo: motivo?.trim() ?? '' }
+          ? { decision, motivo: normalizeAdministrativeText(motivo ?? '') }
           : { decision };
       await apiClient.post(`/documentos/${id}/resolver-revision`, body);
       await load();
@@ -1692,14 +1667,6 @@ export function DocumentoDetallePage() {
                         value={`${doc.tipoDocumental.codigo} — ${doc.tipoDocumental.nombre}`}
                       />
                       <MetaRow
-                        label="Serie documental"
-                        value={`${doc.subserie.serie.codigo} — ${doc.subserie.serie.nombre}`}
-                      />
-                      <MetaRow
-                        label="Subserie"
-                        value={`${doc.subserie.codigo} — ${doc.subserie.nombre}`}
-                      />
-                      <MetaRow
                         label="Confidencialidad"
                         value={labelConfidencialidad(doc.nivelConfidencialidad)}
                       />
@@ -1937,7 +1904,7 @@ export function DocumentoDetallePage() {
             minRows={3}
             value={rejectMotivo}
             onChange={(e) => {
-              setRejectMotivo(e.target.value);
+              setRejectMotivo(toAdministrativeInputUppercase(e.target.value));
               setRejectMotivoError(null);
             }}
             error={!!rejectMotivoError}
@@ -1972,7 +1939,7 @@ export function DocumentoDetallePage() {
               required
               error={!!editForm.formState.errors.asunto}
               helperText={editForm.formState.errors.asunto?.message}
-              {...editForm.register('asunto')}
+              {...bindAdministrativeRegister(editForm.register, 'asunto')}
             />
 
             <TextField
@@ -1982,7 +1949,7 @@ export function DocumentoDetallePage() {
               minRows={2}
               error={!!editForm.formState.errors.descripcion}
               helperText={editForm.formState.errors.descripcion?.message}
-              {...editForm.register('descripcion')}
+              {...bindAdministrativeRegister(editForm.register, 'descripcion')}
             />
 
             <TextField
@@ -2017,7 +1984,7 @@ export function DocumentoDetallePage() {
                 editForm.formState.errors.responsableInstitucional?.message ??
                 'Persona o cargo de referencia en la institución (texto). No es el usuario que registró, ni la dependencia, ni la contraparte.'
               }
-              {...editForm.register('responsableInstitucional')}
+              {...bindAdministrativeRegister(editForm.register, 'responsableInstitucional')}
             />
 
             <Controller
@@ -2071,29 +2038,6 @@ export function DocumentoDetallePage() {
                     {tipos.map((t) => (
                       <MenuItem key={t.id} value={t.id}>
                         {t.codigo} — {t.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
-
-            <Controller
-              name="subserieId"
-              control={editForm.control}
-              render={({ field }) => (
-                <FormControl fullWidth required>
-                  <InputLabel id="subserie-label">Subserie</InputLabel>
-                  <Select
-                    labelId="subserie-label"
-                    label="Subserie"
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={!!editForm.formState.errors.subserieId}
-                  >
-                    {subseries.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {subserieLabel.get(s.id)}
                       </MenuItem>
                     ))}
                   </Select>

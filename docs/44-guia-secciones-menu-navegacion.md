@@ -2,7 +2,7 @@
 
 **Audiencia:** usuarios operativos, administradores (**ADMIN**), revisores (**REVISOR**) y evaluadores de la tesis.  
 **Objetivo:** explicar **qué contiene cada entrada del menú**, **cómo funciona**, **quién puede usarla** y **cómo se relaciona con el resto del sistema.  
-**Última revisión:** 2026-08-27 — alineada con `frontend/src/layouts/MainLayout.tsx` (menú colapsable y tema oscuro) y rutas en `frontend/src/app/App.tsx`.
+**Última revisión:** 2026-08-30 — Series/Subseries y la ruta `/clasificacion` se retiraron; el clasificador vigente es Tipo documental + Dependencia.
 
 **Documentos relacionados:** [Manual de usuario](./27-manual-usuario-sgd-gadpr-lm.md) (pasos operativos) · [Glosario](./43-glosario-terminos.md) (definiciones) · [Módulo documentos](./12-modulo-documentos.md) · [Roles y permisos](./07-modulo-roles-permisos.md).
 
@@ -24,25 +24,25 @@ Tras iniciar sesión, el sistema muestra un **menú lateral** (en pantallas pequ
 |------------------|------|------------|
 | Inicio | `/` | Cualquier usuario autenticado |
 | Documentos | `/documentos` | Autenticado (+ permiso efectivo `DOC_READ` en API) |
+| Bandeja trámites | `/bandeja-tramites` | Autenticado |
 | Trámites | `/tramites` | Autenticado (misma visibilidad que documentos) |
-| Clasificación | `/clasificacion` | Autenticado (solo lectura) |
-| Nuevo documento | `/documentos/nuevo` | **ADMIN** o quien tenga `DOC_CREATE` |
+| Nuevo documento | `/documentos/nuevo` | **ADMIN** o quien tenga `DOC_CREATE` + `DOC_FILES_UPLOAD` |
 | Usuarios y roles | `/admin/usuarios` | **ADMIN** |
 | Auditoría | `/admin/auditoria` | **ADMIN** |
 | Respaldos | `/admin/respaldos` | **ADMIN** |
-| Reportes | `/admin/reportes` | **ADMIN** |
+| Reportes | `/reportes` | **ADMIN** |
 | Configuración | `/admin/configuracion` | **ADMIN** |
 | Dependencias | `/catalogos/dependencias` | **ADMIN** |
 | Cargos | `/catalogos/cargos` | **ADMIN** |
 | Tipos documentales | `/catalogos/tipos-documentales` | **ADMIN** |
-| Series | `/catalogos/series` | **ADMIN** |
-| Subseries | `/catalogos/subseries` | **ADMIN** |
+| Contrapartes | `/catalogos/contrapartes` | **ADMIN** |
+| Beneficiarios | `/catalogos/beneficiarios` | **ADMIN** |
 
 ### 1.2 Qué no está en el menú pero es importante
 
 - **Mi perfil** (`/perfil`): menú del **correo** en la barra superior → *Mi perfil*.
 - **Cerrar sesión**: mismo menú superior.
-- **Detalle de un documento** (`/documentos/:id`): se abre desde listados, trámites o clasificación; no tiene entrada propia en el menú.
+- **Detalle de un documento** (`/documentos/:id`): se abre desde listados o trámites; no tiene entrada propia en el menú.
 - **Login / recuperar contraseña**: fuera del layout principal (`/login`, `/recuperar`, `/restablecer`).
 
 ### 1.3 Regla de seguridad (importante)
@@ -130,7 +130,7 @@ Por eso dos usuarios con el mismo rol pueden ver **listas distintas**.
 
 #### Búsqueda (`q`)
 
-El texto libre busca en paralelo en: código, asunto, descripción, dependencia, quien registró, tipo documental y clasificación (serie/subserie). Es la herramienta más usada para localizar un expediente sin conocer el ID interno.
+El texto libre busca en paralelo en: código, asunto, descripción, dependencia, quien registró y tipo documental. Es la herramienta más usada para localizar un expediente sin conocer el ID interno.
 
 #### Estados en el filtro
 
@@ -143,7 +143,6 @@ Cada cambio de estado válido se valida en servidor (`documento-estado.util.ts`)
 #### Relación con otras pantallas
 
 - **Trámites:** misma población de documentos, vista Kanban por estado.
-- **Clasificación:** agregados por serie/subserie de los documentos **que ya ves** aquí.
 - **Detalle** (`/documentos/:id`): edición, adjuntos, revisión, historial.
 
 #### Fallos frecuentes

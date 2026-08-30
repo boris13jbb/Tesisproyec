@@ -52,8 +52,6 @@ export class DocumentosController {
     @Query('estado') estado?: string,
     @Query('tipoDocumentalId') tipoDocumentalId?: string,
     @Query('dependenciaId') dependenciaId?: string,
-    @Query('serieId') serieId?: string,
-    @Query('subserieId') subserieId?: string,
     @Query('fechaDesde') fechaDesde?: string,
     @Query('fechaHasta') fechaHasta?: string,
     @Query('slaEstado') slaEstado?: string,
@@ -73,8 +71,6 @@ export class DocumentosController {
       estado,
       tipoDocumentalId,
       dependenciaId,
-      serieId,
-      subserieId,
       fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
       fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
       slaEstado,
@@ -131,12 +127,6 @@ export class DocumentosController {
       sortBy,
       sortDir,
     });
-  }
-
-  @Get('clasificacion-agregados')
-  @Permissions(PERM.DOC_READ)
-  clasificacionAgregados(@Req() req: Request & { user: JwtRequestUser }) {
-    return this.service.getClasificacionAgregados(req.user);
   }
 
   @Get(':id')

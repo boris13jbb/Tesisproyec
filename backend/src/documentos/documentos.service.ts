@@ -60,15 +60,6 @@ type DocumentoCodigoDb = {
   };
 };
 
-/** `_count._all` en `documento.groupBy` con `_count: { _all: true }` (tipificación Prisma estricta). */
-function documentoGroupByAll(row: {
-  _count?: true | { _all?: number };
-}): number {
-  const c = row._count;
-  if (c === undefined || c === true) return 0;
-  return typeof c._all === 'number' ? c._all : 0;
-}
-
 const partyCatalogSelect = {
   id: true,
   tipo: true,
@@ -81,14 +72,6 @@ const partyCatalogSelect = {
 
 const includeCatalogos = {
   tipoDocumental: { select: { id: true, codigo: true, nombre: true } },
-  subserie: {
-    select: {
-      id: true,
-      codigo: true,
-      nombre: true,
-      serie: { select: { id: true, codigo: true, nombre: true } },
-    },
-  },
   dependencia: { select: { id: true, codigo: true, nombre: true } },
   contraparte: { select: partyCatalogSelect },
   beneficiario: { select: partyCatalogSelect },
@@ -108,7 +91,6 @@ type DocumentoSnapshot = {
   nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumentalId: string;
-  subserieId: string;
   dependenciaId: string | null;
   contraparteId: string | null;
   beneficiarioId: string | null;
@@ -126,7 +108,6 @@ function documentoToSnapshot(row: {
   nivelConfidencialidad: string;
   activo: boolean;
   tipoDocumentalId: string;
-  subserieId: string;
   dependenciaId: string | null;
   contraparteId: string | null;
   beneficiarioId: string | null;
@@ -143,7 +124,6 @@ function documentoToSnapshot(row: {
     nivelConfidencialidad: row.nivelConfidencialidad,
     activo: row.activo,
     tipoDocumentalId: row.tipoDocumentalId,
-    subserieId: row.subserieId,
     dependenciaId: row.dependenciaId,
     contraparteId: row.contraparteId,
     beneficiarioId: row.beneficiarioId,
@@ -358,8 +338,6 @@ export class DocumentosService {
       estado?: string;
       tipoDocumentalId?: string;
       dependenciaId?: string;
-      serieId?: string;
-      subserieId?: string;
       fechaDesde?: Date;
       fechaHasta?: Date;
       slaEstado?: string;
@@ -435,8 +413,6 @@ export class DocumentosService {
       ...(filters?.dependenciaId
         ? { dependenciaId: filters.dependenciaId }
         : {}),
-      ...(filters?.subserieId ? { subserieId: filters.subserieId } : {}),
-      ...(filters?.serieId ? { subserie: { serieId: filters.serieId } } : {}),
       ...(filters?.fechaDesde || filters?.fechaHasta
         ? {
             fechaDocumento: {
@@ -626,226 +602,6 @@ export class DocumentosService {
     };
   }
 
-  /**
-   * Agregados para «Clasificación documental»: conteos por subserie y serie con la misma
-   * visibilidad que los listados; dependencia / confidencialidad predominantes por mayoría entre
-   * expedientes visibles (sin inventar políticas ISO no modeladas).
-   */
-  async getClasificacionAgregados(viewer: JwtRequestUser) {
-    type Agg = {
-      expedientes: number;
-      dependenciaId: string | null;
-      dependenciaNombre: string | null;
-      nivelConfidencialidad: string | null;
-    };
-
-    const baseWhere: Prisma.DocumentoWhereInput = { activo: true };
-    const scope = documentoVisibilityWhere(viewer);
-    const where: Prisma.DocumentoWhereInput = scope
-      ? { AND: [baseWhere, scope] }
-      : baseWhere;
-
-    const [
-      seriesRows,
-      subs,
-      todasSubseriePadres,
-      countBySub,
-      depRows,
-      confRows,
-    ] = await this.prisma.$transaction([
-      this.prisma.serie.findMany({
-        where: { activo: true },
-        select: { id: true },
-      }),
-      this.prisma.subserie.findMany({
-        where: { activo: true },
-        select: { id: true, serieId: true },
-      }),
-      /** Todas las subseries (árbol agregados): para mapear documentos al padre Serie aunque la subserie esté inactiva. */
-      this.prisma.subserie.findMany({
-        select: { id: true, serieId: true },
-      }),
-      this.prisma.documento.groupBy({
-        by: ['subserieId'],
-        where,
-        _count: { _all: true },
-        orderBy: { subserieId: 'asc' },
-      }),
-      this.prisma.documento.groupBy({
-        by: ['subserieId', 'dependenciaId'],
-        where,
-        _count: { _all: true },
-        orderBy: [{ subserieId: 'asc' }, { dependenciaId: 'asc' }],
-      }),
-      this.prisma.documento.groupBy({
-        by: ['subserieId', 'nivelConfidencialidad'],
-        where,
-        _count: { _all: true },
-        orderBy: [{ subserieId: 'asc' }, { nivelConfidencialidad: 'asc' }],
-      }),
-    ]);
-
-    /** Mapa global subserie → serie (incluye inactivas en catálogo). */
-    const subToSerieFull = new Map(
-      todasSubseriePadres.map((s) => [s.id, s.serieId]),
-    );
-
-    const exBySub = new Map(
-      countBySub.map((r) => [r.subserieId, documentoGroupByAll(r)]),
-    );
-
-    const depBySub = new Map<string, Map<string | null, number>>();
-    for (const r of depRows) {
-      const m = depBySub.get(r.subserieId) ?? new Map<string | null, number>();
-      m.set(
-        r.dependenciaId,
-        (m.get(r.dependenciaId) ?? 0) + documentoGroupByAll(r),
-      );
-      depBySub.set(r.subserieId, m);
-    }
-    const confBySub = new Map<string, Map<string, number>>();
-    for (const r of confRows) {
-      const m = confBySub.get(r.subserieId) ?? new Map<string, number>();
-      m.set(
-        r.nivelConfidencialidad,
-        (m.get(r.nivelConfidencialidad) ?? 0) + documentoGroupByAll(r),
-      );
-      confBySub.set(r.subserieId, m);
-    }
-
-    function pickTopNullableBucket(
-      m: Map<string | null, number>,
-    ): string | null {
-      let bestK: string | null = null;
-      let bestN = -1;
-      const sorted = [...m.entries()].sort(([a], [b]) =>
-        String(a ?? '').localeCompare(String(b ?? '')),
-      );
-      for (const [k, n] of sorted) {
-        if (n > bestN) {
-          bestN = n;
-          bestK = k;
-        }
-      }
-      return bestN <= 0 ? null : bestK;
-    }
-
-    function pickTopConf(m: Map<string, number>): string | null {
-      let bestK = '';
-      let bestN = -1;
-      const sorted = [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
-      for (const [k, n] of sorted) {
-        if (n > bestN) {
-          bestN = n;
-          bestK = k;
-        }
-      }
-      return bestN <= 0 ? null : bestK;
-    }
-
-    const serieEx = new Map<string, number>();
-    const serieDep = new Map<string, Map<string | null, number>>();
-    const serieConf = new Map<string, Map<string, number>>();
-    const serieIds = new Set(seriesRows.map((x) => x.id));
-
-    for (const sid of serieIds) {
-      serieEx.set(sid, 0);
-      serieDep.set(sid, new Map<string | null, number>());
-      serieConf.set(sid, new Map<string, number>());
-    }
-
-    for (const row of countBySub) {
-      const serId = subToSerieFull.get(row.subserieId);
-      if (!serId || !serieEx.has(serId)) continue;
-      serieEx.set(serId, (serieEx.get(serId) ?? 0) + documentoGroupByAll(row));
-    }
-    for (const row of depRows) {
-      const serId = subToSerieFull.get(row.subserieId);
-      if (!serId || !serieDep.has(serId)) continue;
-      const m = serieDep.get(serId)!;
-      m.set(
-        row.dependenciaId,
-        (m.get(row.dependenciaId) ?? 0) + documentoGroupByAll(row),
-      );
-    }
-    for (const row of confRows) {
-      const serId = subToSerieFull.get(row.subserieId);
-      if (!serId || !serieConf.has(serId)) continue;
-      const m = serieConf.get(serId)!;
-      m.set(
-        row.nivelConfidencialidad,
-        (m.get(row.nivelConfidencialidad) ?? 0) + documentoGroupByAll(row),
-      );
-    }
-
-    const subseries: Record<string, Agg> = {};
-    const depIdsNeeded = new Set<string>();
-
-    for (const sub of subs) {
-      const expedientes = exBySub.get(sub.id) ?? 0;
-      let dependenciaId: string | null = null;
-      let nivelConfidencialidad: string | null = null;
-      if (expedientes > 0) {
-        dependenciaId = pickTopNullableBucket(
-          depBySub.get(sub.id) ?? new Map<string | null, number>(),
-        );
-        nivelConfidencialidad = pickTopConf(
-          confBySub.get(sub.id) ?? new Map<string, number>(),
-        );
-        if (dependenciaId) depIdsNeeded.add(dependenciaId);
-      }
-      subseries[sub.id] = {
-        expedientes,
-        dependenciaId,
-        dependenciaNombre: null,
-        nivelConfidencialidad,
-      };
-    }
-
-    const seriesAgg: Record<string, Agg> = {};
-    for (const sid of serieIds) {
-      const expedientes = serieEx.get(sid) ?? 0;
-      let dependenciaId: string | null = null;
-      let nivelConfidencialidad: string | null = null;
-      if (expedientes > 0) {
-        dependenciaId = pickTopNullableBucket(
-          serieDep.get(sid) ?? new Map<string | null, number>(),
-        );
-        nivelConfidencialidad = pickTopConf(
-          serieConf.get(sid) ?? new Map<string, number>(),
-        );
-        if (dependenciaId) depIdsNeeded.add(dependenciaId);
-      }
-      seriesAgg[sid] = {
-        expedientes,
-        dependenciaId,
-        dependenciaNombre: null,
-        nivelConfidencialidad,
-      };
-    }
-
-    if (depIdsNeeded.size > 0) {
-      const deps = await this.prisma.dependencia.findMany({
-        where: { id: { in: [...depIdsNeeded] } },
-        select: { id: true, nombre: true },
-      });
-      const nameByDep = new Map(deps.map((d) => [d.id, d.nombre]));
-
-      for (const v of Object.values(subseries)) {
-        if (v.dependenciaId) {
-          v.dependenciaNombre = nameByDep.get(v.dependenciaId) ?? null;
-        }
-      }
-      for (const v of Object.values(seriesAgg)) {
-        if (v.dependenciaId) {
-          v.dependenciaNombre = nameByDep.get(v.dependenciaId) ?? null;
-        }
-      }
-    }
-
-    return { series: seriesAgg, subseries };
-  }
-
   async findOne(id: string, viewer: JwtRequestUser) {
     return this.loadDocumentoVisibleById(id, viewer);
   }
@@ -854,13 +610,6 @@ export class DocumentosService {
     const t = await this.prisma.tipoDocumental.findUnique({ where: { id } });
     if (!t) {
       throw new BadRequestException('Tipo documental no encontrado');
-    }
-  }
-
-  private async assertSubserieExists(id: string) {
-    const s = await this.prisma.subserie.findUnique({ where: { id } });
-    if (!s) {
-      throw new BadRequestException('Subserie no encontrada');
     }
   }
 
@@ -880,8 +629,6 @@ export class DocumentosService {
     ctx?: AuditContext,
   ) {
     await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
-    await this.assertSubserieExists(dto.subserieId);
-
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
       select: { dependenciaId: true },
@@ -946,7 +693,6 @@ export class DocumentosService {
               fechaVencimiento: fechaVencimiento ?? null,
               responsableInstitucional,
               tipoDocumentalId: dto.tipoDocumentalId,
-              subserieId: dto.subserieId,
               dependenciaId,
               contraparteId: dto.contraparteId ?? null,
               beneficiarioId: dto.beneficiarioId ?? null,
@@ -1478,8 +1224,12 @@ export class DocumentosService {
     }
 
     const extraMeta: Record<string, unknown> = { decision: dto.decision };
-    if (dto.decision === 'RECHAZADO' && dto.motivo) {
-      extraMeta.motivoRechazo = dto.motivo;
+    const motivoNormalizado =
+      dto.decision === 'RECHAZADO' && dto.motivo
+        ? normalizeAdministrativeText(dto.motivo)
+        : null;
+    if (motivoNormalizado) {
+      extraMeta.motivoRechazo = motivoNormalizado;
     }
 
     const updated = await this.aplicarCambioEstadoSoloEstado(
@@ -1504,7 +1254,7 @@ export class DocumentosService {
       codigo: doc.codigo,
       asunto: doc.asunto,
       decision: dto.decision,
-      motivo: dto.motivo,
+      motivo: motivoNormalizado ?? dto.motivo,
       creatorUserId: doc.createdById,
       creatorEmail: doc.createdBy.email,
     });
@@ -1656,7 +1406,6 @@ export class DocumentosService {
         dto.contraparteId !== undefined ||
         dto.beneficiarioId !== undefined ||
         dto.tipoDocumentalId !== undefined ||
-        dto.subserieId !== undefined ||
         dto.estado !== undefined ||
         dto.dependenciaId !== undefined ||
         dto.nivelConfidencialidad !== undefined;
@@ -1675,9 +1424,6 @@ export class DocumentosService {
     if (dto.tipoDocumentalId !== undefined) {
       await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
     }
-    if (dto.subserieId !== undefined) {
-      await this.assertSubserieExists(dto.subserieId);
-    }
     if (dto.dependenciaId !== undefined) {
       if (dto.dependenciaId === null) {
         /* allow clear */
@@ -1694,7 +1440,6 @@ export class DocumentosService {
       dto.contraparteId === undefined &&
       dto.beneficiarioId === undefined &&
       dto.tipoDocumentalId === undefined &&
-      dto.subserieId === undefined &&
       dto.estado === undefined &&
       dto.activo === undefined &&
       dto.dependenciaId === undefined &&
@@ -1760,7 +1505,6 @@ export class DocumentosService {
             ...(dto.tipoDocumentalId !== undefined && {
               tipoDocumentalId: dto.tipoDocumentalId,
             }),
-            ...(dto.subserieId !== undefined && { subserieId: dto.subserieId }),
             ...(dto.estado !== undefined && {
               estado: normalizeDocumentoEstado(dto.estado.trim()),
             }),

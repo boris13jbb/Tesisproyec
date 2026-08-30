@@ -54,12 +54,6 @@ export const BandejaTramitesPage = lazy(() =>
   })),
 );
 
-export const ClasificacionDocumentalPage = lazy(() =>
-  import('../pages/clasificacion/ClasificacionDocumentalPage').then((m) => ({
-    default: m.ClasificacionDocumentalPage,
-  })),
-);
-
 export const NuevoDocumentoPage = lazy(() =>
   import('../pages/documentos/NuevoDocumentoPage').then((m) => ({ default: m.NuevoDocumentoPage })),
 );
@@ -110,12 +104,4 @@ export const TiposDocumentalesPage = lazy(() =>
   import('../pages/catalogos/TiposDocumentalesPage').then((m) => ({
     default: m.TiposDocumentalesPage,
   })),
-);
-
-export const SeriesPage = lazy(() =>
-  import('../pages/catalogos/SeriesPage').then((m) => ({ default: m.SeriesPage })),
-);
-
-export const SubseriesPage = lazy(() =>
-  import('../pages/catalogos/SubseriesPage').then((m) => ({ default: m.SubseriesPage })),
 );

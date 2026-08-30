@@ -301,37 +301,11 @@ async function main() {
     update: {},
   });
 
-  const serieAdm = await prisma.serie.upsert({
-    where: { codigo: 'ADM' },
-    create: {
-      codigo: 'ADM',
-      nombre: 'Administración',
-      descripcion: 'Serie de ejemplo (seed)',
-      activo: true,
-    },
-    update: {},
-  });
-
-  await prisma.subserie.upsert({
-    where: { codigo: 'ADM-CORR' },
-    create: {
-      codigo: 'ADM-CORR',
-      nombre: 'Correspondencia',
-      descripcion: 'Subserie de ejemplo (seed)',
-      serieId: serieAdm.id,
-      activo: true,
-    },
-    update: {},
-  });
-
   const tipoMemo = await prisma.tipoDocumental.findUnique({
     where: { codigo: 'MEMO' },
   });
-  const subAdmCorr = await prisma.subserie.findUnique({
-    where: { codigo: 'ADM-CORR' },
-  });
 
-  if (tipoMemo && subAdmCorr) {
+  if (tipoMemo) {
     await prisma.documento.upsert({
       where: { codigo: 'DOC-0001' },
       create: {
@@ -342,7 +316,6 @@ async function main() {
         estado: 'REGISTRADO',
         activo: true,
         tipoDocumentalId: tipoMemo.id,
-        subserieId: subAdmCorr.id,
         createdById: user.id,
       },
       update: {},

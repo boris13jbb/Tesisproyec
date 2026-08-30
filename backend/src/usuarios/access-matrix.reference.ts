@@ -119,7 +119,8 @@ export const ACCESS_MATRIX_FILAS: AccessMatrixFila[] = [
   },
   {
     modulo: 'Catálogos (CRUD)',
-    ayuda: 'Dependencias, cargos, tipos y series documentales',
+    ayuda:
+      'Dependencias, cargos, tipos documentales, contrapartes y beneficiarios',
     porRol: {
       ADMIN: true,
       REVISOR: false,

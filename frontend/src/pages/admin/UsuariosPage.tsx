@@ -76,6 +76,7 @@ import {
 } from '../../constants/roles-access-matrix';
 import { formatUltimoIngreso } from '../../utils/formatUltimoIngreso';
 import { getApiErrorMessage } from '../../utils/api-error-message';
+import { administrativeInputOnChange } from '../../utils/form-text';
 
 const paperCardSx = {
   ...listSurfaceSx,
@@ -1015,14 +1016,14 @@ export function UsuariosPage() {
             fullWidth
             margin="normal"
             value={nombres}
-            onChange={(e) => setNombres(e.target.value)}
+            onChange={administrativeInputOnChange(setNombres)}
           />
           <TextField
             label="Apellidos"
             fullWidth
             margin="normal"
             value={apellidos}
-            onChange={(e) => setApellidos(e.target.value)}
+            onChange={administrativeInputOnChange(setApellidos)}
           />
           <FormControl fullWidth margin="normal">
             <InputLabel id="dep-label">Dependencia</InputLabel>
@@ -1168,14 +1169,14 @@ export function UsuariosPage() {
             fullWidth
             margin="normal"
             value={nombres}
-            onChange={(e) => setNombres(e.target.value)}
+            onChange={administrativeInputOnChange(setNombres)}
           />
           <TextField
             label="Apellidos"
             fullWidth
             margin="normal"
             value={apellidos}
-            onChange={(e) => setApellidos(e.target.value)}
+            onChange={administrativeInputOnChange(setApellidos)}
           />
           <FormControl fullWidth margin="normal">
             <InputLabel id="dep2-label">Dependencia</InputLabel>

@@ -2,8 +2,14 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { isPrismaCode } from '../common/prisma-util';
+import {
+  normalizeAdministrativeCodigo,
+  normalizeAdministrativeText,
+  normalizeOptionalAdministrativeText,
+} from '../common/text-normalize.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTipoDocumentalDto } from './dto/create-tipo-documental.dto';
 import { UpdateTipoDocumentalDto } from './dto/update-tipo-documental.dto';
@@ -28,13 +34,18 @@ export class TiposDocumentalesService {
   }
 
   async create(dto: CreateTipoDocumentalDto) {
-    const codigo = dto.codigo.trim().toUpperCase();
+    const codigo = normalizeAdministrativeCodigo(dto.codigo);
+    const nombre = normalizeAdministrativeText(dto.nombre);
+    if (!nombre) {
+      throw new BadRequestException('Nombre de tipo documental requerido');
+    }
     try {
       return await this.prisma.tipoDocumental.create({
         data: {
           codigo,
-          nombre: dto.nombre.trim(),
-          descripcion: dto.descripcion?.trim() || null,
+          nombre,
+          descripcion:
+            normalizeOptionalAdministrativeText(dto.descripcion) ?? null,
         },
       });
     } catch (e: unknown) {
@@ -60,12 +71,12 @@ export class TiposDocumentalesService {
       return await this.prisma.tipoDocumental.update({
         where: { id },
         data: {
-          ...(dto.nombre !== undefined && { nombre: dto.nombre.trim() }),
+          ...(dto.nombre !== undefined && {
+            nombre: normalizeAdministrativeText(dto.nombre) ?? '',
+          }),
           ...(dto.descripcion !== undefined && {
             descripcion:
-              dto.descripcion === null || dto.descripcion === ''
-                ? null
-                : dto.descripcion.trim(),
+              normalizeOptionalAdministrativeText(dto.descripcion) ?? null,
           }),
           ...(dto.activo !== undefined && { activo: dto.activo }),
         },

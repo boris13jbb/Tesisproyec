@@ -2,8 +2,14 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { isPrismaCode } from '../common/prisma-util';
+import {
+  normalizeAdministrativeCodigo,
+  normalizeAdministrativeText,
+  normalizeOptionalAdministrativeText,
+} from '../common/text-normalize.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDependenciaDto } from './dto/create-dependencia.dto';
 import { UpdateDependenciaDto } from './dto/update-dependencia.dto';
@@ -28,13 +34,18 @@ export class DependenciasService {
   }
 
   async create(dto: CreateDependenciaDto) {
-    const codigo = dto.codigo.trim().toUpperCase();
+    const codigo = normalizeAdministrativeCodigo(dto.codigo);
+    const nombre = normalizeAdministrativeText(dto.nombre);
+    if (!nombre) {
+      throw new BadRequestException('Nombre de dependencia requerido');
+    }
     try {
       return await this.prisma.dependencia.create({
         data: {
           codigo,
-          nombre: dto.nombre.trim(),
-          descripcion: dto.descripcion?.trim() || null,
+          nombre,
+          descripcion:
+            normalizeOptionalAdministrativeText(dto.descripcion) ?? null,
         },
       });
     } catch (e: unknown) {
@@ -58,12 +69,12 @@ export class DependenciasService {
       return await this.prisma.dependencia.update({
         where: { id },
         data: {
-          ...(dto.nombre !== undefined && { nombre: dto.nombre.trim() }),
+          ...(dto.nombre !== undefined && {
+            nombre: normalizeAdministrativeText(dto.nombre) ?? '',
+          }),
           ...(dto.descripcion !== undefined && {
             descripcion:
-              dto.descripcion === null || dto.descripcion === ''
-                ? null
-                : dto.descripcion.trim(),
+              normalizeOptionalAdministrativeText(dto.descripcion) ?? null,
           }),
           ...(dto.activo !== undefined && { activo: dto.activo }),
         },

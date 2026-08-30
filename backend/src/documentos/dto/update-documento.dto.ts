@@ -34,10 +34,6 @@ export class UpdateDocumentoDto {
   tipoDocumentalId?: string;
 
   @IsOptional()
-  @IsUUID()
-  subserieId?: string;
-
-  @IsOptional()
   @IsString()
   @IsIn(ESTADOS_DOCUMENTO as unknown as string[])
   estado?: string;

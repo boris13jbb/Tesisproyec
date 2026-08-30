@@ -31,6 +31,7 @@ import { ListPanel } from '../../components/ListPanel';
 import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { cedulaErrorMessage, rucErrorMessage } from '../../utils/ecuador-id';
+import { administrativeInputOnChange } from '../../utils/form-text';
 import {
   type PartyCatalogRow,
   partyDisplayLabel,
@@ -196,8 +197,8 @@ export function BeneficiariosPage() {
             {tipo === 'NATURAL' ? (
               <>
                 <TextField label="Cédula" value={cedula} onChange={(e) => setCedula(e.target.value)} />
-                <TextField label="Nombres" value={nombres} onChange={(e) => setNombres(e.target.value)} />
-                <TextField label="Apellidos" value={apellidos} onChange={(e) => setApellidos(e.target.value)} />
+                <TextField label="Nombres" value={nombres} onChange={administrativeInputOnChange(setNombres)} />
+                <TextField label="Apellidos" value={apellidos} onChange={administrativeInputOnChange(setApellidos)} />
               </>
             ) : (
               <>
@@ -205,7 +206,7 @@ export function BeneficiariosPage() {
                 <TextField
                   label="Razón social"
                   value={razonSocial}
-                  onChange={(e) => setRazonSocial(e.target.value)}
+                  onChange={administrativeInputOnChange(setRazonSocial)}
                 />
               </>
             )}

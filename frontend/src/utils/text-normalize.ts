@@ -1,5 +1,13 @@
+export const ADMINISTRATIVE_LOCALE = 'es-EC';
+
+/** Mayúsculas mientras el usuario escribe (sin trim). */
+export function toAdministrativeInputUppercase(value: string): string {
+  return value.toLocaleUpperCase(ADMINISTRATIVE_LOCALE);
+}
+
+/** Normalización al guardar: trim + mayúsculas. */
 export function normalizeAdministrativeText(value: string | null | undefined): string {
-  return (value ?? '').trim().toUpperCase();
+  return (value ?? '').trim().toLocaleUpperCase(ADMINISTRATIVE_LOCALE);
 }
 
 export function todayIsoDateLocal(): string {

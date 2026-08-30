@@ -34,6 +34,10 @@ import { FilterPanel } from '../../components/FilterPanel';
 import { ListPanel } from '../../components/ListPanel';
 import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
+import {
+  bindAdministrativeCodigoRegister,
+  bindAdministrativeRegister,
+} from '../../utils/form-text';
 
 export type TipoDocumentalRow = {
   id: string;
@@ -280,21 +284,21 @@ export function TiposDocumentalesPage() {
           >
             <TextField
               label="Código"
-              {...createForm.register('codigo')}
+              {...bindAdministrativeCodigoRegister(createForm.register, 'codigo')}
               error={!!createForm.formState.errors.codigo}
               helperText={createForm.formState.errors.codigo?.message}
               required
             />
             <TextField
               label="Nombre"
-              {...createForm.register('nombre')}
+              {...bindAdministrativeRegister(createForm.register, 'nombre')}
               error={!!createForm.formState.errors.nombre}
               helperText={createForm.formState.errors.nombre?.message}
               required
             />
             <TextField
               label="Descripción"
-              {...createForm.register('descripcion')}
+              {...bindAdministrativeRegister(createForm.register, 'descripcion')}
               multiline
               minRows={2}
             />
@@ -321,14 +325,14 @@ export function TiposDocumentalesPage() {
           >
             <TextField
               label="Nombre"
-              {...editForm.register('nombre')}
+              {...bindAdministrativeRegister(editForm.register, 'nombre')}
               error={!!editForm.formState.errors.nombre}
               helperText={editForm.formState.errors.nombre?.message}
               required
             />
             <TextField
               label="Descripción"
-              {...editForm.register('descripcion')}
+              {...bindAdministrativeRegister(editForm.register, 'descripcion')}
               multiline
               minRows={2}
             />

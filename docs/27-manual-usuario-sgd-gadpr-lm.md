@@ -147,10 +147,10 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **`docs/44-guia-secciones-menu-navegacion.md`**.
 
-- **Menú:** Inicio · Documentos · **Bandeja trámites** · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` + `DOC_FILES_UPLOAD`, o ADMIN)
+- **Menú:** Inicio · Documentos · **Bandeja trámites** · Trámites · Nuevo documento (si `DOC_CREATE` + `DOC_FILES_UPLOAD`, o ADMIN)
 - **Reportes** (solo `ADMIN`): **Reportes institucionales** (ruta `/reportes`; `/admin/reportes` redirige al mismo módulo)
 - **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Configuración
-- **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries · **Contrapartes** · **Beneficiarios**
+- **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · **Contrapartes** · **Beneficiarios**
 - **Cuenta** (menú lateral, cuando está expandido): Mi perfil. También está en el menú del avatar.
 - En escritorio, use **Ocultar menú** al pie del lateral para dejar solo iconos (la preferencia se guarda en el navegador). En la barra superior, el icono de sol/luna cambia entre tema claro y oscuro (solo dentro de la sesión; el login permanece claro). Los hover de tablas, estados vacíos y menú lateral usan la misma paleta **secondary** del tema en ambos modos.
 
@@ -232,35 +232,14 @@ Guía detallada: [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documen
 4. En la cabecera, **Nuevo tipo:** código (único, ej. `MEMO`), nombre (ej. Memorando) y descripción opcional → **Guardar**.
 5. **Editar:** nombre, descripción y **Activo** (el código no se modifica).
 
-### 6.4 Series y Subseries
-
-Guía de **Series:** [50-catalogo-series.md](./50-catalogo-series.md).  
-Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
-
-**Series**
-
-1. Menú → **Catálogos → Series**
-2. Opcional: en **Filtros**, **Incluir inactivas**.
-3. El listado muestra **icono de carpeta**, **código** en chip y estado **Activo/Inactivo**. En la cabecera hay enlaces a **Subseries** y **Clasificación**.
-4. En la cabecera, **Nueva serie:** código único (ej. `ADM`), nombre y descripción → **Guardar**.
-5. **Editar:** nombre, descripción y **Activa** (el código no se modifica; desactivar es baja lógica, no borra el registro).
-
-**Subseries**
-
-1. Menú → **Catálogos → Subseries**
-2. En **Filtros**: **Serie** (*Todas* o una serie) y opcional **Incluir inactivas**.
-3. El listado muestra **icono de subserie**, código en chip y la **serie padre**. Enlaces a **Series** y **Clasificación**.
-4. En la cabecera, **Nueva subserie:** elija **serie** padre, código único (ej. `ADM-CORR`), nombre y descripción → **Guardar**.
-5. **Editar:** puede cambiar **serie** padre, nombre, descripción y **Activa** (el código de subserie no se modifica).
-
-### 6.5 Contrapartes
+### 6.4 Contrapartes
 
 1. Menú → **Catálogos → Contrapartes** (`/catalogos/contrapartes`).
 2. Revise el listado (tipo, identificación, nombre o razón social, estado).
 3. **Nueva contraparte** (solo ADMIN): elija **Persona natural** (cédula ecuatoriana + nombres/apellidos) o **Persona jurídica** (RUC + razón social). El servidor valida formato y duplicados.
 4. Use estas personas en **Nuevo documento** o **Editar** en el detalle del expediente.
 
-### 6.6 Beneficiarios
+### 6.5 Beneficiarios
 
 1. Menú → **Catálogos → Beneficiarios** (`/catalogos/beneficiarios`).
 2. Misma estructura y validaciones que **Contrapartes** (cédula/RUC ecuatoriano).
@@ -283,13 +262,12 @@ Guía de **Subseries:** [51-catalogo-subseries.md](./51-catalogo-subseries.md).
 
 Los filtros se organizan en **tarjeta de filtros** unificada y se **adaptan al ancho de pantalla** (en móviles los campos se apilan; en escritorio pueden mostrarse en varias columnas). Las acciones principales (**Nuevo documento**, exportar Excel/PDF si aplica) aparecen en la **cabecera** de la página.
 
-El listado se muestra por defecto en **tarjetas** (código, asunto, estado, tipo, clasificación, responsable y fecha). En el encabezado del listado puede cambiar a **tabla** (mismas columnas de siempre, con orden al pulsar Código / Estado / Fecha). La preferencia se guarda en el navegador. En vista tabla, en pantallas estrechas hay **scroll horizontal**.
+El listado se muestra por defecto en **tarjetas** (código, asunto, estado, tipo, responsable/dependencia y fecha). En el encabezado del listado puede cambiar a **tabla** (mismas columnas, con orden al pulsar Código / Estado / Fecha). La preferencia se guarda en el navegador. En vista tabla, en pantallas estrechas hay **scroll horizontal**.
 
 En la barra de filtros puedes usar:
-- Texto libre (`q`): coincide con **código**, **asunto**, **descripción**, **dependencia** del documento (nombre o código), **usuario que registró** (correo, nombres o apellidos), **tipo documental** y **clasificación** (subserie o serie).
+- Texto libre (`q`): coincide con **código**, **asunto**, **descripción**, **dependencia** del documento (nombre o código), **usuario que registró** (correo, nombres o apellidos) y **tipo documental**.
 - **Estado** (lista desplegable con catálogo formal: Borrador, Registrado, En revisión, etc.; «(Todos)» para no filtrar)
 - Tipo documental
-- Serie/Subserie
 - Rango de fechas
 - Filtros por adjuntos (nombre, MIME, sha256)
 
@@ -299,7 +277,7 @@ En la barra de filtros puedes usar:
 
 **Resultado esperado**
 - Lista **paginada** con registros **reales** del servidor (según tus permisos y filtros). Abajo del listado verás **número de página**, el **intervalo de registros** visibles respecto del total y botones **Anterior** / **Siguiente**.
-- En cada tarjeta o fila, **Clasificación** muestra serie y subserie; **Responsable** prioriza la **dependencia aplicada al documento** y, si no hay, muestra nombre o correo de quien lo registró. Pulse la tarjeta, la fila o **Ver** para abrir el detalle.
+- En cada tarjeta o fila, **Tipo** muestra el tipo documental y **Responsable / Dependencia** prioriza la **dependencia aplicada al documento** y, si no hay, muestra nombre o correo de quien lo registró. Pulse la tarjeta, la fila o **Ver** para abrir el detalle.
 
 ### 7.2.0 Bandeja de trámites (cola en revisión + SLA)
 
@@ -334,29 +312,6 @@ En la barra de filtros puedes usar:
 **Resultado esperado**
 
 - Visión rápida del pipeline documental coherente con tus permisos de visibilidad y con los mismos registros que la bandeja de documentos.
-
-### 7.2.2 Clasificación — cuadro documental (solo lectura)
-
-1. Menú → **Clasificación** (ruta `/clasificacion`).
-2. **Actualizar** (icono de recarga junto al título): vuelve a cargar catálogo y agregados del servidor (`GET …/clasificacion-agregados` junto con series/subseries activas).
-3. **Izquierda — Estructura documental:** árbol con el fondo institucional (icono de árbol) y, debajo, cada **serie** y sus **subseries** (**solo catálogo activo** — mismos datos que en **Catálogos**). La selección se resalta con el color del tema (claro u oscuro).
-4. Pulsa una **serie** o **subserie**. La **Ficha de clasificación** (icono de ficha) muestra **código** y **nombre** del catálogo; **descripción** si existe; además (**datos derivados de expedientes**):
-   - **Expedientes visibles**: cuántos documentos vigentes (**activo**) coinciden con tu **misma visibilidad** que en la bandeja **Documentos**, agregados a la serie o subserie elegida (por subserie asignada al expediente; en serie se suman todas las subseries bajo ese padre que aplica al recuento del servidor).
-   - **Área responsable predominante**: dependencia más frecuente entre esos expedientes visibles en esa clasificación; si **cero** expedientes encajan, texto claro tipo “sin expedientes…”; puede no coincidir con un campo “único” si tu organización distribuye cargas entre varias dependencias.
-   - **Nivel de acceso predominante**: confidencialidad más frecuente entre expedientes visibles (p. ej. interno/reservado), en etiqueta legible según valores del modelo.
-   - **Conservación (plazo / destino)** el sistema declara honestamente si **no** hay campos de retención o disposición final en base de datos: no muestra años inventados; cuando el proyecto modele esa política en catálogo, la pantalla podrá enlazarlos.
-5. **Tabla de retención** (abajo derecha, icono de tabla): una fila por **serie activa** con código y nombre del catálogo; columna **Expedientes visibles** (**recuento real** igual criterio que arriba, en chip). Columnas **Retención** y **Destino final** muestran **marcador de pendiente**, no valores ficticios, hasta que existan datos modelados.
-
-**ADMIN:** enlaces a mantenimiento **Series** / **Subseries**. Otros roles: solo lectura.
-
-**Resultado esperado**
-
-- Vista alineada al catálogo real y métricas de expedientes con las mismas reglas de privacidad/visibilidad que el resto del módulo documental.
-
-**Posibles fallos**
-
-- Lista vacía: no hay series/subseries activas (un **ADMIN** las crea en **Catálogos**).
-- Ficha con expedientes **0**: normal si no hay documentos clasificados bajo ese nodo para tu cuenta o filtros implícitos de visibilidad; la bandeja **Documentos** debe reflejar el mismo comportamiento por rol.
 
 ### 7.3 Exportar a Excel o PDF (solo ADMIN)
 
@@ -402,7 +357,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, el botón **Nuevo documento** en la cabecera (ambos abren el **mismo** asistente).
 2. Se requieren permisos de **crear** y de **cargar archivos**. Si falta la carga de archivos, el sistema muestra un aviso y no inicia el registro incompleto.
 3. **Paso 1 — Archivo:** seleccione un **PDF** (máx. 50 MB). Sin archivo válido no puede continuar. Puede cambiar o eliminar la selección.
-4. **Paso 2 — Información:** complete metadatos (código/correlativo, asunto, tipo, serie/clasificación, dependencia, confidencialidad, estado inicial, fechas, descripción y opcionales). Los desplegables provienen del catálogo. El **código** lo asigna el servidor si no lo edita (**Correlativo servidor**).
+4. **Paso 2 — Información:** complete metadatos (código/correlativo, asunto, **tipo documental**, dependencia propietaria, contraparte, beneficiario, responsable institucional, confidencialidad, estado inicial, fechas y descripción). Los desplegables provienen del catálogo. El **código** lo asigna el servidor si no lo edita (**Correlativo servidor**). No se solicita Serie ni Subserie.
 5. Pulse **Registrar documento**. El sistema:
    - crea el registro (`POST /documentos`);
    - sube automáticamente el PDF (`POST /documentos/:id/archivos`);
@@ -429,7 +384,7 @@ La pantalla se organiza en dos columnas (en escritorio), con el mismo estilo de 
 
 - **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** (requiere permiso `DOC_REVISION_SEND` y ser el registrador o un administrador) / **Aprobar** / **Rechazar** (REVISOR, ADMIN o SUPERADMIN).
 - **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
-- **Derecha — Metadatos:** tipo, serie, subserie y códigos del **catálogo**; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
+- **Derecha — Metadatos:** tipo documental; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 
 Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además el bloque **Acceso al documento (ACL)**:
@@ -625,9 +580,9 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 ## 15. Checklist de uso “de principio a fin” (resumen rápido)
 
 1. Login
-2. (ADMIN) Crear catálogos: dependencias/cargos/tipos/series/subseries
-3. (ADMIN) Crear documento (dependencia y confidencialidad si aplica)
-4. Opcional: **Trámites** (Kanban) o **Clasificación** (cuadro ISO)
+2. (ADMIN) Crear catálogos: dependencias/cargos/tipos documentales
+3. (ADMIN) Crear documento (tipo documental, dependencia y confidencialidad si aplica)
+4. Opcional: **Trámites** (Kanban)
 5. Abrir detalle del documento
 6. (ADMIN) Subir archivo y generar versión
 7. Descargar y revisar historial

@@ -24,7 +24,7 @@ type PermissionDisplayMeta = {
 const PERMISSION_DISPLAY: Record<string, PermissionDisplayMeta> = {
   DOC_READ: {
     label: 'Ver documentos',
-    description: 'Consultar listados, detalle, tablón y clasificación documental.',
+    description: 'Consultar listados, detalle y tablón de documentos.',
     module: 'Documentos',
   },
   DOC_CREATE: {
@@ -135,16 +135,6 @@ const PERMISSION_DISPLAY: Record<string, PermissionDisplayMeta> = {
   TIPOS_DOCUMENTALES_WRITE: {
     label: 'Administrar tipos documentales',
     description: 'Crear o editar tipos documentales.',
-    module: 'Catálogos',
-  },
-  SERIES_WRITE: {
-    label: 'Administrar series documentales',
-    description: 'Crear o editar series documentales.',
-    module: 'Catálogos',
-  },
-  SUBSERIES_WRITE: {
-    label: 'Administrar subseries documentales',
-    description: 'Crear o editar subseries documentales.',
     module: 'Catálogos',
   },
   CONTRAPARTES_WRITE: {

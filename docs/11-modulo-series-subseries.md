@@ -1,3 +1,5 @@
+> **Retirado el 2026-08-30.** Módulos `series`/`subseries`, rutas `/catalogos/series` y `/catalogos/subseries`, y modelos Prisma `Serie`/`Subserie` fueron eliminados. Ver `docs/22-changelog-tecnico.md` y migración `20260830170000_remove_series_subseries`.
+
 # Módulo — Series y subseries
 
 ## Objetivo

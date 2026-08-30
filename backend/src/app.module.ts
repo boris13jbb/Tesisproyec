@@ -13,8 +13,6 @@ import { CargosModule } from './cargos/cargos.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { DependenciasModule } from './dependencias/dependencias.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { SeriesModule } from './series/series.module';
-import { SubseriesModule } from './subseries/subseries.module';
 import { TiposDocumentalesModule } from './tipos-documentales/tipos-documentales.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
@@ -95,8 +93,6 @@ class StartupConfigGuard implements OnModuleInit {
     DependenciasModule,
     CargosModule,
     TiposDocumentalesModule,
-    SeriesModule,
-    SubseriesModule,
     DocumentosModule,
     ReportesModule,
     DashboardModule,

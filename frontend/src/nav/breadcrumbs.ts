@@ -9,8 +9,6 @@ const CATALOGO_LABELS: Record<string, string> = {
   dependencias: 'Dependencias',
   cargos: 'Cargos',
   'tipos-documentales': 'Tipos documentales',
-  series: 'Series',
-  subseries: 'Subseries',
   contrapartes: 'Contrapartes',
   beneficiarios: 'Beneficiarios',
 };
@@ -41,11 +39,6 @@ export function getBreadcrumbsForPath(
 
   if (pathname === '/bandeja-tramites') {
     items.push({ label: 'Bandeja de trámites', to: pathname });
-    return items;
-  }
-
-  if (pathname === '/clasificacion') {
-    items.push({ label: 'Clasificación', to: pathname });
     return items;
   }
 

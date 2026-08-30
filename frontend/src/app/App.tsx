@@ -5,7 +5,6 @@ import { useAuth } from '../auth/useAuth';
 import {
   AuditoriaPage,
   CargosPage,
-  ClasificacionDocumentalPage,
   ContrapartesPage,
   BeneficiariosPage,
   ConfiguracionSeguridadPage,
@@ -24,9 +23,7 @@ import {
   ReportesInstitucionalesPage,
   ResetPasswordPage,
   RespaldosSeguridadPage,
-  SeriesPage,
   SplashInicioPage,
-  SubseriesPage,
   TiposDocumentalesPage,
   UsuariosPage,
 } from './lazyPages';
@@ -90,7 +87,6 @@ export function App() {
               <Route path="/documentos" element={<DocumentosPage />} />
               <Route path="/tramites" element={<FlujoTramitePage />} />
               <Route path="/bandeja-tramites" element={<BandejaTramitesPage />} />
-              <Route path="/clasificacion" element={<ClasificacionDocumentalPage />} />
               <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
               <Route element={<RoleRoute roles={['ADMIN', 'SUPERADMIN']} />}>
                 <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
@@ -109,8 +105,6 @@ export function App() {
                   path="/catalogos/tipos-documentales"
                   element={<TiposDocumentalesPage />}
                 />
-                <Route path="/catalogos/series" element={<SeriesPage />} />
-                <Route path="/catalogos/subseries" element={<SubseriesPage />} />
                 <Route path="/catalogos/contrapartes" element={<ContrapartesPage />} />
                 <Route path="/catalogos/beneficiarios" element={<BeneficiariosPage />} />
               </Route>

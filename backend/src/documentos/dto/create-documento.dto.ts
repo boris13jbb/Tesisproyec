@@ -52,9 +52,6 @@ export class CreateDocumentoDto {
   @IsUUID()
   tipoDocumentalId!: string;
 
-  @IsUUID()
-  subserieId!: string;
-
   /** Área propietaria (si se omite se usa la dependencia del usuario ADMIN creador si existe). */
   @IsOptional()
   @IsUUID()

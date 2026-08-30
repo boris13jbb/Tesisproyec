@@ -14,8 +14,6 @@ export type DocumentoListCardProps = {
   estado: string;
   fechaLabel?: string;
   tipoNombre: string;
-  clasificacionLine?: string;
-  clasificacionTitle?: string;
   responsablePrimary: string;
   responsableTitle?: string;
   activo?: boolean;
@@ -36,8 +34,6 @@ export const DocumentoListCard = forwardRef<HTMLDivElement, DocumentoListCardPro
       estado,
       fechaLabel,
       tipoNombre,
-      clasificacionLine,
-      clasificacionTitle,
       responsablePrimary,
       responsableTitle,
       activo = true,
@@ -49,9 +45,7 @@ export const DocumentoListCard = forwardRef<HTMLDivElement, DocumentoListCardPro
     const theme = useTheme();
     const toneKey = documentoEstadoTone(estado);
     const accent = theme.palette[toneKey].main;
-    const metaClasificacion = clasificacionLine
-      ? `${tipoNombre} · ${clasificacionLine}`
-      : tipoNombre;
+    const metaTipo = tipoNombre;
     const metaResponsable = fechaLabel
       ? `${responsablePrimary} · ${fechaLabel}`
       : responsablePrimary;
@@ -155,9 +149,9 @@ export const DocumentoListCard = forwardRef<HTMLDivElement, DocumentoListCardPro
             variant="caption"
             color="text.secondary"
             noWrap
-            title={clasificacionTitle ?? metaClasificacion}
+            title={metaTipo}
           >
-            {metaClasificacion}
+            {metaTipo}
           </Typography>
           <Typography
             variant="caption"

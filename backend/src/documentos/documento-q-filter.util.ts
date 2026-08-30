@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 /**
  * Fragmento `OR` para búsqueda libre (`q`) alineado con la bandeja documental:
  * texto en metadatos del documento, dependencia aplicada, quien registra,
- * tipo/subserie/serie documental.
+ * tipo documental.
  */
 export function documentoWhereLibre(
   qRaw: string | undefined,
@@ -33,19 +33,6 @@ export function documentoWhereLibre(
       {
         tipoDocumental: {
           OR: [{ nombre: { contains: q } }, { codigo: { contains: q } }],
-        },
-      },
-      {
-        subserie: {
-          OR: [
-            { nombre: { contains: q } },
-            { codigo: { contains: q } },
-            {
-              serie: {
-                OR: [{ nombre: { contains: q } }, { codigo: { contains: q } }],
-              },
-            },
-          ],
         },
       },
     ],

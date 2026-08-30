@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
-import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
-import ListOutlinedIcon from '@mui/icons-material/ListOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
@@ -15,7 +13,6 @@ import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
@@ -80,11 +77,6 @@ const navItems: NavItem[] = [
     label: 'Trámites',
     icon: <AssignmentOutlinedIcon fontSize="small" />,
   },
-  {
-    to: '/clasificacion',
-    label: 'Clasificación',
-    icon: <LayersOutlinedIcon fontSize="small" />,
-  },
 ];
 
 const catalogNav: NavItem[] = [
@@ -98,16 +90,6 @@ const catalogNav: NavItem[] = [
     to: '/catalogos/tipos-documentales',
     label: 'Tipos documentales',
     icon: <ArticleOutlinedIcon fontSize="small" />,
-  },
-  {
-    to: '/catalogos/series',
-    label: 'Series',
-    icon: <AccountTreeOutlinedIcon fontSize="small" />,
-  },
-  {
-    to: '/catalogos/subseries',
-    label: 'Subseries',
-    icon: <ListOutlinedIcon fontSize="small" />,
   },
   {
     to: '/catalogos/contrapartes',

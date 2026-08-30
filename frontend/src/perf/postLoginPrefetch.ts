@@ -42,7 +42,6 @@ export async function prefetchFrequentAuthenticatedData(isAdmin: boolean): Promi
       .get('/documentos', { params: { ...DOCUMENTOS_BANDEJA_DEFAULT_PARAMS } })
       .catch(() => undefined),
     apiClient.get('/tipos-documentales').catch(() => undefined),
-    apiClient.get('/subseries').catch(() => undefined),
     apiClient.get('/dependencias').catch(() => undefined),
   ];
   if (isAdmin) {

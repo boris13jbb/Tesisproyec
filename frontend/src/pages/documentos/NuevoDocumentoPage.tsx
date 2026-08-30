@@ -23,7 +23,6 @@ import {
   useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -37,21 +36,21 @@ import { PageHeader } from '../../components/PageHeader';
 import { SectionHeader } from '../../components/SectionHeader';
 import { getApiErrorMessage } from '../../utils/api-error-message';
 import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
+import {
+  bindAdministrativeCodigoRegister,
+  bindAdministrativeRegister,
+} from '../../utils/form-text';
 import { formatFileSize, formatMimeType } from '../../utils/file-meta-format';
+import {
+  normalizeAdministrativeText,
+  toAdministrativeInputUppercase,
+} from '../../utils/text-normalize';
 import {
   type PartyCatalogRow,
   partySelectLabel,
 } from '../../utils/party-label';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
-type SerieOption = { id: string; codigo: string; nombre: string };
-type SubserieOption = {
-  id: string;
-  codigo: string;
-  nombre: string;
-  serieId: string;
-  serie: SerieOption;
-};
 
 type DependenciaOption = { id: string; codigo: string; nombre: string };
 
@@ -75,7 +74,6 @@ const createSchema = z.object({
   descripcion: z.string().max(1000).optional(),
   fechaDocumento: fechaDocumentoEmisionSchema,
   tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
-  subserieId: z.string().min(1, 'Clasificación requerida'),
   dependenciaId: z.string().optional(),
   contraparteId: z.string().optional(),
   beneficiarioId: z.string().optional(),
@@ -113,7 +111,7 @@ function suggestAsuntoFromFilename(name: string): string {
     .replace(/\s+/g, ' ')
     .trim();
   if (base.length < 3) return '';
-  return base.charAt(0).toUpperCase() + base.slice(1);
+  return toAdministrativeInputUppercase(base);
 }
 
 function validateSelectedFile(f: File | null): string | null {
@@ -156,11 +154,9 @@ export function NuevoDocumentoPage() {
   const [createdCodigo, setCreatedCodigo] = useState<string | null>(null);
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
-  const [subseries, setSubseries] = useState<SubserieOption[]>([]);
   const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
   const [contrapartes, setContrapartes] = useState<PartyCatalogRow[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<PartyCatalogRow[]>([]);
-  const [serieId, setSerieId] = useState('');
   const [catalogosLoaded, setCatalogosLoaded] = useState(false);
   const [codigoSugeridoBusy, setCodigoSugeridoBusy] = useState(false);
   const [codigoSugeridoErr, setCodigoSugeridoErr] = useState<string | null>(null);
@@ -169,7 +165,6 @@ export function NuevoDocumentoPage() {
   const codigoUsuarioRef = useRef(false);
   const defaultDependenciaAplicado = useRef(false);
   const tipoUnicoAuto = useRef(false);
-  const serieUnicaAuto = useRef(false);
   const submittingRef = useRef(false);
 
   const busy = phase === 'creating' || phase === 'uploading';
@@ -183,7 +178,6 @@ export function NuevoDocumentoPage() {
       descripcion: '',
       fechaDocumento: new Date().toISOString().slice(0, 10),
       tipoDocumentalId: '',
-      subserieId: '',
       dependenciaId: '',
       contraparteId: '',
       beneficiarioId: '',
@@ -219,15 +213,13 @@ export function NuevoDocumentoPage() {
     let cancelled = false;
     Promise.all([
       apiClient.get<TipoOption[]>('/tipos-documentales'),
-      apiClient.get<SubserieOption[]>('/subseries'),
       apiClient.get<DependenciaOption[]>('/dependencias'),
       apiClient.get<PartyCatalogRow[]>('/contrapartes'),
       apiClient.get<PartyCatalogRow[]>('/beneficiarios'),
     ])
-      .then(([tiposRes, subsRes, depsRes, contrapartesRes, beneficiariosRes]) => {
+      .then(([tiposRes, depsRes, contrapartesRes, beneficiariosRes]) => {
         if (cancelled) return;
         setTipos(tiposRes.data);
-        setSubseries(subsRes.data);
         setDependencias(depsRes.data);
         setContrapartes(contrapartesRes.data);
         setBeneficiarios(beneficiariosRes.data);
@@ -235,7 +227,6 @@ export function NuevoDocumentoPage() {
       .catch(() => {
         if (cancelled) return;
         setTipos([]);
-        setSubseries([]);
         setDependencias([]);
         setContrapartes([]);
         setBeneficiarios([]);
@@ -295,19 +286,6 @@ export function NuevoDocumentoPage() {
     };
   }, [catalogosLoaded, canUseWizard, aplicarCodigoSugerido, form]);
 
-  const series = useMemo(() => {
-    const map = new Map<string, SerieOption>();
-    for (const s of subseries) {
-      map.set(s.serie.id, s.serie);
-    }
-    return Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [subseries]);
-
-  const subseriesFiltered = useMemo(() => {
-    if (!serieId) return subseries;
-    return subseries.filter((s) => s.serie.id === serieId);
-  }, [subseries, serieId]);
-
   useEffect(() => {
     if (defaultDependenciaAplicado.current) return;
     const did = user?.dependenciaId?.trim();
@@ -324,19 +302,6 @@ export function NuevoDocumentoPage() {
   }, [tipos, form]);
 
   useEffect(() => {
-    if (serieUnicaAuto.current || serieId || series.length !== 1) return;
-    serieUnicaAuto.current = true;
-    setSerieId(series[0].id);
-  }, [series, serieId]);
-
-  useEffect(() => {
-    if (!serieId || subseriesFiltered.length !== 1) return;
-    const onlyId = subseriesFiltered[0].id;
-    if (form.getValues('subserieId') === onlyId) return;
-    form.setValue('subserieId', onlyId, { shouldValidate: true });
-  }, [serieId, subseriesFiltered, form]);
-
-  useEffect(() => {
     if (!busy) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -351,12 +316,6 @@ export function NuevoDocumentoPage() {
     for (const t of tipos) map.set(t.id, `${t.codigo} — ${t.nombre}`);
     return map;
   }, [tipos]);
-
-  const subserieLabel = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of subseries) map.set(s.id, `${s.serie.codigo} > ${s.nombre}`);
-    return map;
-  }, [subseries]);
 
   const registradoPorLabel = useMemo(() => {
     const joined = `${user?.nombres ?? ''} ${user?.apellidos ?? ''}`.trim();
@@ -450,15 +409,18 @@ export function NuevoDocumentoPage() {
         const trimmedCodigo = data.codigo.trim();
         const created = await apiClient.post<{ id: string; codigo?: string }>('/documentos', {
           ...(codigoUsuarioRef.current && trimmedCodigo ? { codigo: trimmedCodigo } : {}),
-          asunto: data.asunto.trim(),
-          descripcion: data.descripcion?.trim() || undefined,
+          asunto: normalizeAdministrativeText(data.asunto),
+          descripcion: data.descripcion?.trim()
+            ? normalizeAdministrativeText(data.descripcion)
+            : undefined,
           fechaDocumento: new Date(data.fechaDocumento).toISOString(),
           tipoDocumentalId: data.tipoDocumentalId,
-          subserieId: data.subserieId,
           dependenciaId: data.dependenciaId?.trim() ? data.dependenciaId : undefined,
           contraparteId: data.contraparteId?.trim() ? data.contraparteId : undefined,
           beneficiarioId: data.beneficiarioId?.trim() ? data.beneficiarioId : undefined,
-          responsableInstitucional: data.responsableInstitucional?.trim() || undefined,
+          responsableInstitucional: data.responsableInstitucional?.trim()
+            ? normalizeAdministrativeText(data.responsableInstitucional)
+            : undefined,
           fechaVencimiento: data.fechaVencimiento?.trim()
             ? new Date(data.fechaVencimiento).toISOString()
             : undefined,
@@ -528,6 +490,8 @@ export function NuevoDocumentoPage() {
     }
     void navigate('/documentos');
   };
+
+  const codigoField = bindAdministrativeCodigoRegister(form.register, 'codigo');
 
   if (!permissionsLoaded) {
     return (
@@ -760,17 +724,12 @@ export function NuevoDocumentoPage() {
               <TextField
                 label="Código"
                 sx={{ flex: 1, minWidth: 0 }}
-                {...(() => {
-                  const r = form.register('codigo');
-                  return {
-                    ...r,
-                    onChange: (e: ChangeEvent<HTMLInputElement>) => {
-                      codigoUsuarioRef.current = true;
-                      setCodigoSugeridoErr(null);
-                      void r.onChange(e);
-                    },
-                  };
-                })()}
+                {...codigoField}
+                onChange={(e) => {
+                  codigoUsuarioRef.current = true;
+                  setCodigoSugeridoErr(null);
+                  void codigoField.onChange(e);
+                }}
                 error={!!form.formState.errors.codigo}
                 helperText={
                   form.formState.errors.codigo?.message ??
@@ -795,7 +754,7 @@ export function NuevoDocumentoPage() {
 
             <TextField
               label="Asunto del documento"
-              {...form.register('asunto')}
+              {...bindAdministrativeRegister(form.register, 'asunto')}
               error={!!form.formState.errors.asunto}
               helperText={form.formState.errors.asunto?.message}
               required
@@ -813,44 +772,6 @@ export function NuevoDocumentoPage() {
                     {tipos.map((t) => (
                       <MenuItem key={t.id} value={t.id}>
                         {tipoLabel.get(t.id)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
-
-            <FormControl fullWidth disabled={busy}>
-              <InputLabel id="serie-label">Serie documental</InputLabel>
-              <Select
-                labelId="serie-label"
-                label="Serie documental"
-                value={serieId}
-                onChange={(e) => {
-                  setSerieId(e.target.value);
-                  form.setValue('subserieId', '', { shouldValidate: true });
-                }}
-              >
-                <MenuItem value="">Seleccione…</MenuItem>
-                {series.map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.codigo} — {s.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <Controller
-              name="subserieId"
-              control={form.control}
-              render={({ field }) => (
-                <FormControl fullWidth error={!!form.formState.errors.subserieId} disabled={busy}>
-                  <InputLabel id="subserie-label">Clasificación (subserie)</InputLabel>
-                  <Select {...field} labelId="subserie-label" label="Clasificación (subserie)" value={field.value || ''}>
-                    <MenuItem value="">Seleccione…</MenuItem>
-                    {subseriesFiltered.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {subserieLabel.get(s.id)}
                       </MenuItem>
                     ))}
                   </Select>
@@ -929,7 +850,7 @@ export function NuevoDocumentoPage() {
 
             <TextField
               label="Responsable institucional (opcional)"
-              {...form.register('responsableInstitucional')}
+              {...bindAdministrativeRegister(form.register, 'responsableInstitucional')}
               disabled={busy}
               helperText="Texto de referencia. El servidor lo guarda en mayúsculas."
             />
@@ -1004,7 +925,7 @@ export function NuevoDocumentoPage() {
               label="Descripción"
               multiline
               minRows={3}
-              {...form.register('descripcion')}
+              {...bindAdministrativeRegister(form.register, 'descripcion')}
               error={!!form.formState.errors.descripcion}
               helperText={form.formState.errors.descripcion?.message}
               disabled={busy}

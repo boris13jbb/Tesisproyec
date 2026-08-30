@@ -110,7 +110,7 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Catálogos (CRUD)',
-    ayuda: 'Dependencias, cargos, tipos y series documentales',
+    ayuda: 'Dependencias, cargos, tipos documentales, contrapartes y beneficiarios',
     ADMIN: true,
     REVISOR: false,
     USUARIO: false,
