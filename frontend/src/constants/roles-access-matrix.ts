@@ -50,10 +50,10 @@ export const MODULOS_ACCESO_REFERENCIA: ModuloMatrixRow[] = [
   },
   {
     modulo: 'Alta/edición/eliminaciones administrativas de documento',
-    ayuda: 'Crear y modificar expedientes y adjuntos (según rol)',
+    ayuda: 'Crear, modificar y adjuntar expedientes (según rol, estado y ámbito; eliminar archivos requiere permiso adicional)',
     ADMIN: true,
     REVISOR: false,
-    USUARIO: false,
+    USUARIO: true,
     EDITOR_DOC: true,
     AUDITOR: false,
     CONSULTA: false,

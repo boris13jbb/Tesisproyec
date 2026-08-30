@@ -32,7 +32,8 @@ export const ROLE_DISPLAY_NAME: Record<RoleCode, string> = {
 };
 
 export const PRIMARY_ROLE_HELP: Record<PrimaryRoleCode, string> = {
-  USUARIO: 'Acceso operativo básico y envío de documentos a revisión.',
+  USUARIO:
+    'Usuario operativo: puede registrar, editar, adjuntar, descargar y enviar documentos a revisión según su ámbito de acceso.',
   REVISOR: 'Puede revisar, aprobar o rechazar documentos enviados a revisión.',
   AUDITOR: 'Puede consultar información y trazabilidad sin modificar documentos.',
   CONSULTA: 'Acceso de solo lectura.',

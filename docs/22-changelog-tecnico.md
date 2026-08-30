@@ -37,6 +37,14 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 - **Base de datos:** sin cambios de schema ni migraciones (`Documento.subserieId` + `Subserie.serieId`).
 - Manual: `27-manual-usuario-sgd-gadpr-lm.md`; fichas `50` / `51`.
 
+### 2026-08-30 — Permisos por defecto del rol USUARIO ampliados
+
+- **Seed:** `USUARIO` incluye `DOC_CREATE`, `DOC_UPDATE`, `DOC_FILES_UPLOAD` además de consulta, descarga y envío a revisión.
+- **Excluidos:** `DOC_FILES_DELETE`, `DOC_REVISION_RESOLVE` y permisos administrativos.
+- Matriz de referencia (backend + frontend) y descripción humana del rol actualizadas.
+- Ejecutado `npx prisma db seed` (idempotente; sincroniza `role_permissions` sin reset).
+- Sin cambios de esquema Prisma.
+
 ### 2026-08-30 — Rediseño UX Administración → Usuarios y roles
 
 - **Frontend:** pestañas Usuarios / Roles y permisos / Matriz de acceso; permisos humanizados (`permission-display.ts`, `role-display.ts`).

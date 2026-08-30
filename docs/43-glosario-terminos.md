@@ -145,7 +145,7 @@ Los términos están agrupados por tema. Dentro de cada grupo van en orden alfab
 | **AUDITOR** | Rol orientado a consulta de evidencias; en MVP comparte acceso a UI de auditoría con ADMIN según configuración. |
 | **CONSULTA** | Rol de solo lectura acotada (consulta documental sin mutaciones administrativas). |
 | **Control de acceso** | Conjunto de mecanismos (roles, permisos, filtros por dependencia) que deciden si un usuario puede leer o modificar un recurso. |
-| **EDITOR_DOC** | Rol complementario para editar/subir documentos sin ser ADMIN; se combina con USUARIO vía multi-rol. |
+| **EDITOR_DOC** | Rol complementario (legacy/perfiles especiales); USUARIO ya incluye crear/editar/subir por defecto desde 2026-08-30. |
 | **Enforcement** | Aplicación real de reglas en el **servidor** (guards), no solo ocultar botones en la UI. |
 | **Guard** | Componente NestJS que intercepta una ruta antes del controlador (`JwtAuthGuard`, `RolesGuard`, `PermissionsGuard`). |
 | **IDOR** | *Insecure Direct Object Reference* — riesgo de acceder a un recurso cambiando el ID en la URL sin verificar pertenencia; mitigado con filtros de visibilidad en backend. |
@@ -157,7 +157,7 @@ Los términos están agrupados por tema. Dentro de cada grupo van en orden alfab
 | **REVISOR** | Rol que puede resolver revisiones documentales (`DOC_REVISION_RESOLVE`) y exportar pendientes de revisión. |
 | **`@Roles(...)`** | Decorador que limita una ruta a uno o más códigos de rol. |
 | **`RolesGuard`** | Guard que valida los roles del JWT frente a `@Roles`. |
-| **USUARIO** | Rol operativo estándar: consulta y operaciones documentales según permisos asignados en seed/matriz. |
+| **USUARIO** | Rol operativo: consulta, creación, edición, adjuntos, descarga y envío a revisión según permisos en matriz/seed. |
 
 ### Códigos de permiso (resumen)
 

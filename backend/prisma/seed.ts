@@ -50,6 +50,9 @@ async function seedRolePermissions(): Promise<void> {
 
   await replaceForRole('USUARIO', [
     ...auditorConsultaBase,
+    PERM.DOC_CREATE,
+    PERM.DOC_UPDATE,
+    PERM.DOC_FILES_UPLOAD,
     PERM.DOC_REVISION_SEND,
   ]);
 
@@ -96,10 +99,14 @@ async function main() {
     create: {
       codigo: 'USUARIO',
       nombre: 'Usuario',
-      descripcion: 'Usuario estándar',
+      descripcion:
+        'Usuario operativo: puede registrar, editar, adjuntar, descargar y enviar documentos a revisión según su ámbito de acceso.',
       activo: true,
     },
-    update: {},
+    update: {
+      descripcion:
+        'Usuario operativo: puede registrar, editar, adjuntar, descargar y enviar documentos a revisión según su ámbito de acceso.',
+    },
   });
 
   await prisma.role.upsert({
@@ -145,7 +152,7 @@ async function main() {
     update: {},
   });
 
-  /** Complementario: combinar con USUARIO vía multi-rol para quien deba editar/subir sin ser ADMIN. */
+  /** Complementario: combinar con USUARIO vía multi-rol para perfiles especiales; USUARIO ya incluye crear/editar/subir por defecto. */
   await prisma.role.upsert({
     where: { codigo: 'EDITOR_DOC' },
     create: {

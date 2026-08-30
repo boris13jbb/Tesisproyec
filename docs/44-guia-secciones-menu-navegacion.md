@@ -334,7 +334,7 @@ Tras cambiar permisos directos o roles sensibles, conviene **cerrar sesión y vo
 | Rol | Uso típico |
 |-----|------------|
 | **ADMIN** | Control total; catálogos, usuarios, auditoría, respaldos. |
-| **USUARIO** | Operación documental básica según matriz. |
+| **USUARIO** | Operación documental: registrar, editar, adjuntar, descargar y enviar a revisión según ámbito. |
 | **EDITOR_DOC** | Complemento para editar metadatos y adjuntos sin ser ADMIN. |
 | **REVISOR** | Resolver revisiones y exportar pendientes. |
 | **AUDITOR / CONSULTA** | Consulta acotada según permisos asignados. |
