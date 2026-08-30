@@ -1,0 +1,358 @@
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import { alpha, useTheme, type Theme } from '@mui/material/styles';
+import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
+import { SectionHeader } from './SectionHeader';
+import { listSurfaceSx } from './listSurfaces';
+
+export type EvaluacionLikertNivel = {
+  codigo: 'OPTIMO' | 'MODERADO' | 'CRITICO';
+  nivel: 5 | 3 | 1;
+  etiqueta: string;
+  colorTone: 'success' | 'warning' | 'error';
+  descripcion: string;
+  count: number;
+  percent: number;
+};
+
+export type EvaluacionLikertData = {
+  diasUmbral: number;
+  total: number;
+  optimo: number;
+  moderado: number;
+  critico: number;
+  niveles: EvaluacionLikertNivel[];
+};
+
+type Props = {
+  data: EvaluacionLikertData | null | undefined;
+  loading?: boolean;
+};
+
+function toneColor(
+  theme: Theme,
+  tone: EvaluacionLikertNivel['colorTone'],
+): string {
+  return theme.palette[tone].main;
+}
+
+/** Donut CSS con conic-gradient (sin librería de charts). */
+function LikertDonut({
+  niveles,
+  total,
+}: {
+  niveles: EvaluacionLikertNivel[];
+  total: number;
+}) {
+  const theme = useTheme();
+  if (total <= 0) {
+    return (
+      <Box
+        sx={{
+          width: 160,
+          height: 160,
+          borderRadius: '50%',
+          bgcolor: 'action.hover',
+          mx: 'auto',
+        }}
+      />
+    );
+  }
+  let cursor = 0;
+  const stops: string[] = [];
+  for (const n of niveles) {
+    const share = (n.count / total) * 100;
+    const color = toneColor(theme, n.colorTone);
+    const from = cursor;
+    const to = cursor + share;
+    stops.push(`${color} ${from}% ${to}%`);
+    cursor = to;
+  }
+  return (
+    <Box sx={{ position: 'relative', width: 160, height: 160, mx: 'auto' }}>
+      <Box
+        role="img"
+        aria-label="Distribución Likert de salud documental"
+        sx={{
+          width: '100%',
+          height: '100%',
+          borderRadius: '50%',
+          background: `conic-gradient(${stops.join(', ')})`,
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: '28%',
+          borderRadius: '50%',
+          bgcolor: 'background.paper',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1 }}>
+          {total}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+          Total
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+export function EvaluacionLikertCharts({ data, loading }: Props) {
+  const theme = useTheme();
+  const niveles = data?.niveles ?? [];
+  const total = data?.total ?? 0;
+  const maxBar = Math.max(1, ...niveles.map((n) => n.count));
+
+  return (
+    <Paper elevation={0} sx={{ ...listSurfaceSx, mb: 2.5, p: { xs: 2, md: 2.5 } }}>
+      <SectionHeader
+        icon={<SpeedOutlinedIcon fontSize="small" />}
+        title="Dashboard de Auditoría y Evaluación (Escala de Likert)"
+        subtitle="Clasificación del estado y salud documental bajo criterios de control institucional tipo semáforo."
+      />
+
+      {loading ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, py: 3, textAlign: 'center' }}>
+          Cargando evaluación Likert…
+        </Typography>
+      ) : null}
+
+      {!loading && total === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          No hay documentos en el ámbito visible para evaluar.
+        </Typography>
+      ) : null}
+
+      {!loading && total > 0 ? (
+        <>
+          <Grid container spacing={2} sx={{ mt: 1.5 }}>
+            {niveles.map((n) => {
+              const color = toneColor(theme, n.colorTone);
+              return (
+                <Grid key={n.codigo} size={{ xs: 12, sm: 4 }}>
+                  <Box
+                    sx={{
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      height: '100%',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        py: 1,
+                        bgcolor: alpha(color, 0.16),
+                        borderBottom: '1px solid',
+                        borderColor: alpha(color, 0.35),
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{ fontWeight: 800, color, display: 'block' }}
+                      >
+                        {n.etiqueta}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography
+                        variant="h3"
+                        sx={{ fontWeight: 800, color, lineHeight: 1.1 }}
+                      >
+                        {n.count}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        {n.descripcion}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, mt: 1 }}>
+                        {n.percent}% del total
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              );
+            })}
+          </Grid>
+
+          <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
+                Distribución global (Likert)
+              </Typography>
+              <LikertDonut niveles={niveles} total={total} />
+              <Stack spacing={0.75} sx={{ mt: 2 }}>
+                {niveles.map((n) => (
+                  <Stack
+                    key={`leg-${n.codigo}`}
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: 'center' }}
+                  >
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 0.5,
+                        bgcolor: toneColor(theme, n.colorTone),
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {n.etiqueta.replace(/^Nivel \d+:\s*/, '')} — {n.count} ({n.percent}%)
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
+                Volumen por nivel Likert
+              </Typography>
+              <Box
+                role="img"
+                aria-label="Gráfico de barras evaluación Likert"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: 2,
+                  minHeight: 180,
+                  px: 1,
+                  pt: 1,
+                }}
+              >
+                {niveles.map((n) => {
+                  const color = toneColor(theme, n.colorTone);
+                  const pct = Math.round((n.count / maxBar) * 100);
+                  return (
+                    <Tooltip
+                      key={`bar-${n.codigo}`}
+                      title={`${n.etiqueta}: ${n.count} documento(s)`}
+                      arrow
+                    >
+                      <Box
+                        sx={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 0.75,
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ fontWeight: 800 }}>
+                          {n.count}
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            maxWidth: 72,
+                            height: `${Math.max(pct, n.count > 0 ? 10 : 2)}%`,
+                            minHeight: n.count > 0 ? 28 : 4,
+                            maxHeight: 130,
+                            bgcolor: alpha(color, 0.9),
+                            borderRadius: 1,
+                          }}
+                        />
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}
+                        >
+                          {n.codigo === 'OPTIMO'
+                            ? 'Óptimo'
+                            : n.codigo === 'MODERADO'
+                              ? 'Moderado'
+                              : 'Crítico'}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Box>
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 3, mb: 1 }}>
+                Proporción acumulada
+              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  height: 28,
+                  borderRadius: 1.5,
+                  overflow: 'hidden',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                {niveles.map((n) =>
+                  n.count > 0 ? (
+                    <Tooltip
+                      key={`stack-${n.codigo}`}
+                      title={`${n.etiqueta}: ${n.percent}%`}
+                    >
+                      <Box
+                        sx={{
+                          width: `${(n.count / total) * 100}%`,
+                          bgcolor: toneColor(theme, n.colorTone),
+                          minWidth: n.count > 0 ? 8 : 0,
+                        }}
+                      />
+                    </Tooltip>
+                  ) : null,
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.25 }}>
+                Umbral de antigüedad: {data?.diasUmbral ?? 60} días sin actualización → Moderado.
+                Crítico incluye inactivos, rechazados y revisiones con SLA vencido. Datos reales del
+                ámbito visible del usuario.
+              </Typography>
+            </Grid>
+          </Grid>
+
+          <Box
+            sx={{
+              mt: 2.5,
+              p: 1.75,
+              borderRadius: 2,
+              bgcolor: 'action.hover',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              Resumen general de evaluación — registros analizados
+            </Typography>
+            <Box
+              sx={{
+                minWidth: 40,
+                height: 40,
+                borderRadius: '50%',
+                bgcolor: 'text.primary',
+                color: 'background.paper',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+              }}
+            >
+              {total}
+            </Box>
+          </Box>
+        </>
+      ) : null}
+    </Paper>
+  );
+}

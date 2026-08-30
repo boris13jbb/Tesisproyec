@@ -23,20 +23,51 @@ Documentación viva: carpeta **`docs/`** (índice en `docs/README.md`). Comandos
 
 ## Puesta en marcha local
 
-**Windows:** en la raíz del repo puede usar **`iniciar-desarrollo.cmd`** (doble clic o desde `cmd`) para abrir **Backend** (`:3000`) y **Frontend** (`:5173`) en ventanas separadas. MySQL en XAMPP debe estar activo antes. Detalle adicional: `EJECUTAR.txt`.
+Guía detallada: **`docs/42-comandos-ejecucion-manual.md`**. Resumen Windows: `EJECUTAR.txt`.
 
-Desde la **raíz** del repositorio (`Tesisproyec/`) puedes usar también:
+**Windows (día a día):** doble clic en **`iniciar-desarrollo.cmd`** (Backend `:3000` + Frontend `:5173`). MySQL en XAMPP debe estar activo antes.
 
-- `npm run start:dev` — mismo efecto que `npm run start:dev` dentro de `backend/`
-- `npm run dev` — arranca Vite en `frontend/`
+Desde la **raíz** (`Tesisproyec/`): `npm run start:dev` (API) · `npm run dev` (Vite) · `npm run dev:all` (ambos).
 
-La primera vez (o tras clonar), desde la raíz:
+### Primera vez en otro PC (clon de GitHub)
 
-```bash
-npm run install:all
-```
+GitHub trae **código, migraciones, seed y documentación**. No trae `.env`, datos reales de MySQL ni PDFs de `storage/` (secretos y evidencia; no versionar).
 
-Equivale a `npm install` en `backend/` y en `frontend/`.
+1. Instalar **Node.js LTS** y **XAMPP** (MySQL/MariaDB, puerto 3306).
+2. Clonar el repo y, en la raíz: `npm run install:all`
+3. Crear en phpMyAdmin la base vacía `gestion_documental_gadpr_lm` (cotejamiento **utf8mb4**).
+4. `backend/`: copiar `.env.example` → `.env` y ajustar `DATABASE_URL` si tu MySQL tiene contraseña.
+5. `frontend/`: copiar `.env.example` → `.env.local` (en local suele bastar el proxy Vite; no hace falta `VITE_API_URL`).
+6. Desde `backend/`:
+   ```bash
+   npx prisma migrate deploy
+   npx prisma generate
+   npx prisma db seed
+   ```
+7. Arrancar (`iniciar-desarrollo.cmd` o `npm run dev:all`). Web: **http://localhost:5173** · API: **http://localhost:3000/api/v1/health**
+8. Entrar con `admin@local.test`. Si no definiste `SEED_ADMIN_PASSWORD` en `.env`, el seed usa `Admin123!`.
+
+SMTP, MFA y respaldos automáticos son **opcionales** (variables comentadas en `.env.example`). Sin SMTP el login, documentos y reportes funcionan; no se envían correos de recuperación/notificación.
+
+Si `prisma generate` falla en Windows con **EPERM** en `query_engine-windows.dll`: cierra Nest/Prisma Studio, `npm run prisma:generate:clean` en `backend/`, y si hace falta cierra Cursor y procesos Node. Evita OneDrive/antivirus bloqueando `node_modules`.
+
+**Versión Prisma:** **5.22.x**.
+
+### Qué sí / no llega con el clon (todos los módulos)
+
+| Apartado | En GitHub | En el otro PC hay que… |
+|----------|-----------|-------------------------|
+| Auth, JWT, MFA, recuperación | Código + plantilla `.env.example` | Copiar `.env`; secretos JWT propios; SMTP solo si quieres correos |
+| Usuarios, roles, permisos | Código + seed RBAC | `npx prisma db seed` (admin, roles, matriz de permisos, catálogos de ejemplo) |
+| Catálogos (dependencias, cargos, tipos, series, contrapartes, beneficiarios) | Código + seed de ejemplo | Seed; el resto se crea en la UI |
+| Documentos, revisión, bandeja, clasificación | Código de API + pantallas | Vacío hasta crear expedientes (o importar un dump **fuera** de Git) |
+| Archivos adjuntos | Código + `storage/.gitkeep` | Los PDF reales **no** van al repo; copiar `storage/` a mano si necesitas los mismos archivos |
+| Auditoría y reportes | Código (incl. documentos por usuario) | Se alimentan de lo que exista en esa BD |
+| Dashboard / Likert | Código | Cálculo sobre documentos de esa BD |
+| Respaldos | Código + `backups/automated/` vacía | Volcados `.sql`/`.zip` no se versionan |
+| Manual y docs | `docs/` y `docs/27-manual-usuario-sgd-gadpr-lm.md` | Listos al clonar |
+
+Para **replicar datos de este PC** (documentos, usuarios reales, PDFs): mysqldump + copia de `storage/`, por canal privado, **nunca** en el repositorio.
 
 ### 1. Backend (API)
 
@@ -47,14 +78,7 @@ npm install
 npm run start:dev
 ```
 
-Equivalente desde la raíz (tras `npm install` en `backend/`):
-
-```bash
-npm run start:dev
-```
-
-- URL base del API: **http://localhost:3000**
-- Salud: **GET** `http://localhost:3000/api/v1/health`
+- URL base: **http://localhost:3000** · Salud: **GET** `http://localhost:3000/api/v1/health`
 
 ### 2. Frontend (SPA)
 
@@ -66,27 +90,6 @@ npm run dev
 ```
 
 - URL típica: **http://localhost:5173**
-- `VITE_API_URL` debe apuntar a `http://localhost:3000/api/v1` (por defecto en `.env.example`).
-
-Con el backend en marcha, la página de inicio comprueba la conexión y muestra un mensaje de éxito o advertencia.
-
-### Base de datos (Prisma + XAMPP)
-
-1. Inicia **MySQL** en XAMPP y crea la base vacía (p. ej. `gestion_documental_gadpr_lm`), cotejamiento **utf8mb4**.
-2. En `backend/`, copia `.env.example` a `.env` y revisa `DATABASE_URL` (usuario/clave de tu MySQL).
-3. Desde `backend/`:
-   ```bash
-   npx prisma generate
-   npx prisma migrate dev
-   ```
-   La primera vez aplica la migración `init_rbac` (tablas `users`, `roles`, `permissions`, relaciones).
-4. Si `prisma generate` falla en Windows con **EPERM** en `query_engine-windows.dll`:
-   - Cierra **todas** las terminales con `npm run start:dev` / Nest (Ctrl+C) y **Cursor/VS Code** si sigue fallando (a veces bloquea el `.dll`).
-   - En el Administrador de tareas, finaliza procesos **Node.js** que queden.
-   - Desde `backend/` ejecuta: **`npm run prisma:generate:clean`** (borra `node_modules/.prisma` y vuelve a generar el cliente).
-   - Si persiste: excluye la carpeta del proyecto del análisis en tiempo real del **antivirus** o mueve el repo fuera de carpetas sincronizadas (OneDrive, etc.).
-
-**Versión:** Prisma **5.22.x** en el backend (alineado a `datasource` clásico en `schema.prisma`).
 
 ### Scripts útiles
 

@@ -13,6 +13,12 @@ import {
 } from './documentos-por-mes.util';
 import { fillDocumentosPorEstadoCounts } from './documentos-por-estado.util';
 import {
+  buildEvaluacionLikertSummary,
+  emptyEvaluacionLikertSummary,
+  LIKERT_DIAS_UMBRAL_DEFAULT,
+  type EvaluacionLikertSummary,
+} from './evaluacion-likert.util';
+import {
   AUDIT_ACTION_BACKUP_VERIFIED,
   BACKUP_META_SOURCE_MANUAL,
 } from '../backup/backup.constants';
@@ -120,6 +126,8 @@ export type DashboardSummary = {
   };
   documentos: DashboardDocumentosBloque;
   documentosPorMes: DashboardDocumentoPorMesItem[];
+  /** Evaluación Likert / semáforo de salud documental (datos reales). */
+  evaluacionLikert: EvaluacionLikertSummary;
   documentosRecientes: DashboardRecentDocumento[];
   compliance: DashboardComplianceMetric[];
   lastSignals: {
@@ -169,6 +177,29 @@ async function buildDocumentosPorMes(
   });
   const counts = aggregateCreatedAtByMonth(rows.map((r) => r.createdAt));
   return fillDocumentosPorMesSeries(ranges, counts, mesNombreEc);
+}
+
+async function buildEvaluacionLikert(
+  prisma: PrismaService,
+  scopeWhere: Prisma.DocumentoWhereInput | undefined,
+  now: Date,
+): Promise<EvaluacionLikertSummary> {
+  const where: Prisma.DocumentoWhereInput = scopeWhere ?? {};
+  const MAX_ROWS = 5000;
+  const rows = await prisma.documento.findMany({
+    where,
+    take: MAX_ROWS,
+    select: {
+      activo: true,
+      estado: true,
+      updatedAt: true,
+      fechaLimiteSla: true,
+    },
+  });
+  if (rows.length === 0) {
+    return emptyEvaluacionLikertSummary(LIKERT_DIAS_UMBRAL_DEFAULT);
+  }
+  return buildEvaluacionLikertSummary(rows, now, LIKERT_DIAS_UMBRAL_DEFAULT);
 }
 
 export { AUDIT_ACTION_BACKUP_VERIFIED } from '../backup/backup.constants';
@@ -373,6 +404,7 @@ export class DashboardService {
       activeUsersWithRole,
       estadosAgg,
       documentosPorMes,
+      evaluacionLikert,
       loginOk30d,
       loginFail30d,
       authzForbidden30d,
@@ -417,6 +449,7 @@ export class DashboardService {
         : Promise.resolve(null),
       countDocumentosPorEstado(this.prisma, docWhere),
       buildDocumentosPorMes(this.prisma, docWhere, now),
+      buildEvaluacionLikert(this.prisma, vis, now),
       this.prisma.auditLog.count({
         where: { action: 'AUTH_LOGIN_OK', createdAt: { gte: since30d } },
       }),
@@ -633,6 +666,7 @@ export class DashboardService {
       },
       documentos: documentosBloque,
       documentosPorMes,
+      evaluacionLikert,
       documentosRecientes: docsRecent.map((d) => ({
         id: d.id,
         codigo: d.codigo,

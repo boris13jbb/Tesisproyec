@@ -84,6 +84,16 @@ Usuario administrador por defecto (si no cambiaste `SEED_ADMIN_*` en `.env`):
 
 > En `.env.example` la contraseña de seed aparece como placeholder; en desarrollo el seed usa `Admin123!` si no defines otra válida (mínimo 8 caracteres).
 
+### 2.6 Qué no llega al clonar (datos y secretos)
+
+| Recurso | En Git | Acción en el otro PC |
+|---------|--------|----------------------|
+| `backend/.env` / `frontend/.env.local` | No (plantillas `.env.example` sí) | Copiar y ajustar |
+| Filas reales de MySQL (documentos, auditoría, usuarios extra) | No (sí schema + migraciones + seed) | Seed o importar dump privado |
+| PDFs en `storage/` | Solo `.gitkeep` | Copiar carpeta a mano si se necesitan los mismos adjuntos |
+| Volcados en `backups/` | Solo `.gitkeep` + README | No versionar `.sql`/`.zip` |
+| SMTP / mysqldump automático | Variables opcionales en `.env.example` | Configurar solo si se usan |
+
 ---
 
 ## 3. Arranque diario (desarrollo)

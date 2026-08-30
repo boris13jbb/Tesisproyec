@@ -39,6 +39,8 @@ import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { primaryAdminRoleName, userHasAdminAccess } from '../auth/role-utils';
 import { DocumentosMonthlyChart } from '../components/DocumentosMonthlyChart';
+import { EvaluacionLikertCharts } from '../components/EvaluacionLikertCharts';
+import type { EvaluacionLikertData } from '../components/EvaluacionLikertCharts';
 import { useDashboardLcpReporting } from '../perf/useDashboardLcpReporting';
 import { listSurfaceSx } from '../components/listSurfaces';
 import { PageHeader } from '../components/PageHeader';
@@ -106,6 +108,7 @@ type DashboardSummary = {
   };
   documentos: DashboardDocumentosBloque;
   documentosPorMes: DashboardDocumentoPorMesItem[];
+  evaluacionLikert?: EvaluacionLikertData;
   documentosRecientes: DocumentoRecentRow[];
   compliance: ComplianceMetric[];
   lastSignals: {
@@ -930,6 +933,11 @@ export function DashboardPage() {
           loading={summaryLoading}
         />
       </Paper>
+
+      <EvaluacionLikertCharts
+        data={summary?.evaluacionLikert}
+        loading={summaryLoading}
+      />
 
       {isAdmin && !summaryLoading && serverAlertItems.length > 0 ? (
         <Paper

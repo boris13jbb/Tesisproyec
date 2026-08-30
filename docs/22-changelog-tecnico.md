@@ -24,6 +24,15 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-30 — Onboarding otro PC (README / EJECUTAR / docs 42)
+
+- Checklist de clon: env, `migrate deploy`, `generate`, **`db seed`**, storage/backups no versionados; tabla por apartado (auth, catálogos, documentos, archivos, reportes, dashboard).
+
+### 2026-08-30 — Dashboard: gráficos Escala de Likert (salud documental)
+
+- **Backend:** `GET /dashboard/summary` incluye `evaluacionLikert` (Óptimo / Moderado / Crítico) con umbral 60 días, rechazados, inactivos y SLA vencido; util `evaluacion-likert.util.ts` + tests. Sin migración.
+- **Frontend:** bloque `EvaluacionLikertCharts` en el panel Inicio (tarjetas KPI + donut + barras + proporción). Manual §4.1 actualizado.
+
 ### 2026-08-30 — Reportes: documentos por usuario (JSON / PDF / Excel)
 
 - **Backend:** `GET /reportes/documentos-por-usuario` (+ `.pdf` / `.xlsx`); filtros `createdByUserId`, `estado`, `tipoDocumentalId`, `dependenciaId`, `fechaDesde`/`fechaHasta`; resumen KPI y `porUsuario`; revisor/motivo desde última auditoría `DOC_REVIEW_RESOLVED` (sin migración).

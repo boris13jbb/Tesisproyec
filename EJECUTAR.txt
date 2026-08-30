@@ -32,10 +32,16 @@ API directa: http://localhost:3000/api/v1
   admin@local.test
   Contraseña: Admin123!
 
---- Migraciones Prisma (desde carpeta backend)
+--- Primera vez (otro PC), desde carpeta backend
 
+  copy .env.example .env
   npx prisma migrate deploy
   npx prisma generate
+  npx prisma db seed
+
+  (Crear antes la BD vacía en phpMyAdmin: gestion_documental_gadpr_lm, utf8mb4.
+   frontend: copy .env.example .env.local
+   PDF de storage/ y volcados SQL no van en GitHub; copiarlos a mano si hace falta.)
 
 --- Evidencias ETAPA 0 / roadmap
 
