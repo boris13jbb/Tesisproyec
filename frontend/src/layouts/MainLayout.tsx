@@ -351,7 +351,8 @@ function MainLayoutShell() {
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
   const canCreateDocumento = useMemo(() => {
     if (isAdmin) return true;
-    return myPermissionCodes?.includes('DOC_CREATE') ?? false;
+    const codes = myPermissionCodes ?? [];
+    return codes.includes('DOC_CREATE') && codes.includes('DOC_FILES_UPLOAD');
   }, [isAdmin, myPermissionCodes]);
 
   const desktopDrawerWidth = sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED;

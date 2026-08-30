@@ -1,13 +1,12 @@
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
-import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import {
   Alert,
   Box,
   Button,
-  Chip,
+  CircularProgress,
   FormControl,
   Grid,
   InputLabel,
@@ -15,23 +14,30 @@ import {
   Paper,
   Select,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { isAxiosError } from 'axios';
-import type { ChangeEvent, FormEvent } from 'react';
+import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess } from '../../auth/role-utils';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import { SectionHeader } from '../../components/SectionHeader';
+import { getApiErrorMessage } from '../../utils/api-error-message';
 import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
+import { formatFileSize, formatMimeType } from '../../utils/file-meta-format';
 import {
   type PartyCatalogRow,
   partySelectLabel,
@@ -49,10 +55,13 @@ type SubserieOption = {
 
 type DependenciaOption = { id: string; codigo: string; nombre: string };
 
-const MAX_FILE_BYTES = 50 * 1024 * 1024; // Backend: multer limits.fileSize = 50MB
-// Debe reflejar DocumentosService (solo PDF).
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_EXTS = ['pdf'] as const;
 const ALLOWED_MIMES = ['application/pdf'] as const;
+
+const WIZARD_STEPS = ['Archivo', 'Información', 'Listo'] as const;
+
+type WizardPhase = 'idle' | 'creating' | 'uploading' | 'upload_failed' | 'success';
 
 const createSchema = z.object({
   codigo: z
@@ -92,33 +101,78 @@ function fileExt(name: string): string {
 function isFilenameSafe(name: string): boolean {
   if (!name || name.trim() !== name) return false;
   if (/[\\/]/.test(name)) return false;
-  // Evita caracteres típicamente peligrosos; el backend sanitiza adicionalmente.
   if (/[?%*:|"<>]/.test(name)) return false;
   return true;
 }
 
+/** Sugiere asunto desde el nombre de archivo solo si el campo está vacío. */
+function suggestAsuntoFromFilename(name: string): string {
+  const base = name
+    .replace(/\.[^.]+$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (base.length < 3) return '';
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+function validateSelectedFile(f: File | null): string | null {
+  if (!f) return 'Seleccione un archivo para continuar.';
+  const ext = fileExt(f.name);
+  const extOk = (ALLOWED_EXTS as readonly string[]).includes(ext);
+  const mimeOk = f.type === '' || (ALLOWED_MIMES as readonly string[]).includes(f.type);
+  if (!extOk || !mimeOk) {
+    return 'El tipo de archivo seleccionado no está permitido. Solo se admite PDF.';
+  }
+  if (f.size <= 0) return 'El archivo está vacío.';
+  if (f.size > MAX_FILE_BYTES) {
+    return 'El archivo supera el límite máximo permitido de 50 MB.';
+  }
+  if (!isFilenameSafe(f.name)) {
+    return 'Nombre de archivo no válido. Renómbrelo y vuelva a intentar.';
+  }
+  return null;
+}
+
 export function NuevoDocumentoPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
+  const isAdmin = userHasAdminAccess(user?.roles);
+
+  const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
+  const permissionsLoaded = myPermissionCodes !== null;
+  const canCreate = isAdmin || (myPermissionCodes?.includes('DOC_CREATE') ?? false);
+  const canUpload = isAdmin || (myPermissionCodes?.includes('DOC_FILES_UPLOAD') ?? false);
+  const canUseWizard = canCreate && canUpload;
+
+  const [activeStep, setActiveStep] = useState(0);
+  const [phase, setPhase] = useState<WizardPhase>('idle');
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [createdDocumentId, setCreatedDocumentId] = useState<string | null>(null);
+  const [createdCodigo, setCreatedCodigo] = useState<string | null>(null);
+
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
   const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
   const [contrapartes, setContrapartes] = useState<PartyCatalogRow[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<PartyCatalogRow[]>([]);
   const [serieId, setSerieId] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [catalogosLoaded, setCatalogosLoaded] = useState(false);
   const [codigoSugeridoBusy, setCodigoSugeridoBusy] = useState(false);
   const [codigoSugeridoErr, setCodigoSugeridoErr] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  /** Si el usuario editó el código manualmente, no sobrescribimos con sugerencias silenciosas. */
   const codigoUsuarioRef = useRef(false);
-  /** Evita pisar Dependencia si el usuario la vacía después de cargar la pantalla */
   const defaultDependenciaAplicado = useRef(false);
   const tipoUnicoAuto = useRef(false);
   const serieUnicaAuto = useRef(false);
+  const submittingRef = useRef(false);
+
+  const busy = phase === 'creating' || phase === 'uploading';
 
   const form = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -141,6 +195,27 @@ export function NuevoDocumentoPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!user?.id) {
+          if (!cancelled) setMyPermissionCodes(null);
+          return;
+        }
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (cancelled) return;
+        setMyPermissionCodes(Array.isArray(res.data?.codigos) ? res.data.codigos : []);
+      } catch {
+        if (!cancelled) setMyPermissionCodes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!canUseWizard) return;
     let cancelled = false;
     Promise.all([
       apiClient.get<TipoOption[]>('/tipos-documentales'),
@@ -171,7 +246,7 @@ export function NuevoDocumentoPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canUseWizard]);
 
   const aplicarCodigoSugerido = useCallback(
     async (opts?: { forzar?: boolean }) => {
@@ -188,28 +263,18 @@ export function NuevoDocumentoPage() {
         if (/^\d{4}$/.test(anioStr ?? '')) {
           params.anio = Number(anioStr);
         }
-        const { data } = await apiClient.get<{
-          codigo: string;
-          prefijo: string;
-          anio?: number;
-          secuencia?: number;
-        }>('/documentos/next-codigo', { params });
+        const { data } = await apiClient.get<{ codigo: string }>('/documentos/next-codigo', {
+          params,
+        });
         form.setValue('codigo', data.codigo, {
           shouldValidate: true,
           shouldDirty: forzar,
         });
-        if (forzar) {
-          codigoUsuarioRef.current = false;
-        }
+        if (forzar) codigoUsuarioRef.current = false;
       } catch (e: unknown) {
-        let msg = 'No se pudo obtener un correlativo desde el servidor.';
-        if (isAxiosError(e) && e.response?.data) {
-          const d = e.response.data as { message?: string | string[] };
-          const m = d.message;
-          if (Array.isArray(m)) msg = m.join(' ');
-          else if (typeof m === 'string' && m.trim()) msg = m.trim();
-        }
-        setCodigoSugeridoErr(msg);
+        setCodigoSugeridoErr(
+          getApiErrorMessage(e, 'No se pudo obtener un correlativo desde el servidor.'),
+        );
       } finally {
         setCodigoSugeridoBusy(false);
       }
@@ -218,7 +283,7 @@ export function NuevoDocumentoPage() {
   );
 
   useEffect(() => {
-    if (!catalogosLoaded) return;
+    if (!catalogosLoaded || !canUseWizard) return;
     let cancelled = false;
     void (async () => {
       if (cancelled || codigoUsuarioRef.current) return;
@@ -228,7 +293,7 @@ export function NuevoDocumentoPage() {
     return () => {
       cancelled = true;
     };
-  }, [catalogosLoaded, aplicarCodigoSugerido, form]);
+  }, [catalogosLoaded, canUseWizard, aplicarCodigoSugerido, form]);
 
   const series = useMemo(() => {
     const map = new Map<string, SerieOption>();
@@ -264,7 +329,6 @@ export function NuevoDocumentoPage() {
     setSerieId(series[0].id);
   }, [series, serieId]);
 
-  /** Si solo existe una subserie bajo la serie elegida, alinea la clasificación con el catálogo real. */
   useEffect(() => {
     if (!serieId || subseriesFiltered.length !== 1) return;
     const onlyId = subseriesFiltered[0].id;
@@ -272,41 +336,33 @@ export function NuevoDocumentoPage() {
     form.setValue('subserieId', onlyId, { shouldValidate: true });
   }, [serieId, subseriesFiltered, form]);
 
+  useEffect(() => {
+    if (!busy) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [busy]);
+
   const tipoLabel = useMemo(() => {
     const map = new Map<string, string>();
-    for (const t of tipos) {
-      map.set(t.id, `${t.codigo} — ${t.nombre}`);
-    }
+    for (const t of tipos) map.set(t.id, `${t.codigo} — ${t.nombre}`);
     return map;
   }, [tipos]);
 
   const subserieLabel = useMemo(() => {
     const map = new Map<string, string>();
-    for (const s of subseries) {
-      map.set(s.id, `${s.serie.codigo} > ${s.nombre}`);
-    }
+    for (const s of subseries) map.set(s.id, `${s.serie.codigo} > ${s.nombre}`);
     return map;
   }, [subseries]);
-
-  const selectedExt = file ? fileExt(file.name) : '';
-  const extPermitted =
-    !!file && (ALLOWED_EXTS as readonly string[]).includes(selectedExt);
-  // Algunos navegadores envían type vacío; en ese caso basta la extensión .pdf (el backend valida firma %PDF).
-  const mimePermitted =
-    !!file &&
-    (file.type === '' || (ALLOWED_MIMES as readonly string[]).includes(file.type));
-  const sizeOk = !!file && file.size > 0 && file.size <= MAX_FILE_BYTES;
-  const nameSafe = !!file && isFilenameSafe(file.name);
-
-  const metadataComplete = form.formState.isValid;
-  const watchedSubserieId = useWatch({ control: form.control, name: 'subserieId' });
-  const clasificacionAssigned = !!watchedSubserieId;
 
   const registradoPorLabel = useMemo(() => {
     const joined = `${user?.nombres ?? ''} ${user?.apellidos ?? ''}`.trim();
     if (joined && user?.email) return `${joined} (${user.email})`;
     return joined || user?.email || '—';
-  }, [user?.nombres, user?.apellidos, user?.email]);
+  }, [user]);
 
   const fechaRegistroHoy = useMemo(
     () =>
@@ -318,291 +374,515 @@ export function NuevoDocumentoPage() {
     [],
   );
 
+  const fileValid = validateSelectedFile(file) === null;
+
   const onPickFile = () => {
+    if (busy) return;
     fileInputRef.current?.click();
   };
 
-  const onFileSelected = (f: File | null) => {
+  const applySelectedFile = (f: File | null) => {
     setSubmitError(null);
+    const err = validateSelectedFile(f);
+    setFileError(err);
     setFile(f);
+    if (f && !err) {
+      const currentAsunto = form.getValues('asunto')?.trim() ?? '';
+      if (!currentAsunto) {
+        const suggested = suggestAsuntoFromFilename(f.name);
+        if (suggested) {
+          form.setValue('asunto', suggested.slice(0, 250), { shouldValidate: true });
+        }
+      }
+    }
   };
 
-  const validations = [
-    {
-      label: 'Extensión permitida',
-      ok: extPermitted && mimePermitted,
-      pending: !file,
-    },
-    {
-      label: 'Nombre sanitizado',
-      ok: nameSafe,
-      pending: !file,
-    },
-    {
-      label: 'Metadatos completos',
-      ok: metadataComplete,
-      pending: !metadataComplete,
-    },
-    {
-      label: 'Clasificación asignada',
-      ok: !!clasificacionAssigned,
-      pending: !clasificacionAssigned,
-    },
-  ] as const;
-
-  const statusChip = (ok: boolean, pending: boolean) => {
-    if (pending) return <Chip label="Por completar" size="small" color="warning" />;
-    if (ok) return <Chip label="Correcto" size="small" color="success" />;
-    return <Chip label="Incorrecto" size="small" color="error" />;
+  const clearFile = () => {
+    setFile(null);
+    setFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const onSubmit = async (data: CreateForm) => {
+  const goToStepInfo = () => {
+    const err = validateSelectedFile(file);
+    setFileError(err);
+    if (err) return;
+    setActiveStep(1);
+  };
+
+  const uploadFileToDocument = async (documentoId: string, selected: File) => {
+    const formData = new FormData();
+    formData.append('file', selected);
+    await apiClient.post(`/documentos/${documentoId}/archivos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  };
+
+  const finishSuccess = (documentoId: string, codigo?: string | null) => {
+    setPhase('success');
+    setActiveStep(2);
+    setCreatedDocumentId(documentoId);
+    if (codigo) setCreatedCodigo(codigo);
+    window.setTimeout(() => {
+      void navigate(`/documentos/${documentoId}`, { replace: true });
+    }, 1200);
+  };
+
+  const onRegister = async (data: CreateForm) => {
+    if (submittingRef.current || busy) return;
+    const fileErr = validateSelectedFile(file);
+    if (fileErr || !file) {
+      setFileError(fileErr ?? 'Seleccione un archivo para continuar.');
+      setActiveStep(0);
+      return;
+    }
+
+    submittingRef.current = true;
     setSubmitError(null);
-    if (!file) {
-      setSubmitError('Seleccione un archivo para continuar.');
-      return;
-    }
-    if (!extPermitted || !mimePermitted) {
-      setSubmitError(
-        'Tipo de archivo no permitido. Solo se admite PDF (.pdf).',
-      );
-      return;
-    }
-    if (!sizeOk) {
-      setSubmitError('El archivo excede el tamaño permitido (máx 50 MB) o está vacío.');
-      return;
-    }
-    if (!nameSafe) {
-      setSubmitError('Nombre de archivo no válido. Renómbrelo y vuelva a intentar.');
-      return;
-    }
 
-    setSaving(true);
+    /** Variable local: el estado React puede no actualizarse a tiempo en el catch. */
+    let documentoId: string | null = createdDocumentId;
+    let codigoLocal: string | null = createdCodigo;
+
     try {
-      const trimmedCodigo = data.codigo.trim();
-      const created = await apiClient.post<{ id: string }>('/documentos', {
-        ...(codigoUsuarioRef.current && trimmedCodigo ? { codigo: trimmedCodigo } : {}),
-        asunto: data.asunto.trim(),
-        descripcion: data.descripcion?.trim() || undefined,
-        fechaDocumento: new Date(data.fechaDocumento).toISOString(),
-        tipoDocumentalId: data.tipoDocumentalId,
-        subserieId: data.subserieId,
-        dependenciaId: data.dependenciaId?.trim() ? data.dependenciaId : undefined,
-        contraparteId: data.contraparteId?.trim() ? data.contraparteId : undefined,
-        beneficiarioId: data.beneficiarioId?.trim() ? data.beneficiarioId : undefined,
-        responsableInstitucional: data.responsableInstitucional?.trim() || undefined,
-        fechaVencimiento: data.fechaVencimiento?.trim()
-          ? new Date(data.fechaVencimiento).toISOString()
-          : undefined,
-        nivelConfidencialidad: data.nivelConfidencialidad,
-        estado: data.estado,
-      });
+      if (!documentoId) {
+        setPhase('creating');
+        const trimmedCodigo = data.codigo.trim();
+        const created = await apiClient.post<{ id: string; codigo?: string }>('/documentos', {
+          ...(codigoUsuarioRef.current && trimmedCodigo ? { codigo: trimmedCodigo } : {}),
+          asunto: data.asunto.trim(),
+          descripcion: data.descripcion?.trim() || undefined,
+          fechaDocumento: new Date(data.fechaDocumento).toISOString(),
+          tipoDocumentalId: data.tipoDocumentalId,
+          subserieId: data.subserieId,
+          dependenciaId: data.dependenciaId?.trim() ? data.dependenciaId : undefined,
+          contraparteId: data.contraparteId?.trim() ? data.contraparteId : undefined,
+          beneficiarioId: data.beneficiarioId?.trim() ? data.beneficiarioId : undefined,
+          responsableInstitucional: data.responsableInstitucional?.trim() || undefined,
+          fechaVencimiento: data.fechaVencimiento?.trim()
+            ? new Date(data.fechaVencimiento).toISOString()
+            : undefined,
+          nivelConfidencialidad: data.nivelConfidencialidad,
+          estado: data.estado,
+        });
+        documentoId = created.data.id;
+        codigoLocal = created.data.codigo ?? (trimmedCodigo || null);
+        setCreatedDocumentId(documentoId);
+        setCreatedCodigo(codigoLocal);
+      }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      await apiClient.post(`/documentos/${created.data.id}/archivos`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      await navigate(`/documentos/${created.data.id}`, { replace: true });
-    } catch (e) {
-      if (isAxiosError(e)) {
-        const msg =
-          typeof e.response?.data === 'object' && e.response?.data && 'message' in e.response.data
-            ? String((e.response.data as { message?: unknown }).message)
-            : null;
-        setSubmitError(msg || 'No fue posible guardar el documento. Revise los datos e intente nuevamente.');
+      setPhase('uploading');
+      await uploadFileToDocument(documentoId, file);
+      finishSuccess(documentoId, codigoLocal ?? form.getValues('codigo'));
+    } catch (e: unknown) {
+      if (documentoId) {
+        setCreatedDocumentId(documentoId);
+        if (codigoLocal) setCreatedCodigo(codigoLocal);
+        setPhase('upload_failed');
+        setActiveStep(2);
+        setSubmitError(
+          getApiErrorMessage(
+            e,
+            'El registro documental fue creado, pero no se pudo cargar el archivo.',
+          ),
+        );
       } else {
-        setSubmitError('No fue posible guardar el documento. Intente más tarde.');
+        setPhase('idle');
+        setSubmitError(getApiErrorMessage(e, 'No fue posible registrar el documento.'));
       }
     } finally {
-      setSaving(false);
+      submittingRef.current = false;
     }
   };
 
-  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
-    void form.handleSubmit(onSubmit)(event);
+  const retryUpload = async () => {
+    if (!createdDocumentId || !file || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitError(null);
+    setPhase('uploading');
+    try {
+      await uploadFileToDocument(createdDocumentId, file);
+      finishSuccess(createdDocumentId, createdCodigo);
+    } catch (e: unknown) {
+      setPhase('upload_failed');
+      setSubmitError(
+        getApiErrorMessage(
+          e,
+          'El registro documental fue creado, pero no se pudo cargar el archivo.',
+        ),
+      );
+    } finally {
+      submittingRef.current = false;
+    }
   };
+
+  const handleRegisterClick = () => {
+    void form.handleSubmit(onRegister)();
+  };
+
+  const cancelWizard = () => {
+    if (busy) return;
+    if (createdDocumentId && phase === 'upload_failed') {
+      void navigate(`/documentos/${createdDocumentId}`);
+      return;
+    }
+    void navigate('/documentos');
+  };
+
+  if (!permissionsLoaded) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress size={36} />
+      </Box>
+    );
+  }
+
+  if (!canUseWizard) {
+    return (
+      <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
+        <PageHeader
+          title="Nuevo documento"
+          description="Registro documental con archivo digital."
+          backTo={{ to: '/documentos', label: 'Volver a Documentos' }}
+        />
+        <Alert severity="warning">
+          {!canCreate
+            ? 'No dispone de permiso para crear documentos (DOC_CREATE).'
+            : 'No dispone de permisos para cargar archivos digitales (DOC_FILES_UPLOAD). El registro exige adjuntar el PDF en el mismo proceso.'}
+        </Alert>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => void navigate('/documentos')}>
+          Volver a Documentos
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
-        title="Nuevo documento digitalizado"
-        description="Carga de archivo, metadatos, clasificación y validación de seguridad."
-        backTo={{ to: '/documentos', label: 'Volver a Documentos' }}
+        title="Registrar nuevo documento"
+        description="Seleccione el archivo, complete la información y registre el expediente en un solo proceso."
+        backTo={busy ? undefined : { to: '/documentos', label: 'Volver a Documentos' }}
       />
 
-      {submitError ? (
+      <Paper elevation={0} sx={{ ...listSurfaceSx, p: { xs: 2, sm: 2.5 }, mb: 2 }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel={!isSmDown}
+          orientation={isSmDown ? 'vertical' : 'horizontal'}
+        >
+          {WIZARD_STEPS.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Paper>
+
+      {submitError && phase !== 'upload_failed' ? (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSubmitError(null)}>
           {submitError}
         </Alert>
       ) : null}
 
-      <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
-        <Typography variant="body2">
-          Los desplegables provienen del catálogo activo. Cuando solo existe un tipo documental, una serie o una
-          clasificación compatible con la serie elegida, pueden preseleccionarse: conviene revisar antes de guardar.
-          El <strong>código</strong> lo asigna el servidor si no lo edita: serie simple <strong>PREFIJO-0001</strong>{' '}
-          cuando ya hay documentos en ese formato, o correlativo anual <strong>PREFIJO-AÑO-00001</strong> cuando
-          aplique. Use <strong>Correlativo servidor</strong> como vista previa (prefijo <code>DOCUMENTO_CODIGO_PREFIX</code>, por
-          defecto <code>DOC</code>).
-        </Typography>
-      </Alert>
+      {busy ? (
+        <Alert severity="info" icon={<CircularProgress size={18} />} sx={{ mb: 2 }}>
+          {phase === 'creating' ? 'Registrando documento…' : 'Subiendo archivo…'}
+        </Alert>
+      ) : null}
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
-            <Box sx={{ mb: 2 }}>
-              <SectionHeader
-                icon={<DescriptionOutlinedIcon fontSize="small" />}
-                title="Datos del documento"
-                subtitle="Metadatos obligatorios"
-              />
+      {/* Paso 1 — Archivo */}
+      {activeStep === 0 ? (
+        <Paper elevation={0} sx={{ ...listSurfaceSx, p: { xs: 2, sm: 3 } }}>
+          <SectionHeader
+            icon={<CloudUploadOutlinedIcon fontSize="small" />}
+            title="Seleccione el documento digital"
+            subtitle="Adjunte el archivo que desea registrar en el Sistema de Gestión Documental."
+          />
+
+          {!file ? (
+            <Box
+              role="button"
+              tabIndex={0}
+              onClick={onPickFile}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') onPickFile();
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                applySelectedFile(e.dataTransfer.files?.item(0) ?? null);
+              }}
+              sx={{
+                mt: 2,
+                borderRadius: 3,
+                border: '1px dashed',
+                borderColor: 'divider',
+                bgcolor: 'action.hover',
+                px: 2,
+                py: { xs: 4, sm: 5 },
+                textAlign: 'center',
+                cursor: 'pointer',
+                outline: 'none',
+                '&:focus-visible': {
+                  boxShadow: (t) => `0 0 0 3px ${alpha(t.palette.secondary.main, 0.25)}`,
+                },
+              }}
+            >
+              <PictureAsPdfOutlinedIcon sx={{ fontSize: 48, color: 'secondary.main' }} aria-hidden />
+              <Typography sx={{ mt: 1.5, fontWeight: 800 }}>Seleccione un documento</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                PDF · Máximo 50 MB
+              </Typography>
+              <Button
+                variant="contained"
+                color="secondary"
+                sx={{ mt: 2, textTransform: 'none' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPickFile();
+                }}
+              >
+                Seleccionar archivo
+              </Button>
             </Box>
-
-            <Box component="form" onSubmit={handleFormSubmit} noValidate>
-              <Stack spacing={2}>
-                <TextField
-                  label="Registrado por"
-                  value={registradoPorLabel}
-                  slotProps={{ input: { readOnly: true } }}
-                  helperText="Usuario autenticado; el servidor asigna el creador al guardar."
-                />
-                <TextField
-                  label="Fecha de registro"
-                  value={fechaRegistroHoy}
-                  slotProps={{ input: { readOnly: true } }}
-                  helperText="Se genera automáticamente al guardar (no editable)."
-                />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
-                  <TextField
-                    label="Código"
-                    sx={{ flex: 1, minWidth: 0 }}
-                    {...(() => {
-                      const r = form.register('codigo');
-                      return {
-                        ...r,
-                        onChange: (e: ChangeEvent<HTMLInputElement>) => {
-                          codigoUsuarioRef.current = true;
-                          setCodigoSugeridoErr(null);
-                          void r.onChange(e);
-                        },
-                      };
-                    })()}
-                    error={!!form.formState.errors.codigo}
-                    helperText={
-                      form.formState.errors.codigo?.message ??
-                      'Vista previa: si no modifica el campo, el servidor asignará el siguiente código al guardar.'
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    disabled={codigoSugeridoBusy}
-                    onClick={() => void aplicarCodigoSugerido({ forzar: true })}
-                    sx={{ mt: { xs: 0, sm: 0.5 }, flexShrink: 0 }}
-                  >
-                    {codigoSugeridoBusy ? 'Obteniendo…' : 'Correlativo servidor'}
+          ) : (
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 2,
+                p: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 2,
+              }}
+            >
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+              >
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', minWidth: 0 }}>
+                  <PictureAsPdfOutlinedIcon color="secondary" sx={{ mt: 0.25 }} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 700, wordBreak: 'break-word' }}>
+                      {file.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatMimeType(file.type || 'application/pdf')} · {formatFileSize(file.size)}
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                  <Button variant="outlined" onClick={onPickFile} sx={{ textTransform: 'none' }}>
+                    Cambiar archivo
+                  </Button>
+                  <Button color="error" onClick={clearFile} sx={{ textTransform: 'none' }}>
+                    Eliminar
                   </Button>
                 </Stack>
-                {codigoSugeridoErr && !form.formState.errors.codigo ? (
-                  <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: -1 }}>
-                    {codigoSugeridoErr}
-                  </Typography>
-                ) : null}
-                <TextField
-                  label="Asunto del documento"
-                  {...form.register('asunto')}
-                  error={!!form.formState.errors.asunto}
-                  helperText={
-                    form.formState.errors.asunto?.message ??
-                    'Descripción breve del contenido (mínimo 3 caracteres).'
-                  }
-                  required
-                />
+              </Stack>
+            </Paper>
+          )}
 
-                <Controller
-                  name="tipoDocumentalId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!form.formState.errors.tipoDocumentalId}>
-                      <InputLabel id="tipo-label">Tipo documental</InputLabel>
-                      <Select {...field} labelId="tipo-label" label="Tipo documental" value={field.value || ''}>
-                        <MenuItem value="">Seleccione…</MenuItem>
-                        {tipos.map((t) => (
-                          <MenuItem key={t.id} value={t.id}>
-                            {tipoLabel.get(t.id)}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept=".pdf,application/pdf"
+            onChange={(e) => applySelectedFile(e.target.files?.item(0) ?? null)}
+          />
 
-                <FormControl fullWidth>
-                  <InputLabel id="serie-label">Serie documental</InputLabel>
-                  <Select
-                    labelId="serie-label"
-                    label="Serie documental"
-                    value={serieId}
-                    onChange={(e) => {
-                      setSerieId(e.target.value);
-                      form.setValue('subserieId', '', { shouldValidate: true });
-                    }}
-                  >
+          {fileError ? (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {fileError}
+            </Alert>
+          ) : null}
+
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ mt: 3, justifyContent: 'flex-end' }}
+          >
+            <Button variant="text" onClick={cancelWizard} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              disabled={!fileValid || busy}
+              onClick={goToStepInfo}
+            >
+              Continuar
+            </Button>
+          </Stack>
+        </Paper>
+      ) : null}
+
+      {/* Paso 2 — Información */}
+      {activeStep === 1 ? (
+        <Paper elevation={0} sx={{ ...listSurfaceSx, p: { xs: 2, sm: 2.5 } }}>
+          <SectionHeader
+            icon={<DescriptionOutlinedIcon fontSize="small" />}
+            title="Información del documento"
+            subtitle="Metadatos y clasificación archivística"
+          />
+
+          {file ? (
+            <Alert severity="info" variant="outlined" sx={{ mt: 1.5, mb: 2 }}>
+              Archivo listo: <strong>{file.name}</strong> ({formatFileSize(file.size)})
+            </Alert>
+          ) : null}
+
+          <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+            El <strong>código</strong> lo asigna el servidor si no lo edita. Use{' '}
+            <strong>Correlativo servidor</strong> para refrescar la vista previa.
+          </Alert>
+
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Registrado por"
+              value={registradoPorLabel}
+              slotProps={{ input: { readOnly: true } }}
+              helperText="Usuario autenticado; el servidor asigna el creador al guardar."
+            />
+            <TextField
+              label="Fecha de registro"
+              value={fechaRegistroHoy}
+              slotProps={{ input: { readOnly: true } }}
+              helperText="Se genera automáticamente al guardar (no editable)."
+            />
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{ alignItems: { sm: 'flex-start' } }}
+            >
+              <TextField
+                label="Código"
+                sx={{ flex: 1, minWidth: 0 }}
+                {...(() => {
+                  const r = form.register('codigo');
+                  return {
+                    ...r,
+                    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                      codigoUsuarioRef.current = true;
+                      setCodigoSugeridoErr(null);
+                      void r.onChange(e);
+                    },
+                  };
+                })()}
+                error={!!form.formState.errors.codigo}
+                helperText={
+                  form.formState.errors.codigo?.message ??
+                  'Vista previa: si no modifica el campo, el servidor asignará el siguiente código al guardar.'
+                }
+              />
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={codigoSugeridoBusy || busy}
+                onClick={() => void aplicarCodigoSugerido({ forzar: true })}
+                sx={{ mt: { xs: 0, sm: 0.5 }, flexShrink: 0 }}
+              >
+                {codigoSugeridoBusy ? 'Obteniendo…' : 'Correlativo servidor'}
+              </Button>
+            </Stack>
+            {codigoSugeridoErr && !form.formState.errors.codigo ? (
+              <Typography variant="caption" color="warning.main">
+                {codigoSugeridoErr}
+              </Typography>
+            ) : null}
+
+            <TextField
+              label="Asunto del documento"
+              {...form.register('asunto')}
+              error={!!form.formState.errors.asunto}
+              helperText={form.formState.errors.asunto?.message}
+              required
+              disabled={busy}
+            />
+
+            <Controller
+              name="tipoDocumentalId"
+              control={form.control}
+              render={({ field }) => (
+                <FormControl fullWidth error={!!form.formState.errors.tipoDocumentalId} disabled={busy}>
+                  <InputLabel id="tipo-label">Tipo documental</InputLabel>
+                  <Select {...field} labelId="tipo-label" label="Tipo documental" value={field.value || ''}>
                     <MenuItem value="">Seleccione…</MenuItem>
-                    {series.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {s.codigo} — {s.nombre}
+                    {tipos.map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {tipoLabel.get(t.id)}
                       </MenuItem>
                     ))}
                   </Select>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
-                    Clasificación archivística (cuadro de clasificación); seleccione la serie y luego la subserie.
-                  </Typography>
                 </FormControl>
+              )}
+            />
 
-                <Controller
-                  name="subserieId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!form.formState.errors.subserieId}>
-                      <InputLabel id="subserie-label">Clasificación</InputLabel>
-                      <Select {...field} labelId="subserie-label" label="Clasificación" value={field.value || ''}>
-                        <MenuItem value="">Seleccione…</MenuItem>
-                        {subseriesFiltered.map((s) => (
-                          <MenuItem key={s.id} value={s.id}>
-                            {subserieLabel.get(s.id)}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
+            <FormControl fullWidth disabled={busy}>
+              <InputLabel id="serie-label">Serie documental</InputLabel>
+              <Select
+                labelId="serie-label"
+                label="Serie documental"
+                value={serieId}
+                onChange={(e) => {
+                  setSerieId(e.target.value);
+                  form.setValue('subserieId', '', { shouldValidate: true });
+                }}
+              >
+                <MenuItem value="">Seleccione…</MenuItem>
+                {series.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.codigo} — {s.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-                <Controller
-                  name="dependenciaId"
-                  control={form.control}
-                  render={({ field }) => (
-                    <FormControl fullWidth>
-                      <InputLabel id="dep-label">Dependencia responsable</InputLabel>
-                      <Select {...field} labelId="dep-label" label="Dependencia responsable" value={field.value || ''}>
-                        <MenuItem value="">(Sin asignar)</MenuItem>
-                        {dependencias.map((d) => (
-                          <MenuItem key={d.id} value={d.id}>
-                            {d.codigo} — {d.nombre}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
+            <Controller
+              name="subserieId"
+              control={form.control}
+              render={({ field }) => (
+                <FormControl fullWidth error={!!form.formState.errors.subserieId} disabled={busy}>
+                  <InputLabel id="subserie-label">Clasificación (subserie)</InputLabel>
+                  <Select {...field} labelId="subserie-label" label="Clasificación (subserie)" value={field.value || ''}>
+                    <MenuItem value="">Seleccione…</MenuItem>
+                    {subseriesFiltered.map((s) => (
+                      <MenuItem key={s.id} value={s.id}>
+                        {subserieLabel.get(s.id)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
 
+            <Controller
+              name="dependenciaId"
+              control={form.control}
+              render={({ field }) => (
+                <FormControl fullWidth disabled={busy}>
+                  <InputLabel id="dep-label">Dependencia propietaria</InputLabel>
+                  <Select {...field} labelId="dep-label" label="Dependencia propietaria" value={field.value || ''}>
+                    <MenuItem value="">(Sin asignar)</MenuItem>
+                    {dependencias.map((d) => (
+                      <MenuItem key={d.id} value={d.id}>
+                        {d.codigo} — {d.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
                   name="contraparteId"
                   control={form.control}
                   render={({ field }) => (
-                    <FormControl fullWidth>
+                    <FormControl fullWidth disabled={busy}>
                       <InputLabel id="contraparte-label">Contraparte (opcional)</InputLabel>
                       <Select
                         {...field}
@@ -620,12 +900,13 @@ export function NuevoDocumentoPage() {
                     </FormControl>
                   )}
                 />
-
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
                   name="beneficiarioId"
                   control={form.control}
                   render={({ field }) => (
-                    <FormControl fullWidth>
+                    <FormControl fullWidth disabled={busy}>
                       <InputLabel id="beneficiario-label">Beneficiario (opcional)</InputLabel>
                       <Select
                         {...field}
@@ -643,36 +924,25 @@ export function NuevoDocumentoPage() {
                     </FormControl>
                   )}
                 />
+              </Grid>
+            </Grid>
 
-                <TextField
-                  label="Responsable institucional (opcional)"
-                  {...form.register('responsableInstitucional')}
-                  error={!!form.formState.errors.responsableInstitucional}
-                  helperText={
-                    form.formState.errors.responsableInstitucional?.message ??
-                    'Nombre o cargo de referencia (texto libre). No sustituye al usuario que registra, la dependencia, la contraparte ni el beneficiario. Se guarda en mayúsculas.'
-                  }
-                />
+            <TextField
+              label="Responsable institucional (opcional)"
+              {...form.register('responsableInstitucional')}
+              disabled={busy}
+              helperText="Texto de referencia. El servidor lo guarda en mayúsculas."
+            />
 
-                <TextField
-                  label="Fecha de vencimiento (opcional)"
-                  type="date"
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  {...form.register('fechaVencimiento')}
-                  error={!!form.formState.errors.fechaVencimiento}
-                  helperText={
-                    form.formState.errors.fechaVencimiento?.message ??
-                    'Puede ser una fecha futura si aplica al documento.'
-                  }
-                />
-
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
                   name="nivelConfidencialidad"
                   control={form.control}
                   render={({ field }) => (
-                    <FormControl fullWidth>
-                      <InputLabel id="conf-label">Nivel de confidencialidad</InputLabel>
-                      <Select {...field} labelId="conf-label" label="Nivel de confidencialidad" value={field.value}>
+                    <FormControl fullWidth disabled={busy}>
+                      <InputLabel id="conf-label">Confidencialidad</InputLabel>
+                      <Select {...field} labelId="conf-label" label="Confidencialidad" value={field.value}>
                         <MenuItem value="PUBLICO">Público</MenuItem>
                         <MenuItem value="INTERNO">Interno</MenuItem>
                         <MenuItem value="RESERVADO">Reservado</MenuItem>
@@ -681,12 +951,13 @@ export function NuevoDocumentoPage() {
                     </FormControl>
                   )}
                 />
-
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
                   name="estado"
                   control={form.control}
                   render={({ field }) => (
-                    <FormControl fullWidth>
+                    <FormControl fullWidth disabled={busy}>
                       <InputLabel id="estado-label">Estado inicial</InputLabel>
                       <Select {...field} labelId="estado-label" label="Estado inicial" value={field.value}>
                         <MenuItem value="REGISTRADO">Registrado</MenuItem>
@@ -695,152 +966,166 @@ export function NuevoDocumentoPage() {
                     </FormControl>
                   )}
                 />
+              </Grid>
+            </Grid>
 
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="Fecha de emisión del documento"
+                  label="Fecha del documento"
                   type="date"
-                  slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: new Date().toISOString().slice(0, 10) } }}
+                  fullWidth
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    htmlInput: { max: new Date().toISOString().slice(0, 10) },
+                  }}
                   {...form.register('fechaDocumento')}
                   error={!!form.formState.errors.fechaDocumento}
                   helperText={form.formState.errors.fechaDocumento?.message}
                   required
+                  disabled={busy}
                 />
-
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
-                  label="Descripción"
-                  multiline
-                  minRows={3}
-                  {...form.register('descripcion')}
-                  error={!!form.formState.errors.descripcion}
-                  helperText={
-                    form.formState.errors.descripcion?.message ??
-                    'Opcional. Contexto o finalidad complementaria del documento.'
-                  }
+                  label="Fecha de vencimiento (opcional)"
+                  type="date"
+                  fullWidth
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  {...form.register('fechaVencimiento')}
+                  error={!!form.formState.errors.fechaVencimiento}
+                  helperText={form.formState.errors.fechaVencimiento?.message}
+                  disabled={busy}
                 />
+              </Grid>
+            </Grid>
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ pt: 0.5 }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="secondary"
-                    disabled={saving}
-                    sx={{ borderRadius: 3, px: 3 }}
-                  >
-                    {saving ? 'Guardando…' : 'Guardar documento'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="text"
-                    onClick={() => navigate('/documentos')}
-                    disabled={saving}
-                  >
-                    Cancelar
-                  </Button>
-                </Stack>
-              </Stack>
-            </Box>
-          </Paper>
-        </Grid>
+            <TextField
+              label="Descripción"
+              multiline
+              minRows={3}
+              {...form.register('descripcion')}
+              error={!!form.formState.errors.descripcion}
+              helperText={form.formState.errors.descripcion?.message}
+              disabled={busy}
+            />
 
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Stack spacing={2}>
-            <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
-              <Box sx={{ mb: 2 }}>
-                <SectionHeader
-                  icon={<CloudUploadOutlinedIcon fontSize="small" />}
-                  title="Archivo digital"
-                  subtitle="Solo PDF (.pdf), máx. 50 MB"
-                />
-              </Box>
-
-              <Box
-                role="button"
-                tabIndex={0}
-                onClick={onPickFile}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') onPickFile();
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const f = e.dataTransfer.files?.item(0) ?? null;
-                  onFileSelected(f);
-                }}
-                sx={{
-                  borderRadius: 3,
-                  border: '1px dashed',
-                  borderColor: 'divider',
-                  bgcolor: 'action.hover',
-                  px: 2,
-                  py: 4,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  '&:focus-visible': {
-                    boxShadow: (t) => `0 0 0 3px ${alpha(t.palette.secondary.main, 0.25)}`,
-                  },
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={{ pt: 1, justifyContent: 'space-between' }}
+            >
+              <Button
+                variant="outlined"
+                disabled={busy}
+                onClick={() => {
+                  setSubmitError(null);
+                  setActiveStep(0);
                 }}
               >
-                <CloudUploadOutlinedIcon sx={{ fontSize: 44, color: 'secondary.main' }} aria-hidden />
-                <Typography sx={{ mt: 1.5, fontWeight: 900, color: 'secondary.main' }}>
-                  Arrastre el archivo aquí o seleccione
+                Atrás
+              </Button>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <Button variant="text" onClick={cancelWizard} disabled={busy}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  disabled={busy || !fileValid}
+                  onClick={handleRegisterClick}
+                >
+                  {busy ? 'Procesando…' : 'Registrar documento'}
+                </Button>
+              </Stack>
+            </Stack>
+          </Stack>
+        </Paper>
+      ) : null}
+
+      {/* Paso 3 — Resultado */}
+      {activeStep === 2 ? (
+        <Paper elevation={0} sx={{ ...listSurfaceSx, p: { xs: 3, sm: 4 }, textAlign: 'center' }}>
+          {phase === 'success' ? (
+            <>
+              <CheckCircleRoundedIcon color="success" sx={{ fontSize: 56 }} />
+              <Typography variant="h6" sx={{ mt: 1.5, fontWeight: 800 }}>
+                Documento registrado correctamente
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1 }}>
+                {createdCodigo || form.getValues('codigo') || '—'}
+              </Typography>
+              {file ? (
+                <Typography variant="body2" sx={{ mt: 0.5, wordBreak: 'break-word' }}>
+                  {file.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  Tamaño máximo: 50 MB · Solo PDF · Validación automática
-                </Typography>
-                {file ? (
-                  <Typography variant="body2" sx={{ mt: 1.5 }}>
-                    <strong>{file.name}</strong> ({Math.round(file.size / 1024)} KB)
+              ) : null}
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Abriendo el detalle…
+              </Typography>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                sx={{ mt: 3, justifyContent: 'center' }}
+              >
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  disabled={!createdDocumentId}
+                  onClick={() => {
+                    if (createdDocumentId) void navigate(`/documentos/${createdDocumentId}`, { replace: true });
+                  }}
+                >
+                  Ver documento
+                </Button>
+                <Button variant="text" onClick={() => void navigate('/documentos', { replace: true })}>
+                  Cerrar
+                </Button>
+              </Stack>
+            </>
+          ) : (
+            <>
+              <Alert severity="warning" sx={{ textAlign: 'left', mb: 2 }}>
+                El registro documental fue creado, pero no se pudo cargar el archivo.
+                {submitError ? (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {submitError}
                   </Typography>
                 ) : null}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  hidden
-                  accept=".pdf,application/pdf"
-                  onChange={(e) => onFileSelected(e.target.files?.item(0) ?? null)}
-                />
-              </Box>
-            </Paper>
-
-            <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5 }}>
-              <Box sx={{ mb: 1.5 }}>
-                <SectionHeader
-                  icon={<RuleOutlinedIcon fontSize="small" />}
-                  title="Validaciones automáticas"
-                  subtitle="Comprobaciones antes de guardar"
-                />
-              </Box>
-
-              <Stack spacing={1}>
-                {validations.map((v) => (
-                  <Stack
-                    key={v.label}
-                    direction="row"
-                    spacing={1}
-                    sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      {v.pending ? (
-                        <ErrorOutlineRoundedIcon fontSize="small" color="warning" />
-                      ) : v.ok ? (
-                        <CheckCircleRoundedIcon fontSize="small" color="success" />
-                      ) : (
-                        <ErrorOutlineRoundedIcon fontSize="small" color="error" />
-                      )}
-                      <Typography variant="body2" color="text.secondary">
-                        {v.label}
-                      </Typography>
-                    </Stack>
-                    {statusChip(v.ok, v.pending)}
-                  </Stack>
-                ))}
+              </Alert>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                No se creará otro documento. Puede reintentar solo la carga del archivo.
+              </Typography>
+              {createdCodigo ? (
+                <Typography sx={{ fontWeight: 700, mb: 1 }}>{createdCodigo}</Typography>
+              ) : null}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                sx={{ justifyContent: 'center' }}
+              >
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  disabled={busy || !file}
+                  onClick={() => void retryUpload()}
+                >
+                  {phase === 'uploading' ? 'Subiendo…' : 'Reintentar carga'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  disabled={!createdDocumentId}
+                  onClick={() => {
+                    if (createdDocumentId) void navigate(`/documentos/${createdDocumentId}`);
+                  }}
+                >
+                  Ir al documento
+                </Button>
               </Stack>
-            </Paper>
-          </Stack>
-        </Grid>
-      </Grid>
+            </>
+          )}
+        </Paper>
+      ) : null}
     </Box>
   );
 }
-

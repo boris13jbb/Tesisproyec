@@ -24,9 +24,27 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-30 — Wizard creación documento (archivo → metadatos → upload)
+
+- **UI:** `NuevoDocumentoPage` con Stepper; botón y menú lateral unificados a `/documentos/nuevo`.
+- Eliminado diálogo «Registrar documento» de la bandeja (ya no crea sin archivo).
+- Secuencia: `POST /documentos` → `POST /documentos/:id/archivos`; reintento de upload sin duplicar registro.
+- Sin cambios de BD / Prisma.
+
+### 2026-08-30 — UI sin JSON crudo (historial de archivo y auditoría)
+
+- **Frontend:** utilidades `file-meta-format.ts` y `audit-meta-format.ts` (tamaño, MIME, IP, etiquetas de evento).
+- Modal **Historial del archivo** y diálogo **Detalle de auditoría** muestran metadatos humanizados; SHA-256 solo en «Información técnica» colapsada.
+- Sin cambios de BD / Prisma / permisos.
+
 ### 2026-08-30 — Onboarding otro PC (README / EJECUTAR / docs 42)
 
 - Checklist de clon: env, `migrate deploy`, `generate`, **`db seed`**, storage/backups no versionados; tabla por apartado (auth, catálogos, documentos, archivos, reportes, dashboard).
+
+### 2026-08-30 — Dashboard Likert: enlace al listado filtrado
+
+- **API:** `GET /documentos?likert=OPTIMO|MODERADO|CRITICO` (misma lógica que `evaluacionLikert`).
+- **UI:** tarjetas/barras Likert navegan a Documentos; aviso de filtro activo y limpieza.
 
 ### 2026-08-30 — Dashboard: gráficos Escala de Likert (salud documental)
 

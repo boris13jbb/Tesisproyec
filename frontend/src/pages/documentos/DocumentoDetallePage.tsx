@@ -52,6 +52,12 @@ import {
 import { getApiErrorMessage } from '../../utils/api-error-message';
 import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
 import {
+  buildFileEventDisplay,
+  formatDateTimeEc,
+  formatFileSize,
+  formatMimeType,
+} from '../../utils/file-meta-format';
+import {
   type PartyCatalogRow,
   partyDisplayLabel,
   partySelectLabel,
@@ -184,11 +190,8 @@ function formatValue(field: string | undefined, v: unknown): string {
     return v;
   }
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
-  }
+  /** No volcar objetos como JSON al usuario. */
+  return '—';
 }
 
 type DiffEntry = { field: string; from: unknown; to: unknown };
@@ -1305,8 +1308,8 @@ export function DocumentoDetallePage() {
                       tipoVistaPreviaMime(archivoUltimaVersion.mimeType) === null ? (
                         <Alert severity="info" sx={{ m: 2 }}>
                           Vista previa embebida no disponible para{' '}
-                          <strong>{archivoUltimaVersion.mimeType}</strong>. Use <strong>Descargar</strong> para abrir el
-                          archivo localmente (p. ej. documentos Office).
+                          <strong>{formatMimeType(archivoUltimaVersion.mimeType)}</strong>. Use{' '}
+                          <strong>Descargar</strong> para abrir el archivo localmente (p. ej. documentos Office).
                         </Alert>
                       ) : null}
 
@@ -1637,8 +1640,8 @@ export function DocumentoDetallePage() {
                                   v{a.version} — {a.originalName}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                  {formatDateOnly(a.createdAt)} — {a.createdBy.email} —{' '}
-                                  {(a.sizeBytes / 1024).toFixed(1)} KB
+                                  {formatDateTimeEc(a.createdAt)} — {a.createdBy.email} —{' '}
+                                  {formatFileSize(a.sizeBytes)} · {formatMimeType(a.mimeType)}
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -2321,57 +2324,152 @@ export function DocumentoDetallePage() {
         open={archivoEventosOpen}
         onClose={() => setArchivoEventosOpen(false)}
         fullWidth
-        maxWidth="md"
+        maxWidth="sm"
+        scroll="paper"
       >
-        <DialogTitle>Historial del archivo — {archivoEventosTitle}</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogTitle sx={{ wordBreak: 'break-word', pr: 2 }}>
+          Historial del archivo
+          {archivoEventosTitle ? (
+            <Typography
+              component="span"
+              variant="body2"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 0.5 }}
+            >
+              {archivoEventosTitle}
+            </Typography>
+          ) : null}
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 2 }}>
           {archivoEventos.length === 0 ? (
             <EmptyState dense title="Sin eventos registrados para este archivo." />
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {archivoEventos.map((ev) => (
-                <Paper key={ev.id} elevation={0} sx={nestedItemSx}>
-                  <Box
+            <Stack spacing={1.5}>
+              {archivoEventos.map((ev) => {
+                const display = buildFileEventDisplay(ev.tipo, ev.metaJson);
+                return (
+                  <Paper
+                    key={ev.id}
+                    elevation={0}
                     sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'column', sm: 'row' },
-                      gap: 1,
-                      justifyContent: 'space-between',
-                      alignItems: { xs: 'flex-start', sm: 'center' },
+                      ...nestedItemSx,
+                      p: 1.5,
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 2,
                     }}
                   >
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <Chip size="small" label={ev.tipo} />
+                    <Stack spacing={1}>
+                      <Chip
+                        size="small"
+                        label={display.tipoLabel}
+                        color={display.chipColor}
+                        sx={{ alignSelf: 'flex-start', fontWeight: 700 }}
+                      />
                       <Typography variant="body2" color="text.secondary">
-                        {formatDateOnly(ev.createdAt)} — {ev.createdBy.email}
+                        {formatDateTimeEc(ev.createdAt)}
                       </Typography>
-                    </Box>
-                  </Box>
-                  {ev.metaJson && (
-                    <Box
-                      component="pre"
-                      sx={{
-                        mt: 1,
-                        mb: 0,
-                        overflow: 'auto',
-                        bgcolor: 'action.hover',
-                        p: 1,
-                        borderRadius: 1,
-                        fontSize: 12,
-                      }}
-                    >
-                      {(() => {
-                        try {
-                          return JSON.stringify(JSON.parse(ev.metaJson), null, 2);
-                        } catch {
-                          return ev.metaJson;
-                        }
-                      })()}
-                    </Box>
-                  )}
-                </Paper>
-              ))}
-            </Box>
+                      <Typography
+                        variant="body2"
+                        sx={{ wordBreak: 'break-word', fontWeight: 600 }}
+                      >
+                        {ev.createdBy.email}
+                      </Typography>
+                      {display.rows.length > 0 ? (
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', sm: 'auto 1fr' },
+                            columnGap: 1.5,
+                            rowGap: 0.5,
+                          }}
+                        >
+                          {display.rows.map((row) => (
+                            <Box key={`${ev.id}-${row.label}`} sx={{ display: 'contents' }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                {row.label}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                              >
+                                {row.value}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : null}
+                      {display.emptyHint ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {display.emptyHint}
+                        </Typography>
+                      ) : null}
+                      {display.technicalRows.length > 0 ? (
+                        <Accordion
+                          disableGutters
+                          elevation={0}
+                          sx={{
+                            bgcolor: 'transparent',
+                            '&:before': { display: 'none' },
+                            border: 0,
+                          }}
+                        >
+                          <AccordionSummary
+                            expandIcon={<ExpandMoreIcon />}
+                            sx={{ minHeight: 36, px: 0, '& .MuiAccordionSummary-content': { my: 0.5 } }}
+                          >
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                              Información técnica
+                            </Typography>
+                          </AccordionSummary>
+                          <AccordionDetails sx={{ px: 0, pt: 0 }}>
+                            {display.technicalRows.map((row) => (
+                              <Box key={`${ev.id}-tech-${row.label}`} sx={{ mb: 1 }}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ display: 'block' }}
+                                >
+                                  {row.label}
+                                </Typography>
+                                <Stack
+                                  direction="row"
+                                  spacing={1}
+                                  sx={{ alignItems: 'flex-start' }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontFamily: 'ui-monospace, monospace',
+                                      fontSize: 12,
+                                      wordBreak: 'break-all',
+                                      flex: 1,
+                                    }}
+                                  >
+                                    {row.value.length > 24
+                                      ? `${row.value.slice(0, 16)}…${row.value.slice(-8)}`
+                                      : row.value}
+                                  </Typography>
+                                  <Button
+                                    size="small"
+                                    sx={{ textTransform: 'none', flexShrink: 0 }}
+                                    onClick={() => {
+                                      void navigator.clipboard?.writeText(row.value);
+                                    }}
+                                  >
+                                    Copiar
+                                  </Button>
+                                </Stack>
+                              </Box>
+                            ))}
+                          </AccordionDetails>
+                        </Accordion>
+                      ) : null}
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Stack>
           )}
         </DialogContent>
         <DialogActions>

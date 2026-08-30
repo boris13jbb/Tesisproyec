@@ -42,6 +42,8 @@ import {
   formatAuditResultLabel,
 } from '../../constants/audit-actions';
 import { getApiErrorMessage } from '../../utils/api-error-message';
+import { humanizeAuditMetaRows } from '../../utils/audit-meta-format';
+import { formatIpOrigenLabel } from '../../utils/file-meta-format';
 import {
   trafficLightColor,
   trafficLightEmoji,
@@ -751,7 +753,7 @@ export function AuditoriaPage() {
                 const doc = documentUiLabel(r);
                 const uaRaw = uaField(r);
                 const ua = shortenUserAgent(uaRaw);
-                const ipPart = r.ip?.trim() ? r.ip.trim() : '—';
+                const ipPart = r.ip?.trim() ? formatIpOrigenLabel(r.ip) : '—';
                 const ipUaDisplay = ua ? `${ipPart}\n${ua}` : ipPart;
                 const primaryName = usuarioLabel(r);
                 const email = r.actorEmail?.trim() ?? '';
@@ -839,16 +841,38 @@ export function AuditoriaPage() {
                 <strong>Recurso:</strong> {documentUiLabel(detailRow).text}
               </Typography>
               <Typography variant="body2">
-                <strong>IP:</strong> {detailRow.ip ?? '—'}
+                <strong>Origen:</strong> {formatIpOrigenLabel(detailRow.ip)}
               </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 <strong>Equipo:</strong> {uaField(detailRow) ?? '—'}
               </Typography>
-              {detailRow.metaJson ? (
-                <Box component="pre" sx={{ fontSize: 12, overflow: 'auto', bgcolor: 'action.hover', p: 1, borderRadius: 1 }}>
-                  {detailRow.metaJson}
-                </Box>
-              ) : null}
+              {(() => {
+                const metaRows = humanizeAuditMetaRows(detailRow.metaJson);
+                if (!metaRows.length) return null;
+                return (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 800 }}>
+                      Detalle adicional
+                    </Typography>
+                    <Stack spacing={0.75}>
+                      {metaRows.map((row) => (
+                        <Box key={`${row.label}-${row.value}`}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 700, display: 'block' }}
+                          >
+                            {row.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                            {row.value}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Box>
+                );
+              })()}
             </Stack>
           ) : null}
         </DialogContent>

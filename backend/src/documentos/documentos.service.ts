@@ -31,6 +31,10 @@ import {
   slaDiasRevisionFromEnv,
 } from './documento-sla.util';
 import { documentoVisibilityWhere } from './documento-scope.util';
+import {
+  documentoLikertWhere,
+  parseLikertNivel,
+} from '../dashboard/evaluacion-likert.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
@@ -359,6 +363,8 @@ export class DocumentosService {
       fechaDesde?: Date;
       fechaHasta?: Date;
       slaEstado?: string;
+      /** Filtro escala Likert (Óptimo / Moderado / Crítico). */
+      likertNivel?: string;
       sortBy?:
         | 'codigo'
         | 'fechaDocumento'
@@ -375,6 +381,7 @@ export class DocumentosService {
     const archivoMime = filters?.archivoMime?.trim();
     const archivoSha256 = filters?.archivoSha256?.trim();
     const estado = filters?.estado?.trim();
+    const likertNivel = parseLikertNivel(filters?.likertNivel);
     const page = Math.max(1, filters?.page ?? 1);
     const pageSize = Math.min(200, Math.max(5, filters?.pageSize ?? 20));
     const skip = (page - 1) * pageSize;
@@ -409,9 +416,18 @@ export class DocumentosService {
               : [{ fechaDocumento: sortDir }, { createdAt: 'desc' }];
 
     const slaWhere = this.slaWhereFromFilter(filters?.slaEstado);
+    const likertWhere = likertNivel
+      ? documentoLikertWhere(likertNivel)
+      : undefined;
+    /** Con Likert el propio filtro define activo/inactivo; no forzar solo activos. */
+    const activoWhere = likertWhere
+      ? {}
+      : incluirInactivos
+        ? {}
+        : { activo: true };
 
     const baseWhere: Prisma.DocumentoWhereInput = {
-      ...(incluirInactivos ? {} : { activo: true }),
+      ...activoWhere,
       ...(estado ? { estado } : {}),
       ...(filters?.tipoDocumentalId
         ? { tipoDocumentalId: filters.tipoDocumentalId }
@@ -447,6 +463,7 @@ export class DocumentosService {
         : {}),
       ...documentoWhereLibre(q),
       ...(slaWhere ?? {}),
+      ...(likertWhere ?? {}),
     } satisfies Prisma.DocumentoWhereInput;
 
     const scope = documentoVisibilityWhere(viewer);

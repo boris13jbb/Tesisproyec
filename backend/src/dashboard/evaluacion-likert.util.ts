@@ -7,6 +7,8 @@
  * - Nivel 1 Crítico (rojo): inactivo, rechazado o en revisión con SLA vencido.
  */
 
+import type { Prisma } from '@prisma/client';
+
 export const LIKERT_DIAS_UMBRAL_DEFAULT = 60;
 
 export type LikertNivelCodigo = 'OPTIMO' | 'MODERADO' | 'CRITICO';
@@ -65,6 +67,48 @@ export type EvaluacionLikertSummary = {
 function daysBetween(from: Date, to: Date): number {
   const ms = to.getTime() - from.getTime();
   return Math.floor(ms / (24 * 60 * 60 * 1000));
+}
+
+export function parseLikertNivel(
+  raw?: string | null,
+): LikertNivelCodigo | undefined {
+  const u = raw?.trim().toUpperCase();
+  if (u === 'OPTIMO' || u === 'MODERADO' || u === 'CRITICO') return u;
+  return undefined;
+}
+
+/** Condiciones Prisma equivalentes a `classifyDocumentoLikert` (para filtros de listado). */
+export function documentoLikertWhere(
+  nivel: LikertNivelCodigo,
+  now: Date = new Date(),
+  diasUmbral: number = LIKERT_DIAS_UMBRAL_DEFAULT,
+): Prisma.DocumentoWhereInput {
+  const umbral = new Date(now.getTime() - diasUmbral * 24 * 60 * 60 * 1000);
+  const criticoOr: Prisma.DocumentoWhereInput[] = [
+    { activo: false },
+    { estado: 'RECHAZADO' },
+    {
+      AND: [{ estado: 'EN_REVISION' }, { fechaLimiteSla: { lt: now } }],
+    },
+  ];
+
+  if (nivel === 'CRITICO') {
+    return { OR: criticoOr };
+  }
+
+  const notCritico: Prisma.DocumentoWhereInput = {
+    NOT: { OR: criticoOr },
+  };
+
+  if (nivel === 'MODERADO') {
+    return {
+      AND: [{ activo: true }, { updatedAt: { lt: umbral } }, notCritico],
+    };
+  }
+
+  return {
+    AND: [{ activo: true }, { updatedAt: { gte: umbral } }, notCritico],
+  };
 }
 
 /** Clasifica un documento en la escala Likert institucional. */

@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import TableRowsOutlinedIcon from '@mui/icons-material/TableRowsOutlined';
 import ViewAgendaOutlinedIcon from '@mui/icons-material/ViewAgendaOutlined';
@@ -9,10 +8,6 @@ import {
   Checkbox,
   Chip,
   Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
@@ -34,11 +29,8 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import type { ChangeEvent, FormEvent } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { z } from 'zod';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { userHasAdminAccess } from '../../auth/role-utils';
@@ -49,14 +41,15 @@ import { ListPanel } from '../../components/ListPanel';
 import { listTableContainerSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
 import {
+  labelLikertNivel,
+  parseLikertNivelUi,
+} from '../../nav/documentos-likert-navigation';
+import {
   DOCUMENTO_ESTADOS,
   labelDocumentoEstado,
   documentoEstadoChipColor,
-  documentoEstadoCreacionSchema,
   documentoEstadoSchema,
 } from '../../constants/documento-estado';
-import { fechaDocumentoEmisionSchema } from '../../utils/documento-fecha.schema';
-import { getApiErrorMessage } from '../../utils/api-error-message';
 
 type TipoOption = { id: string; codigo: string; nombre: string };
 type SerieOption = { id: string; codigo: string; nombre: string };
@@ -131,38 +124,6 @@ function labelClasificacionBandeja(row: DocumentoRow): { line: string; title: st
   };
 }
 
-const createSchema = z.object({
-  codigo: z
-    .string()
-    .max(64)
-    .transform((s) => s.trim())
-    .refine((s) => s.length === 0 || s.length >= 2, {
-      message: 'Si indica código, mínimo 2 caracteres.',
-    }),
-  asunto: z.string().min(3).max(250),
-  descripcion: z.string().max(1000).optional(),
-  fechaDocumento: fechaDocumentoEmisionSchema,
-  tipoDocumentalId: z.string().min(1, 'Tipo requerido'),
-  subserieId: z.string().min(1, 'Subserie requerida'),
-  dependenciaId: z.string().optional(),
-  nivelConfidencialidad: z.enum(['PUBLICO', 'INTERNO', 'RESERVADO', 'CONFIDENCIAL']),
-  estado: documentoEstadoCreacionSchema,
-});
-
-type CreateForm = z.infer<typeof createSchema>;
-
-const createFormDefaults: CreateForm = {
-  codigo: '',
-  asunto: '',
-  descripcion: '',
-  fechaDocumento: new Date().toISOString().slice(0, 10),
-  tipoDocumentalId: '',
-  subserieId: '',
-  dependenciaId: '',
-  nivelConfidencialidad: 'INTERNO',
-  estado: 'REGISTRADO',
-};
-
 type DocumentosViewMode = 'cards' | 'table';
 const DOCUMENTOS_VIEW_KEY = 'sgd.ui.documentosView';
 
@@ -195,14 +156,14 @@ export function DocumentosPage() {
   );
   const canCreateDocumento = useMemo(() => {
     if (isAdmin) return true;
-    return myPermissionCodes?.includes('DOC_CREATE') ?? false;
+    const codes = myPermissionCodes ?? [];
+    return codes.includes('DOC_CREATE') && codes.includes('DOC_FILES_UPLOAD');
   }, [isAdmin, myPermissionCodes]);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [tipos, setTipos] = useState<TipoOption[]>([]);
   const [subseries, setSubseries] = useState<SubserieOption[]>([]);
-  const [dependencias, setDependencias] = useState<DependenciaOption[]>([]);
 
   const [rows, setRows] = useState<DocumentoRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -226,10 +187,6 @@ export function DocumentosPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  const [createOpen, setCreateOpen] = useState(false);
-  /** Solo si el usuario editó el campo código se envía en el POST; si no, el servidor asigna correlativo en la transacción. */
-  const createCodigoUsuarioRef = useRef(false);
-  const [createCodigoBusy, setCreateCodigoBusy] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<DocumentosViewMode>(readDocumentosView);
 
@@ -266,6 +223,15 @@ export function DocumentosPage() {
   /** Filtro efectivo: la query `?estado=` tiene prioridad sobre el estado local del Select. */
   const estadoFiltrado = estadoDesdeUrl ?? estado;
 
+  const likertFiltrado = useMemo(
+    () => parseLikertNivelUi(searchParams.get('likert')),
+    [searchParams],
+  );
+
+  /** URL o casilla local; Crítico del dashboard activa inactivos vía query. */
+  const incluirInactivosEfectivo =
+    incluirInactivos || searchParams.get('incluirInactivos') === 'true';
+
   useEffect(() => {
     let cancelled = false;
     apiClient
@@ -296,30 +262,16 @@ export function DocumentosPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get<DependenciaOption[]>('/dependencias')
-      .then((res) => {
-        if (!cancelled) setDependencias(res.data);
-      })
-      .catch(() => {
-        if (!cancelled) setDependencias([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
       const { data } = await apiClient.get<DocumentosPaged>('/documentos', {
         params: {
-          incluirInactivos: incluirInactivos ? 'true' : 'false',
+          incluirInactivos: incluirInactivosEfectivo ? 'true' : 'false',
           q: q || undefined,
           estado: estadoFiltrado || undefined,
+          likert: likertFiltrado || undefined,
           tipoDocumentalId: tipoDocumentalId || undefined,
           serieId: serieId || undefined,
           subserieId: subserieId || undefined,
@@ -342,12 +294,13 @@ export function DocumentosPage() {
       setLoading(false);
     }
   }, [
-    incluirInactivos,
+    incluirInactivosEfectivo,
     q,
     archivoNombre,
     archivoMime,
     archivoSha256,
     estadoFiltrado,
+    likertFiltrado,
     tipoDocumentalId,
     serieId,
     subserieId,
@@ -388,10 +341,13 @@ export function DocumentosPage() {
       (prev) => {
         const n = new URLSearchParams(prev);
         n.delete('estado');
+        n.delete('likert');
+        n.delete('incluirInactivos');
         return n;
       },
       { replace: true },
     );
+    setIncluirInactivos(false);
     setTipoDocumentalId('');
     setSerieId('');
     setSubserieId('');
@@ -529,70 +485,6 @@ export function DocumentosPage() {
     }
   };
 
-  const createForm = useForm<CreateForm>({
-    resolver: zodResolver(createSchema),
-    defaultValues: { ...createFormDefaults },
-  });
-
-  const prefetchCreateCodigo = useCallback(
-    async (fechaYmd: string, resetUsuarioFlag: boolean) => {
-      if (resetUsuarioFlag) {
-        createCodigoUsuarioRef.current = false;
-      }
-      const anioStr = fechaYmd.slice(0, 4);
-      const params = /^\d{4}$/.test(anioStr) ? { anio: Number(anioStr) } : {};
-      setCreateCodigoBusy(true);
-      try {
-        const { data } = await apiClient.get<{ codigo: string }>(
-          '/documentos/next-codigo',
-          { params },
-        );
-        createForm.setValue('codigo', data.codigo, { shouldValidate: true });
-      } finally {
-        setCreateCodigoBusy(false);
-      }
-    },
-    [createForm],
-  );
-
-  const openCreateDialog = () => {
-    const fecha = new Date().toISOString().slice(0, 10);
-    createForm.reset({ ...createFormDefaults, fechaDocumento: fecha });
-    setCreateOpen(true);
-    void prefetchCreateCodigo(fecha, true).catch(() => {
-      createForm.setValue('codigo', '', { shouldValidate: true });
-    });
-  };
-
-  const onCreate = (event: FormEvent<HTMLFormElement>) => {
-    void createForm.handleSubmit(async (data) => {
-      setError(null);
-      try {
-        const trimmedCodigo = data.codigo.trim();
-        const body: Record<string, unknown> = {
-          asunto: data.asunto,
-          descripcion: data.descripcion || undefined,
-          fechaDocumento: new Date(data.fechaDocumento).toISOString(),
-          tipoDocumentalId: data.tipoDocumentalId,
-          subserieId: data.subserieId,
-          dependenciaId: data.dependenciaId?.trim() || undefined,
-          nivelConfidencialidad: data.nivelConfidencialidad,
-          estado: data.estado,
-        };
-        if (createCodigoUsuarioRef.current && trimmedCodigo) {
-          body.codigo = trimmedCodigo;
-        }
-        await apiClient.post('/documentos', body);
-        setCreateOpen(false);
-        createForm.reset({ ...createFormDefaults });
-        createCodigoUsuarioRef.current = false;
-        await load();
-      } catch (err: unknown) {
-        setError(getApiErrorMessage(err, 'No se pudo crear el documento.'));
-      }
-    })(event);
-  };
-
   const subserieLabel = useMemo(() => {
     const map = new Map<string, string>();
     for (const s of subseries) {
@@ -633,7 +525,12 @@ export function DocumentosPage() {
                 </>
               )}
               {canCreateDocumento && (
-                <Button variant="contained" color="secondary" size="small" onClick={openCreateDialog}>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  size="small"
+                  onClick={() => void navigate('/documentos/nuevo')}
+                >
                   Nuevo documento
                 </Button>
               )}
@@ -646,6 +543,30 @@ export function DocumentosPage() {
             {error}
           </Alert>
         )}
+
+        {likertFiltrado ? (
+          <Alert
+            severity="info"
+            sx={{ mb: 2 }}
+            onClose={() => {
+              setSearchParams(
+                (prev) => {
+                  const n = new URLSearchParams(prev);
+                  n.delete('likert');
+                  n.delete('incluirInactivos');
+                  return n;
+                },
+                { replace: true },
+              );
+              setIncluirInactivos(false);
+              setPage(1);
+            }}
+          >
+            Filtro Likert activo: <strong>{labelLikertNivel(likertFiltrado)}</strong>. Se listan
+            documentos del mismo criterio que el panel de evaluación. Pulse la X o «Limpiar» para
+            quitarlo.
+          </Alert>
+        ) : null}
 
         <FilterPanel
           title="Filtros de búsqueda"
@@ -670,8 +591,19 @@ export function DocumentosPage() {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={incluirInactivos}
-                      onChange={(_, c) => setIncluirInactivos(c)}
+                      checked={incluirInactivosEfectivo}
+                      onChange={(_, c) => {
+                        setIncluirInactivos(c);
+                        setSearchParams(
+                          (prev) => {
+                            const n = new URLSearchParams(prev);
+                            if (c) n.set('incluirInactivos', 'true');
+                            else n.delete('incluirInactivos');
+                            return n;
+                          },
+                          { replace: true },
+                        );
+                      }}
                       size="small"
                     />
                   }
@@ -1187,197 +1119,6 @@ export function DocumentosPage() {
 
       </Box>
 
-      <Dialog
-        open={createOpen}
-        onClose={() => {
-          setCreateOpen(false);
-          createCodigoUsuarioRef.current = false;
-          createForm.reset({ ...createFormDefaults });
-        }}
-        fullWidth
-        maxWidth="sm"
-        fullScreen={isXs}
-      >
-        <DialogTitle>Registrar documento</DialogTitle>
-        <Box component="form" onSubmit={onCreate} noValidate>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
-              <TextField
-                label="Código"
-                sx={{ flex: 1, minWidth: 0 }}
-                {...(() => {
-                  const r = createForm.register('codigo');
-                  return {
-                    ...r,
-                    onChange: (e: ChangeEvent<HTMLInputElement>) => {
-                      createCodigoUsuarioRef.current = true;
-                      void r.onChange(e);
-                    },
-                  };
-                })()}
-                error={!!createForm.formState.errors.codigo}
-                helperText={
-                  createForm.formState.errors.codigo?.message ??
-                  'Vista previa del correlativo: si no modifica este campo, el servidor asignará el siguiente código al guardar.'
-                }
-              />
-              <Button
-                type="button"
-                variant="outlined"
-                disabled={createCodigoBusy}
-                onClick={() => {
-                  const f = createForm.getValues('fechaDocumento');
-                  void prefetchCreateCodigo(f || new Date().toISOString().slice(0, 10), true);
-                }}
-                sx={{ mt: { xs: 0, sm: 0.5 }, flexShrink: 0 }}
-              >
-                {createCodigoBusy ? 'Obteniendo…' : 'Correlativo servidor'}
-              </Button>
-            </Stack>
-            <TextField
-              label="Asunto"
-              {...createForm.register('asunto')}
-              error={!!createForm.formState.errors.asunto}
-              helperText={createForm.formState.errors.asunto?.message}
-              required
-            />
-            <Controller
-              name="tipoDocumentalId"
-              control={createForm.control}
-              render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel id="tipo-label">Tipo documental</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="tipo-label"
-                    label="Tipo documental"
-                    value={field.value || ''}
-                  >
-                    {tipos.map((t) => (
-                      <MenuItem key={t.id} value={t.id}>
-                        {t.codigo} — {t.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
-            <Controller
-              name="subserieId"
-              control={createForm.control}
-              render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel id="subserie-label">Subserie</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="subserie-label"
-                    label="Subserie"
-                    value={field.value || ''}
-                  >
-                    {subseries.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {subserieLabel.get(s.id)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
-            <Controller
-              name="dependenciaId"
-              control={createForm.control}
-              render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel id="dep-label">Dependencia propietaria</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="dep-label"
-                    label="Dependencia propietaria"
-                    value={field.value || ''}
-                  >
-                    <MenuItem value="">(Usar dependencia del ADMIN o sin asignar)</MenuItem>
-                    {dependencias.map((d) => (
-                      <MenuItem key={d.id} value={d.id}>
-                        {d.codigo} — {d.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
-            <Controller
-              name="nivelConfidencialidad"
-              control={createForm.control}
-              render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel id="nivel-label">Confidencialidad</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="nivel-label"
-                    label="Confidencialidad"
-                    value={field.value}
-                  >
-                    <MenuItem value="INTERNO">Interno</MenuItem>
-                    <MenuItem value="PUBLICO">Público</MenuItem>
-                    <MenuItem value="RESERVADO">Reservado</MenuItem>
-                    <MenuItem value="CONFIDENCIAL">Confidencial (solo ADMIN)</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
-            />
-            <Controller
-              name="estado"
-              control={createForm.control}
-              render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel id="estado-create-label">Estado inicial</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="estado-create-label"
-                    label="Estado inicial"
-                    value={field.value || 'REGISTRADO'}
-                  >
-                    <MenuItem value="REGISTRADO">{labelDocumentoEstado('REGISTRADO')}</MenuItem>
-                    <MenuItem value="BORRADOR">{labelDocumentoEstado('BORRADOR')}</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
-            />
-            <TextField
-              label="Fecha del documento"
-              type="date"
-              slotProps={{
-                inputLabel: { shrink: true },
-                htmlInput: { max: new Date().toISOString().slice(0, 10) },
-              }}
-              {...createForm.register('fechaDocumento')}
-              error={!!createForm.formState.errors.fechaDocumento}
-              helperText={createForm.formState.errors.fechaDocumento?.message}
-              required
-            />
-            <TextField
-              label="Descripción"
-              {...createForm.register('descripcion')}
-              multiline
-              minRows={2}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => {
-                setCreateOpen(false);
-                createCodigoUsuarioRef.current = false;
-                createForm.reset({ ...createFormDefaults });
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" variant="contained">
-              Guardar
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
     </>
   );
 }

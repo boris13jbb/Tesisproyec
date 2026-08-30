@@ -133,7 +133,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
   - **Nivel 5 Óptimo (verde):** documentos activos actualizados en los últimos 60 días, sin alerta crítica.
   - **Nivel 3 Moderado (amarillo):** documentos activos con más de 60 días sin actualización.
   - **Nivel 1 Crítico (rojo):** inactivos, rechazados o en revisión con SLA vencido.
-  Los conteos respetan el ámbito de visibilidad del usuario (mismos criterios anti‑IDOR que el listado).
+  Los conteos respetan el ámbito de visibilidad del usuario (mismos criterios anti‑IDOR que el listado). **Pulse una tarjeta o barra** para abrir **Documentos** con el filtro `likert` correspondiente (mismo criterio). En Documentos verá un aviso «Filtro Likert activo» y podrá quitarlo con la X o **Limpiar**.
 - Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana de notificaciones in-app** (icono junto al tema): muestra eventos de revisión, resolución y vencimientos; el badge indica no leídas. En el panel **Inicio**, la campana del dashboard sigue mostrando alertas (ADMIN) o pendientes de revisión (resto).
 - Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
 - **Alertas (tarjeta, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
@@ -147,7 +147,7 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **`docs/44-guia-secciones-menu-navegacion.md`**.
 
-- **Menú:** Inicio · Documentos · **Bandeja trámites** · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` o ADMIN)
+- **Menú:** Inicio · Documentos · **Bandeja trámites** · Trámites · Clasificación · Nuevo documento (si `DOC_CREATE` + `DOC_FILES_UPLOAD`, o ADMIN)
 - **Reportes** (solo `ADMIN`): **Reportes institucionales** (ruta `/reportes`; `/admin/reportes` redirige al mismo módulo)
 - **Administración** (solo `ADMIN`): Usuarios y roles · Auditoría · Respaldos · Configuración
 - **Catálogos** (solo `ADMIN`): Dependencias · Cargos · Tipos documentales · Series · Subseries · **Contrapartes** · **Beneficiarios**
@@ -404,39 +404,28 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 - No aparecen botones: tu usuario no tiene rol **REVISOR** ni **ADMIN**.
 - “No se pudo exportar…”: backend apagado o sesión caducada.
 
-### 7.4 Crear documento (solo ADMIN)
+### 7.4 Crear documento (`DOC_CREATE` + `DOC_FILES_UPLOAD`, o ADMIN)
 
-1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, el botón **Nuevo documento** en la cabecera de la página (si tiene permiso `DOC_CREATE` o es ADMIN).
-2. Los desplegables (**tipo**, **serie**, **clasificación**, **dependencia**, **contraparte**, **beneficiario**) muestran el **catálogo real del servidor**. El sistema puede **prellenar su dependencia** si su usuario tiene dependencia en perfil y ésta existe en catálogo. Si hay un solo tipo documental o una sola serie o una sola subserie aplicable en el árbol, puede seleccionarse automáticamente al cargarse el catálogo.
-3. Completa:
-   - **Registrado por** (solo lectura): muestra su usuario autenticado; el servidor asigna el creador al guardar.
-   - **Fecha de registro** (solo lectura): se genera automáticamente al guardar (`createdAt`); no es editable.
-   - **Código (único)**: el servidor **asigna automáticamente** el siguiente correlativo si no lo modifica. La pantalla puede mostrar una **vista previa** (también con **Correlativo servidor**). La convención depende de lo ya registrado: si existen códigos en forma **simple** (`PREFIJO-0001`, `PREFIJO-0002`…), se continúa esa serie; si no, puede usarse el formato **anual** (`PREFIJO-AÑO-00001`…). Solo **ADMIN** puede fijar un código distinto escribiéndolo en el formulario. El prefijo se configura con `DOCUMENTO_CODIGO_PREFIX` en el backend (`DOC` por defecto).
-
-   Desde **Documentos**, el cuadro **Registrar documento** se comporta igual: vista previa al abrir y asignación en el servidor si no tocó el campo **Código**.
-   - Asunto
-   - Descripción (opcional)
-   - **Fecha de emisión** (no puede ser posterior a hoy)
-   - **Fecha de vencimiento** (opcional; puede ser futura)
-   - Tipo documental
-   - Serie y clasificación (subserie)
-   - **Estado inicial** (**Registrado** o **Borrador**)
-   - **Dependencia responsable** (opcional; puede venir desde su perfil)
-   - **Contraparte** y **Beneficiario** (opcionales; catálogos del apartado 6)
-   - **Responsable institucional** (opcional; texto de referencia — persona o cargo —. **No** es quien registra el documento, **ni** la dependencia, **ni** la contraparte, **ni** el beneficiario. El servidor lo guarda en mayúsculas.)
-   - **Confidencialidad** (por defecto Interno)
-4. Selecciona un **archivo PDF** (`.pdf`) (máx 50 MB). Otros formatos (imágenes, DOCX, XLSX, etc.) son rechazados.
-5. Verifica que el panel **Validaciones automáticas** (iconos de sección alineados al tema) marque “Correcto” para extensión/nombre/metadatos/clasificación (las reglas siguen vigentes hasta que selecciones archivo y completes campos válidos).
-6. Presiona **Guardar documento** (botón principal de la cabecera del formulario).
+1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, el botón **Nuevo documento** en la cabecera (ambos abren el **mismo** asistente).
+2. Se requieren permisos de **crear** y de **cargar archivos**. Si falta la carga de archivos, el sistema muestra un aviso y no inicia el registro incompleto.
+3. **Paso 1 — Archivo:** seleccione un **PDF** (máx. 50 MB). Sin archivo válido no puede continuar. Puede cambiar o eliminar la selección.
+4. **Paso 2 — Información:** complete metadatos (código/correlativo, asunto, tipo, serie/clasificación, dependencia, confidencialidad, estado inicial, fechas, descripción y opcionales). Los desplegables provienen del catálogo. El **código** lo asigna el servidor si no lo edita (**Correlativo servidor**).
+5. Pulse **Registrar documento**. El sistema:
+   - crea el registro (`POST /documentos`);
+   - sube automáticamente el PDF (`POST /documentos/:id/archivos`);
+   - muestra confirmación y abre el **detalle** con el archivo ya en **Archivos digitales** (no hace falta «Subir archivo» otra vez).
+6. Si el documento se crea pero falla la carga del archivo: verá **Reintentar carga** (solo el upload, sin duplicar el registro) e **Ir al documento**.
 
 **Resultado esperado**
-- El documento aparece en el listado y se puede abrir el detalle.
+- El detalle muestra `v1` del PDF adjunto y la vista previa puede usar ese archivo.
 
-**Nota sobre el ciclo de vida:** **Aprobar** y **Rechazar** solo se hacen en el **detalle** con los botones de revisión (el rechazo exige motivo). Editar metadatos **no** permite saltar a Aprobado/Rechazado. Un documento **Archivado** no admite subir ni eliminar adjuntos.
+**Nota:** En el detalle sigue existiendo **Subir archivo** para versiones posteriores. **Aprobar** / **Rechazar** solo en el detalle. Un documento **Archivado** no admite subir ni eliminar adjuntos.
 
 ---
 
-## 8. Detalle del documento (donde se adjuntan archivos)
+## 8. Detalle del documento
+
+> El archivo inicial ya se adjunta en el asistente de **Nuevo documento**. En el detalle puede subir **nuevas versiones** o gestionar adjuntos existentes.
 
 ### 8.1 Abrir el detalle
 
@@ -510,7 +499,10 @@ Cuando está **En revisión**:
 1. Presiona **Historial**.
 
 **Resultado esperado**
-- Se muestran eventos `SUBIDO/DESCARGADO/ELIMINADO` con fecha y usuario.
+- Se abre el diálogo **Historial del archivo** con una tarjeta por evento.
+- Etiquetas legibles: **Archivo subido**, **Archivo descargado**, **Archivo eliminado** (no códigos crudos ni bloques JSON).
+- Fecha/hora en formato local (p. ej. `30 ago 2026 · 15:10`), usuario, y según el evento: nombre de archivo, versión, tipo (PDF/Word/…), tamaño (MB/KB) u origen/IP normalizado (p. ej. **Equipo local · 127.0.0.1**).
+- El hash SHA-256, si existe, queda en **Información técnica** (colapsada) con opción **Copiar**.
 
 #### 8.2.4 Eliminar archivo (borrado lógico, solo ADMIN)
 
@@ -534,7 +526,7 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 
 1. Menú lateral → **Administración** → **Auditoría** (ruta `/admin/auditoria`).
 2. En **Criterios de consulta** elija **Usuario** (**Todos** o un usuario del listado — el servidor filtra por <code>actor_user_id</code>), **Acción** (**Todas** o una acción concreta, coincidencia exacta con el código en base de datos) y las fechas **Desde / Hasta**.
-3. Pulse **Consultar** para aplicar filtros y cargar la tabla (antes de consultar, los cambios en los campos no actualizan el listado). El listado muestra **10 registros por página** por defecto. Arriba puede verse el bloque **Estadísticas por usuario** (semáforo verde/ámbar/rojo según actividad reciente). En cada fila, **Ver detalle** abre un diálogo con metadatos completos del evento. El listado usa el **icono de auditoría** del menú (no una letra «A») y chips de resultado **Correcto** / **No completado** según el tema. Opcional: icono **Actualizar** en la cabecera para repetir la consulta con los mismos filtros y página actual.
+3. Pulse **Consultar** para aplicar filtros y cargar la tabla (antes de consultar, los cambios en los campos no actualizan el listado). El listado muestra **10 registros por página** por defecto. Arriba puede verse el bloque **Estadísticas por usuario** (semáforo verde/ámbar/rojo según actividad reciente). En cada fila, **Ver detalle** abre un diálogo con fecha, usuario, acción, resultado, recurso, origen (IP normalizada) y **Detalle adicional** en etiquetas legibles (decisión, motivo, transición de estado, etc.); **no** se muestra JSON crudo. El listado usa el **icono de auditoría** del menú (no una letra «A») y chips de resultado **Correcto** / **No completado** según el tema. Opcional: icono **Actualizar** en la cabecera para repetir la consulta con los mismos filtros y página actual.
 4. Opcional: **Exportar Excel** o **Exportar PDF** descargan hasta **5000** registros recientes que cumplan **los filtros ya aplicados**.
 
 **Resultado esperado**

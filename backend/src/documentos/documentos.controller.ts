@@ -57,6 +57,7 @@ export class DocumentosController {
     @Query('fechaDesde') fechaDesde?: string,
     @Query('fechaHasta') fechaHasta?: string,
     @Query('slaEstado') slaEstado?: string,
+    @Query('likert') likert?: string,
     @Query('sortBy')
     sortBy?: 'codigo' | 'fechaDocumento' | 'estado' | 'fechaIngresoRevision',
     @Query('sortDir') sortDir?: 'asc' | 'desc',
@@ -77,6 +78,7 @@ export class DocumentosController {
       fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
       fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
       slaEstado,
+      likertNivel: likert,
       sortBy,
       sortDir,
       page: page ? Number(page) : undefined,

@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -6,8 +7,11 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme, type Theme } from '@mui/material/styles';
 import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
+import { useNavigate } from 'react-router-dom';
 import { SectionHeader } from './SectionHeader';
 import { listSurfaceSx } from './listSurfaces';
+import { documentosPathForLikert } from '../nav/documentos-likert-navigation';
+import type { LikertNivelCodigoUi } from '../nav/documentos-likert-navigation';
 
 export type EvaluacionLikertNivel = {
   codigo: 'OPTIMO' | 'MODERADO' | 'CRITICO';
@@ -109,16 +113,21 @@ function LikertDonut({
 
 export function EvaluacionLikertCharts({ data, loading }: Props) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const niveles = data?.niveles ?? [];
   const total = data?.total ?? 0;
   const maxBar = Math.max(1, ...niveles.map((n) => n.count));
+
+  function openNivel(codigo: EvaluacionLikertNivel['codigo']) {
+    navigate(documentosPathForLikert(codigo as LikertNivelCodigoUi));
+  }
 
   return (
     <Paper elevation={0} sx={{ ...listSurfaceSx, mb: 2.5, p: { xs: 2, md: 2.5 } }}>
       <SectionHeader
         icon={<SpeedOutlinedIcon fontSize="small" />}
         title="Dashboard de Auditoría y Evaluación (Escala de Likert)"
-        subtitle="Clasificación del estado y salud documental bajo criterios de control institucional tipo semáforo."
+        subtitle="Clasificación del estado y salud documental bajo criterios de control institucional tipo semáforo. Pulse un nivel para ver el listado filtrado."
       />
 
       {loading ? (
@@ -140,13 +149,24 @@ export function EvaluacionLikertCharts({ data, loading }: Props) {
               const color = toneColor(theme, n.colorTone);
               return (
                 <Grid key={n.codigo} size={{ xs: 12, sm: 4 }}>
-                  <Box
+                  <ButtonBase
+                    onClick={() => openNivel(n.codigo)}
+                    focusRipple
+                    aria-label={`Ver documentos ${n.etiqueta}`}
                     sx={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
                       borderRadius: 2,
                       overflow: 'hidden',
                       border: '1px solid',
                       borderColor: 'divider',
                       height: '100%',
+                      transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+                      '&:hover': {
+                        borderColor: color,
+                        boxShadow: `0 0 0 1px ${alpha(color, 0.4)}`,
+                      },
                     }}
                   >
                     <Box
@@ -178,8 +198,14 @@ export function EvaluacionLikertCharts({ data, loading }: Props) {
                       <Typography variant="body2" sx={{ fontWeight: 700, mt: 1 }}>
                         {n.percent}% del total
                       </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ display: 'block', mt: 1.25, fontWeight: 700, color }}
+                      >
+                        Ver listado →
+                      </Typography>
                     </Box>
-                  </Box>
+                  </ButtonBase>
                 </Grid>
               );
             })}
@@ -241,15 +267,20 @@ export function EvaluacionLikertCharts({ data, loading }: Props) {
                       title={`${n.etiqueta}: ${n.count} documento(s)`}
                       arrow
                     >
-                      <Box
-                        sx={{
-                          flex: 1,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 0.75,
-                        }}
-                      >
+                    <ButtonBase
+                    onClick={() => openNivel(n.codigo)}
+                    focusRipple
+                    aria-label={`Ver documentos ${n.etiqueta}`}
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 0.75,
+                      borderRadius: 1,
+                      py: 0.5,
+                    }}
+                  >
                         <Typography variant="caption" sx={{ fontWeight: 800 }}>
                           {n.count}
                         </Typography>
@@ -275,7 +306,7 @@ export function EvaluacionLikertCharts({ data, loading }: Props) {
                               ? 'Moderado'
                               : 'Crítico'}
                         </Typography>
-                      </Box>
+                  </ButtonBase>
                     </Tooltip>
                   );
                 })}

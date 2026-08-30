@@ -1,8 +1,10 @@
 import {
   buildEvaluacionLikertSummary,
   classifyDocumentoLikert,
+  documentoLikertWhere,
   emptyEvaluacionLikertSummary,
   LIKERT_DIAS_UMBRAL_DEFAULT,
+  parseLikertNivel,
 } from './evaluacion-likert.util';
 
 describe('evaluacion-likert.util', () => {
@@ -126,5 +128,27 @@ describe('evaluacion-likert.util', () => {
   it('vacío → ceros', () => {
     expect(emptyEvaluacionLikertSummary().total).toBe(0);
     expect(buildEvaluacionLikertSummary([], now).critico).toBe(0);
+  });
+
+  it('parseLikertNivel valida códigos', () => {
+    expect(parseLikertNivel('optimo')).toBe('OPTIMO');
+    expect(parseLikertNivel('CRITICO')).toBe('CRITICO');
+    expect(parseLikertNivel('x')).toBeUndefined();
+  });
+
+  it('documentoLikertWhere CRITICO incluye inactivos y rechazados', () => {
+    const where = documentoLikertWhere('CRITICO', now);
+    const orClause = where.OR;
+    expect(Array.isArray(orClause)).toBe(true);
+    expect(orClause).toEqual(
+      expect.arrayContaining([{ activo: false }, { estado: 'RECHAZADO' }]),
+    );
+  });
+
+  it('documentoLikertWhere OPTIMO exige activo', () => {
+    const where = documentoLikertWhere('OPTIMO', now, 60);
+    const andClause = where.AND;
+    expect(Array.isArray(andClause)).toBe(true);
+    expect(andClause).toEqual(expect.arrayContaining([{ activo: true }]));
   });
 });
