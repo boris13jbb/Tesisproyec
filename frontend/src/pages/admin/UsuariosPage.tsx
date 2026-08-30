@@ -1,10 +1,9 @@
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
 import {
@@ -25,37 +24,52 @@ import {
   FormControlLabel,
   FormGroup,
   FormLabel,
+  IconButton,
   InputLabel,
+  ListItemIcon,
   ListItemText,
-  MenuItem,
   Menu,
+  MenuItem,
   Paper,
   Radio,
   RadioGroup,
   Select,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  IconButton,
   TableRow,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
-import type { Theme } from '@mui/material/styles';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type SyntheticEvent } from 'react';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { userHasAdminAccess, userIsSuperAdmin } from '../../auth/role-utils';
-import { isDirectPermissionBlockedForAdmin } from '../../constants/direct-permissions-policy';
+import { AccessMatrix } from '../../components/admin/AccessMatrix';
+import { AdditionalPermissionsSection } from '../../components/admin/AdditionalPermissionsSection';
+import { RolePermissionsPanel } from '../../components/admin/RolePermissionsPanel';
 import { PageHeader } from '../../components/PageHeader';
 import { EmptyState } from '../../components/EmptyState';
 import { ListPanel } from '../../components/ListPanel';
-import { SectionHeader } from '../../components/SectionHeader';
 import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
+import {
+  FILTER_ROLE_OPTIONS,
+  composeRoleCodes,
+  isPrimaryRoleCode,
+  isRoleCode,
+  parseRoleCodes,
+  PRIMARY_ROLE_HELP,
+  PRIMARY_ROLE_OPTIONS,
+  ROLE_DISPLAY_NAME,
+  type PrimaryRoleCode,
+  userIsSuperAdminAccount,
+} from '../../constants/role-display';
 import {
   buildLocalAccessMatrixFallback,
   type AccessMatrixReferencia,
@@ -66,6 +80,13 @@ import { getApiErrorMessage } from '../../utils/api-error-message';
 const paperCardSx = {
   ...listSurfaceSx,
 } as const;
+
+type TabPanelProps = { children?: ReactNode; index: number; value: number };
+
+function TabPanel({ children, value, index }: TabPanelProps) {
+  if (value !== index) return null;
+  return <Box role="tabpanel" sx={{ pt: { xs: 2, md: 2.5 } }}>{children}</Box>;
+}
 
 type Dependencia = { id: string; codigo: string; nombre: string; activo: boolean };
 type Cargo = { id: string; codigo: string; nombre: string; activo: boolean; dependenciaId: string | null };
@@ -80,7 +101,6 @@ type Usuario = {
   activo: boolean;
   ultimoLoginAt?: string | null;
   roles: { codigo: string; nombre: string }[];
-  /** Permisos adicionales otorgados solo a esta cuenta (además de los del rol). */
   directPermissionCodes?: string[];
 };
 
@@ -99,84 +119,9 @@ type UsuarioCreateResponse = Usuario & {
 type RbacPermRow = { id: string; codigo: string; descripcion: string | null };
 type RbacRoleRow = { id: string; codigo: string; nombre: string };
 
-const ROLE_OPTIONS = [
-  'ADMIN',
-  'USUARIO',
-  'EDITOR_DOC',
-  'REVISOR',
-  'AUDITOR',
-  'CONSULTA',
-] as const;
-
-type RoleCode = (typeof ROLE_OPTIONS)[number];
-
-/** Roles institucionales (uno por cuenta). EDITOR_DOC es complemento, no rol principal. */
-const PRIMARY_ROLE_OPTIONS = ['USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA', 'ADMIN'] as const;
-type PrimaryRoleCode = (typeof PRIMARY_ROLE_OPTIONS)[number];
-
-const PRIMARY_ROLE_PRECEDENCE: readonly PrimaryRoleCode[] = [
-  'ADMIN',
-  'REVISOR',
-  'AUDITOR',
-  'CONSULTA',
-  'USUARIO',
-];
-
-const ROLE_DISPLAY_NAME: Record<RoleCode, string> = {
-  ADMIN: 'Administrador',
-  USUARIO: 'Usuario',
-  EDITOR_DOC: 'Editor documental',
-  REVISOR: 'Revisor',
-  AUDITOR: 'Auditor',
-  CONSULTA: 'Consulta',
-};
-
-const PRIMARY_ROLE_HELP: Record<PrimaryRoleCode, string> = {
-  USUARIO: 'Operación diaria: consulta y trámites según los permisos del rol.',
-  REVISOR: 'Aprueba o rechaza documentos enviados a revisión.',
-  AUDITOR: 'Consulta y trazabilidad; no edita expedientes.',
-  CONSULTA: 'Solo lectura institucional.',
-  ADMIN: 'Administración del sistema, usuarios, catálogos y seguridad.',
-};
-
-function isPrimaryRoleCode(value: string): value is PrimaryRoleCode {
-  return (PRIMARY_ROLE_OPTIONS as readonly string[]).includes(value);
-}
-
-function isRoleCode(value: string): value is RoleCode {
-  return (ROLE_OPTIONS as readonly string[]).includes(value);
-}
-
-function composeRoleCodes(primary: PrimaryRoleCode, editorDoc: boolean): RoleCode[] {
-  if (primary === 'ADMIN') return ['ADMIN'];
-  return editorDoc ? [primary, 'EDITOR_DOC'] : [primary];
-}
-
-function parseRoleCodes(codes: string[]): {
-  primary: PrimaryRoleCode;
-  editorDoc: boolean;
-  extrasDropped: string[];
-} {
-  const set = new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean));
-  const primary = PRIMARY_ROLE_PRECEDENCE.find((c) => set.has(c)) ?? 'USUARIO';
-  const editorDoc = set.has('EDITOR_DOC') && primary !== 'ADMIN';
-  const extrasDropped = [...set].filter((c) => c !== primary && c !== 'EDITOR_DOC');
-  return { primary, editorDoc, extrasDropped };
-}
-
 function mensajeErrorApi(err: unknown, fallback: string): string {
   return getApiErrorMessage(err, fallback);
 }
-
-/** Encabezado corto matriz — códigos reales igual que en JWT/RBAC. */
-const ROL_COLUMNA_ETIQUETA: Record<string, string> = {
-  ADMIN: 'Administración',
-  REVISOR: 'Revisor',
-  USUARIO: 'Usuario',
-  EDITOR_DOC: 'Editor documental',
-  AUDITOR: 'Auditor',
-  CONSULTA: 'Consulta',
-};
 
 function displayUsuario(u: Usuario) {
   const n = `${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim();
@@ -184,6 +129,7 @@ function displayUsuario(u: Usuario) {
 }
 
 function roleChipLabel(r: { codigo: string; nombre: string }) {
+  if (r.codigo === 'SUPERADMIN') return 'Super Administrador';
   if (r.nombre?.trim()) return r.nombre;
   return isRoleCode(r.codigo) ? ROLE_DISPLAY_NAME[r.codigo] : r.codigo;
 }
@@ -196,18 +142,54 @@ function RoleChips({ u }: { u: Usuario }) {
       </Typography>
     );
   }
+  const isSuper = userIsSuperAdminAccount(u.roles);
+  const primaryParsed = parseRoleCodes(u.roles.map((r) => r.codigo));
+  const showPrimaryOnly = !isSuper;
+
   return (
     <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-      {u.roles.map((r) => (
-        <Chip
-          key={r.codigo}
-          size="small"
-          label={roleChipLabel(r)}
-          color={r.codigo === 'ADMIN' ? 'primary' : 'default'}
-          variant={r.codigo === 'EDITOR_DOC' ? 'outlined' : 'filled'}
-          sx={{ fontWeight: 700 }}
-        />
-      ))}
+      {isSuper ? (
+        <Tooltip title="Cuenta protegida del sistema.">
+          <Chip
+            size="small"
+            icon={<ShieldOutlinedIcon />}
+            label="Super Administrador"
+            color="primary"
+            sx={{ fontWeight: 700 }}
+          />
+        </Tooltip>
+      ) : null}
+      {showPrimaryOnly ? (
+        <>
+          <Chip
+            size="small"
+            label={ROLE_DISPLAY_NAME[primaryParsed.primary]}
+            color={primaryParsed.primary === 'ADMIN' ? 'primary' : 'default'}
+            sx={{ fontWeight: 700 }}
+          />
+          {primaryParsed.editorDoc ? (
+            <Chip
+              size="small"
+              label={`${ROLE_DISPLAY_NAME.EDITOR_DOC} · adicional`}
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          ) : null}
+        </>
+      ) : (
+        u.roles
+          .filter((r) => r.codigo !== 'SUPERADMIN')
+          .map((r) => (
+            <Chip
+              key={r.codigo}
+              size="small"
+              label={roleChipLabel(r)}
+              color={r.codigo === 'ADMIN' ? 'primary' : 'default'}
+              variant={r.codigo === 'EDITOR_DOC' ? 'outlined' : 'filled'}
+              sx={{ fontWeight: 700 }}
+            />
+          ))
+      )}
     </Stack>
   );
 }
@@ -219,6 +201,7 @@ function RoleAssignmentFields({
   editorDocComplement,
   onEditorDocChange,
   extrasDropped,
+  disabled,
 }: {
   idPrefix: string;
   primaryRole: PrimaryRoleCode;
@@ -226,8 +209,9 @@ function RoleAssignmentFields({
   editorDocComplement: boolean;
   onEditorDocChange: (checked: boolean) => void;
   extrasDropped?: string[];
+  disabled?: boolean;
 }) {
-  const editorDisabled = primaryRole === 'ADMIN';
+  const editorDisabled = primaryRole === 'ADMIN' || disabled;
   const labelId = `${idPrefix}-rol-principal-label`;
   return (
     <Box sx={{ mt: 1.5 }}>
@@ -235,21 +219,15 @@ function RoleAssignmentFields({
         <Alert severity="warning" sx={{ mb: 1.5 }}>
           Esta cuenta tenía varios roles institucionales (
           {extrasDropped.map((c) => (isRoleCode(c) ? ROLE_DISPLAY_NAME[c] : c)).join(', ')}
-          ). Elija <strong>un rol</strong> abajo. Al guardar se reemplazarán los demás para evitar
-          acumulación de privilegios. El complemento de editor documental se conserva si lo deja
-          marcado.
+          ). Elija <strong>un rol</strong> abajo. Al guardar se reemplazarán los demás.
         </Alert>
       ) : null}
-      <FormControl component="fieldset" fullWidth>
-        <FormLabel
-          id={labelId}
-          sx={{ fontWeight: 800, color: 'text.primary', mb: 0.75 }}
-        >
+      <FormControl component="fieldset" fullWidth disabled={disabled}>
+        <FormLabel id={labelId} sx={{ fontWeight: 800, color: 'text.primary', mb: 0.75 }}>
           Rol institucional
         </FormLabel>
         <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-          Elija el rol que debe tener esta persona. Lo habitual es uno solo; el acceso real lo dan
-          los permisos de ese rol.
+          El rol define el conjunto principal de capacidades de la cuenta.
         </Typography>
         <RadioGroup
           aria-labelledby={labelId}
@@ -270,11 +248,7 @@ function RoleAssignmentFields({
                   <Typography variant="body2" sx={{ fontWeight: 800 }}>
                     {ROLE_DISPLAY_NAME[codigo]}
                   </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block', lineHeight: 1.35 }}
-                  >
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
                     {PRIMARY_ROLE_HELP[codigo]}
                   </Typography>
                 </Box>
@@ -286,6 +260,7 @@ function RoleAssignmentFields({
       <FormGroup sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
         <FormControlLabel
           sx={{ alignItems: 'flex-start', ml: 0 }}
+          disabled={editorDisabled}
           control={
             <Checkbox
               checked={editorDocComplement && !editorDisabled}
@@ -296,171 +271,21 @@ function RoleAssignmentFields({
           label={
             <Box sx={{ pt: 0.35 }}>
               <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                {ROLE_DISPLAY_NAME.EDITOR_DOC} (complemento)
+                {ROLE_DISPLAY_NAME.EDITOR_DOC}
+                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                  · Permiso adicional
+                </Typography>
               </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', lineHeight: 1.35 }}
-              >
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
                 {editorDisabled
                   ? 'No aplica: el administrador ya incluye estas capacidades.'
-                  : 'Márquelo si esta persona debe crear o editar documentos y adjuntos sin ser administrador.'}
+                  : 'Permite crear y modificar documentos y archivos.'}
               </Typography>
             </Box>
           }
         />
       </FormGroup>
     </Box>
-  );
-}
-
-function PermissionCodesPicker({
-  catalog,
-  value,
-  onChange,
-  restrictCriticalForAdmin,
-}: {
-  catalog: RbacPermRow[];
-  value: string[];
-  onChange: (next: string[]) => void;
-  restrictCriticalForAdmin: boolean;
-}) {
-  const [q, setQ] = useState('');
-  const selected = useMemo(() => new Set(value), [value]);
-  const visibleCatalog = useMemo(() => {
-    if (!restrictCriticalForAdmin) return catalog;
-    return catalog.filter((p) => !isDirectPermissionBlockedForAdmin(p.codigo));
-  }, [catalog, restrictCriticalForAdmin]);
-  const filtered = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    if (!t) return visibleCatalog;
-    return visibleCatalog.filter(
-      (p) =>
-        p.codigo.toLowerCase().includes(t) ||
-        (p.descripcion ?? '').toLowerCase().includes(t),
-    );
-  }, [visibleCatalog, q]);
-
-  return (
-    <FormControl fullWidth margin="normal" component="fieldset">
-      <FormLabel sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
-        Permisos directos (solo esta cuenta)
-      </FormLabel>
-      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-        Opcional. Se suman a los del rol. Vacío = solo hereda del rol. El efecto completo requiere
-        nueva sesión o renovación del token.
-        {restrictCriticalForAdmin
-          ? ' No se pueden asignar permisos de revisión, usuarios ni políticas de seguridad como excepción directa.'
-          : ''}
-      </Typography>
-      {catalog.length === 0 ? (
-        <Alert severity="warning">No hay catálogo de permisos. Ejecute el seed del servidor.</Alert>
-      ) : (
-        <>
-          <TextField
-            size="small"
-            label="Buscar permiso"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            margin="dense"
-          />
-          {value.length > 0 ? (
-            <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', my: 1 }}>
-              {value.map((c) => (
-                <Chip
-                  key={c}
-                  size="small"
-                  label={c}
-                  onDelete={() => onChange(value.filter((x) => x !== c))}
-                />
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', my: 0.75 }}>
-              Ninguno seleccionado.
-            </Typography>
-          )}
-          <Box
-            sx={{
-              maxHeight: 220,
-              overflow: 'auto',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              p: 1,
-              bgcolor: 'action.hover',
-            }}
-          >
-            {filtered.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Sin coincidencias.
-              </Typography>
-            ) : (
-              filtered.map((p) => (
-                <FormControlLabel
-                  key={p.codigo}
-                  sx={{ display: 'flex', alignItems: 'flex-start', ml: 0, mb: 0.25 }}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selected.has(p.codigo)}
-                      onChange={() => {
-                        const next = new Set(selected);
-                        if (next.has(p.codigo)) next.delete(p.codigo);
-                        else next.add(p.codigo);
-                        onChange([...next].sort((a, b) => a.localeCompare(b)));
-                      }}
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {p.codigo}
-                      </Typography>
-                      {p.descripcion ? (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          {p.descripcion}
-                        </Typography>
-                      ) : null}
-                    </Box>
-                  }
-                />
-              ))
-            )}
-          </Box>
-        </>
-      )}
-    </FormControl>
-  );
-}
-
-const matrixStickyModuleSx = {
-  position: 'sticky',
-  left: 0,
-  zIndex: 2,
-  bgcolor: 'background.paper',
-  boxShadow: (t: Theme) =>
-    t.palette.mode === 'dark' ? t.shadows[4] : '4px 0 12px rgba(15, 23, 42, 0.06)',
-  minWidth: { xs: 200, md: 240 },
-  maxWidth: { xs: 280, md: 320 },
-};
-
-const matrixStickyModuleHeadSx = {
-  ...matrixStickyModuleSx,
-  zIndex: 3,
-  bgcolor: 'action.hover',
-};
-
-function MatrixCell({ allowed }: { allowed: boolean }) {
-  return (
-    <TableCell align="center" sx={{ px: 0.5 }}>
-      {allowed ? (
-        <CheckCircleRoundedIcon sx={{ color: 'success.main', fontSize: 22 }} aria-label="Permitido" />
-      ) : (
-        <CancelRoundedIcon sx={{ color: 'error.main', fontSize: 22 }} aria-label="No permitido" />
-      )}
-    </TableCell>
   );
 }
 
@@ -489,10 +314,12 @@ export function UsuariosPage() {
   const [rbacNotice, setRbacNotice] = useState<string | null>(null);
   const [rbacPermissionCatalog, setRbacPermissionCatalog] = useState<RbacPermRow[]>([]);
   const [rbacRolesCatalog, setRbacRolesCatalog] = useState<RbacRoleRow[]>([]);
-  const [rbacRoleCodigo, setRbacRoleCodigo] = useState('USUARIO');
-  const [rbacSelectedCodes, setRbacSelectedCodes] = useState<Set<string>>(new Set());
-  const [rbacRolePermsLoading, setRbacRolePermsLoading] = useState(false);
-  const [rbacMatrixSaving, setRbacMatrixSaving] = useState(false);
+
+  const [mainTab, setMainTab] = useState(0);
+  const [userSearch, setUserSearch] = useState('');
+  const [filterEstado, setFilterEstado] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterRol, setFilterRol] = useState('');
+  const [editFocusPermissions, setEditFocusPermissions] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -561,56 +388,12 @@ export function UsuariosPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!rbacRoleCodigo || rbacPermissionCatalog.length === 0) return;
-    let cancelled = false;
-    void (async () => {
-      setRbacRolePermsLoading(true);
-      try {
-        const res = await apiClient.get<{ codigos: string[] }>(
-          `/rbac/roles/${encodeURIComponent(rbacRoleCodigo)}/permissions`,
-        );
-        if (!cancelled) setRbacSelectedCodes(new Set(res.data.codigos ?? []));
-      } catch {
-        if (!cancelled) setRbacSelectedCodes(new Set());
-      } finally {
-        if (!cancelled) setRbacRolePermsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [rbacRoleCodigo, rbacPermissionCatalog]);
-
-  const toggleRbacPermission = (codigo: string) => {
-    setRbacSelectedCodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(codigo)) next.delete(codigo);
-      else next.add(codigo);
-      return next;
-    });
-  };
-
-  const saveRbacMatrix = async () => {
-    setRbacNotice(null);
-    setRbacMatrixSaving(true);
-    try {
-      await apiClient.put(`/rbac/roles/${encodeURIComponent(rbacRoleCodigo)}/permissions`, {
-        permissionCodes: [...rbacSelectedCodes].sort(),
-      });
-      setRbacNotice(
-        'Matriz de permisos guardada en base de datos. Los usuarios con este rol heredan los cambios en el próximo token (o al refrescar sesión).',
-      );
-    } catch (err: unknown) {
-      setError(
-        mensajeErrorApi(
-          err,
-          'No se pudo guardar la matriz de permisos (revise que ejecutó el seed y que su rol tiene permisos).',
-        ),
-      );
-    } finally {
-      setRbacMatrixSaving(false);
-    }
-  };
+    if (!editOpen || !editFocusPermissions) return;
+    const t = window.setTimeout(() => {
+      document.getElementById('edit-permisos-adicionales')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [editOpen, editFocusPermissions]);
 
   const resetIdentityForm = () => {
     setEmail('');
@@ -670,7 +453,7 @@ export function UsuariosPage() {
     }
   };
 
-  const openEdit = (u: Usuario) => {
+  const openEdit = (u: Usuario, focusPermissions = false) => {
     setSelected(u);
     setEmail(u.email);
     setNombres(u.nombres ?? '');
@@ -682,6 +465,7 @@ export function UsuariosPage() {
     setEditorDocComplement(parsed.editorDoc);
     setExtrasDropped(parsed.extrasDropped);
     setDirectPermCodes([...(u.directPermissionCodes ?? [])].sort((a, b) => a.localeCompare(b)));
+    setEditFocusPermissions(focusPermissions);
     setEditOpen(true);
   };
 
@@ -770,23 +554,41 @@ export function UsuariosPage() {
 
   const usuariosActivos = useMemo(() => items.filter((u) => u.activo).length, [items]);
 
+  const filteredItems = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    return items.filter((u) => {
+      if (filterEstado === 'active' && !u.activo) return false;
+      if (filterEstado === 'inactive' && u.activo) return false;
+      if (filterRol) {
+        const codes = u.roles.map((r) => r.codigo);
+        if (filterRol === 'EDITOR_DOC') {
+          if (!codes.includes('EDITOR_DOC')) return false;
+        } else if (!codes.includes(filterRol)) {
+          return false;
+        }
+      }
+      if (!q) return true;
+      const name = displayUsuario(u).toLowerCase();
+      return name.includes(q) || u.email.toLowerCase().includes(q);
+    });
+  }, [items, userSearch, filterEstado, filterRol]);
+
+  const selectedIsSuperAdmin = selected ? userIsSuperAdminAccount(selected.roles) : false;
+  const actionsTargetIsSuper = actionsUsuario ? userIsSuperAdminAccount(actionsUsuario.roles) : false;
+  const canMutateTarget =
+    isAdmin && actionsUsuario && (!actionsTargetIsSuper || isSuperAdmin);
+
+  const handleMainTabChange = (_: SyntheticEvent, next: number) => {
+    setMainTab(next);
+  };
+
   return (
     <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Administración de identidades"
-        description={
-          <Stack spacing={0.75}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Usuarios y roles · GADPR-LM · Sistema de Gestión Documental
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Ciclo de vida de cuentas, roles y permisos efectivos en el sistema. La matriz muestra qué puede
-              hacer cada rol según las reglas actuales del servidor.
-            </Typography>
-          </Stack>
-        }
+        description="Administre usuarios, roles y niveles de acceso del sistema."
         actions={
-          <Tooltip title="Recargar usuarios y matriz de referencia">
+          <Tooltip title="Recargar datos">
             <IconButton
               aria-label="Actualizar administración de identidades"
               onClick={() => void load()}
@@ -800,221 +602,204 @@ export function UsuariosPage() {
         }
       />
 
-      {inviteNotice && (
+      {inviteNotice ? (
         <Alert severity="info" sx={{ mb: 2 }} onClose={() => setInviteNotice(null)}>
           {inviteNotice}
         </Alert>
-      )}
+      ) : null}
 
-      {rbacNotice && (
+      {rbacNotice ? (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setRbacNotice(null)}>
           {rbacNotice}
         </Alert>
-      )}
+      ) : null}
 
-      {error && (
+      {error ? (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
-      )}
+      ) : null}
 
-      <Accordion
-        defaultExpanded={false}
-        elevation={0}
-        sx={{
-          mb: { xs: 2, md: 2.5 },
-          ...paperCardSx,
-          '&:before': { display: 'none' },
-        }}
-      >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="tech-usuarios" id="tech-usuarios-header">
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <InfoOutlinedIcon color="primary" sx={{ opacity: 0.85 }} fontSize="small" />
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              Evidencia técnica y normativa (API, último ingreso)
-            </Typography>
-          </Stack>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.65 }}>
-            El directorio se obtiene desde <strong>GET /usuarios</strong> (ADMIN). Referencia RBAC desde{' '}
-            <strong>GET /usuarios/matriz-acceso-referencia</strong>. La matriz persistida usa{' '}
-            <strong>GET/PUT /rbac/roles/:codigo/permissions</strong> (tablas <code>permissions</code> y{' '}
-            <code>role_permissions</code>), aplicada por <code>@Permissions</code> +{' '}
-            <code>PermissionsGuard</code> en rutas seleccionadas.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
-            <strong>ISO/IEC 27001 A.5.16/A.5.18</strong> — gestión segura del ciclo de vida de identidades.{' '}
-            <strong>ISO 15489</strong> — trazabilidad de decisiones institucionalizadas. La columna{' '}
-            <strong>Último ingreso</strong> muestra el campo servidor <strong>ultimoLoginAt</strong> tras login con
-            credenciales exitoso (no se actualiza sólo por refresh silencioso). Autorización:{' '}
-            <code>@Roles</code> (menú/UI) más <code>@Permissions</code> (capacidades en BD por rol).
-          </Typography>
-        </AccordionDetails>
-      </Accordion>
+      <Paper elevation={0} sx={{ ...paperCardSx, mb: 2 }}>
+        <Tabs
+          value={mainTab}
+          onChange={handleMainTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="Administración de identidades"
+        >
+          <Tab icon={<PeopleOutlinedIcon />} iconPosition="start" label="Usuarios" />
+          {isAdmin ? (
+            <Tab icon={<VpnKeyOutlinedIcon />} iconPosition="start" label="Roles y permisos" />
+          ) : null}
+          <Tab icon={<TableChartOutlinedIcon />} iconPosition="start" label="Matriz de acceso" />
+        </Tabs>
+      </Paper>
 
-      <Stack spacing={{ xs: 2.25, md: 3 }}>
-        <Box id="tabla-usuarios-institucionales">
-          <ListPanel
-            badge={<PeopleOutlinedIcon fontSize="small" />}
-            title="Usuarios institucionales"
-            subtitle="Identidades institucionales · roles · estado activo/inactivo"
-            meta={
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Chip
-                  label={`Activos · ${usuariosActivos}`}
-                  size="small"
-                  color="success"
-                  sx={{ fontWeight: 700 }}
-                />
-                <Chip label={`Total · ${items.length}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
-              </Stack>
-            }
-            footer={
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                {isAdmin ? (
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    fullWidth
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 800,
-                      py: 1.15,
-                    }}
-                    onClick={() => {
-                      setInviteNotice(null);
-                      resetIdentityForm();
-                      setOpen(true);
-                    }}
-                  >
-                    Crear usuario
-                  </Button>
-                ) : null}
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  href="#matriz-rbac"
-                  sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
-                >
-                  Ver matriz RBAC
-                </Button>
-                {isAdmin ? (
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    href="#matriz-role-permissions-bd"
-                    sx={{ textTransform: 'none', fontWeight: 700, py: 1.15 }}
-                  >
-                    Permisos por rol (BD)
-                  </Button>
-                ) : null}
-              </Stack>
-            }
-          >
-            {loading ? (
-              <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
-                <CircularProgress aria-label="Cargando usuarios" />
-              </Box>
-            ) : (
-              <TableContainer
-                sx={{
-                  ...listTableContainerSx,
-                  maxHeight: { xs: 420, md: 560 },
-                  overflow: 'auto',
+      <TabPanel value={mainTab} index={0}>
+        <ListPanel
+          badge={<PeopleOutlinedIcon fontSize="small" />}
+          title="Usuarios institucionales"
+          subtitle="Administre las cuentas, roles y estado de los usuarios del sistema."
+          meta={
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+              <Chip label={`Activos · ${usuariosActivos}`} size="small" color="success" sx={{ fontWeight: 700 }} />
+              <Chip label={`Total · ${items.length}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+              <Chip
+                label={`Mostrando · ${filteredItems.length}`}
+                size="small"
+                variant="outlined"
+                sx={{ fontWeight: 700 }}
+              />
+            </Stack>
+          }
+          footer={
+            isAdmin ? (
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                sx={{ textTransform: 'none', fontWeight: 800, py: 1.15 }}
+                onClick={() => {
+                  setInviteNotice(null);
+                  resetIdentityForm();
+                  setOpen(true);
                 }}
               >
-                <Table
-                  size="medium"
-                  stickyHeader
-                  sx={{ tableLayout: { md: 'auto' }, minWidth: 720 }}
-                  aria-label="Usuarios institucionales"
-                >
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'action.hover' }}>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 220 }}>Usuario</TableCell>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 120 }}>Rol</TableCell>
+                + Crear usuario
+              </Button>
+            ) : null
+          }
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            sx={{ mb: 2, alignItems: { md: 'flex-end' } }}
+          >
+            <TextField
+              size="small"
+              label="Buscar usuario"
+              placeholder="Nombre o correo…"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              fullWidth
+              sx={{ maxWidth: { md: 360 } }}
+            />
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
+              <InputLabel id="filter-estado">Estado</InputLabel>
+              <Select
+                labelId="filter-estado"
+                label="Estado"
+                value={filterEstado}
+                onChange={(e) => setFilterEstado(e.target.value as typeof filterEstado)}
+              >
+                <MenuItem value="all">Todos</MenuItem>
+                <MenuItem value="active">Activos</MenuItem>
+                <MenuItem value="inactive">Inactivos</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+              <InputLabel id="filter-rol">Rol</InputLabel>
+              <Select
+                labelId="filter-rol"
+                label="Rol"
+                value={filterRol}
+                onChange={(e) => setFilterRol(String(e.target.value))}
+              >
+                {FILTER_ROLE_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value || 'all'} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+
+          {loading ? (
+            <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress aria-label="Cargando usuarios" />
+            </Box>
+          ) : (
+            <TableContainer sx={{ ...listTableContainerSx, maxHeight: { xs: 480, md: 620 }, overflow: 'auto' }}>
+              <Table size="medium" stickyHeader sx={{ minWidth: 860 }} aria-label="Usuarios institucionales">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'action.hover' }}>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 200 }}>Usuario</TableCell>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 140 }}>Rol</TableCell>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 160 }}>Área / Dependencia</TableCell>
                     <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 160 }}>Último ingreso</TableCell>
-                    <TableCell sx={{ fontWeight: 800, width: 72, pr: 1 }} align="right">
-                      <Typography component="span" variant="caption" sx={{ fontWeight: 800 }}>
-                        Acciones
-                      </Typography>
+                    <TableCell sx={{ fontWeight: 800, minWidth: 140 }}>Último acceso</TableCell>
+                    <TableCell sx={{ fontWeight: 800, width: 72 }} align="right">
+                      Acciones
                     </TableCell>
                   </TableRow>
                 </TableHead>
-                  <TableBody>
-                    {items.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5}>
-                          <EmptyState
-                            dense
-                            title="Sin usuarios"
-                            description="Cree cuentas con el botón inferior."
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      items.map((u) => (
+                <TableBody>
+                  {filteredItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6}>
+                        <EmptyState
+                          dense
+                          title={items.length === 0 ? 'Sin usuarios' : 'Sin coincidencias'}
+                          description={
+                            items.length === 0
+                              ? 'Cree cuentas con el botón Crear usuario.'
+                              : 'Ajuste la búsqueda o los filtros.'
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredItems.map((u) => {
+                      const fmt = formatUltimoIngreso(u.ultimoLoginAt ?? null);
+                      const dn = u.dependenciaId ? departamentoPorId.get(u.dependenciaId) : null;
+                      const cn = u.cargoId ? cargoPorId.get(u.cargoId) : null;
+                      const extraCount = u.directPermissionCodes?.length ?? 0;
+                      return (
                         <TableRow key={u.id} hover>
                           <TableCell>
                             <Typography sx={{ fontWeight: 700 }}>{displayUsuario(u)}</Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                               {u.email}
                             </Typography>
-                            {(() => {
-                              const dn = u.dependenciaId
-                                ? departamentoPorId.get(u.dependenciaId)
-                                : null;
-                              const cn = u.cargoId ? cargoPorId.get(u.cargoId) : null;
-                              const org = [cn, dn].filter(Boolean).join(' · ');
-                              return org ? (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                  {org}
-                                </Typography>
-                              ) : null;
-                            })()}
                           </TableCell>
-                          <TableCell sx={{ maxWidth: 280 }}>
+                          <TableCell>
                             <RoleChips u={u} />
-                            {(u.directPermissionCodes?.length ?? 0) > 0 ? (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ display: 'block', mt: 0.35, lineHeight: 1.25 }}
-                              >
-                                Directos:{' '}
-                                {u.directPermissionCodes!
-                                  .slice(0, 5)
-                                  .join(', ')}
-                                {u.directPermissionCodes!.length > 5 ? '…' : ''}
+                            {extraCount > 0 ? (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`${extraCount} permiso${extraCount === 1 ? '' : 's'} adicional${extraCount === 1 ? '' : 'es'}`}
+                                sx={{ mt: 0.5, fontWeight: 600 }}
+                              />
+                            ) : null}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {dn ?? '—'}
+                            </Typography>
+                            {cn ? (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                {cn}
                               </Typography>
                             ) : null}
                           </TableCell>
                           <TableCell>
                             <Chip
                               size="small"
-                              label={u.activo ? 'Activo' : 'Suspendido'}
-                              color={u.activo ? 'success' : 'error'}
+                              label={u.activo ? 'Activo' : 'Inactivo'}
+                              color={u.activo ? 'success' : 'default'}
                               sx={{ fontWeight: 700 }}
                             />
                           </TableCell>
-                          <TableCell sx={{ maxWidth: 160 }}>
-                            {(() => {
-                              const fmt = formatUltimoIngreso(u.ultimoLoginAt ?? null);
-                              return (
-                                <Stack spacing={0.25}>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                    {fmt.relativo}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                                    {fmt.absoluto}
-                                  </Typography>
-                                </Stack>
-                              );
-                            })()}
+                          <TableCell>
+                            <Tooltip title={fmt.absoluto}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, cursor: 'default' }}>
+                                {fmt.relativo}
+                              </Typography>
+                            </Tooltip>
                           </TableCell>
-                          <TableCell align="right" sx={{ pr: 0.5, whiteSpace: 'nowrap' }}>
+                          <TableCell align="right">
                             <Tooltip title="Acciones del usuario">
                               <IconButton
                                 size="small"
@@ -1026,236 +811,58 @@ export function UsuariosPage() {
                             </Tooltip>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-
-          </ListPanel>
-        </Box>
-
-          {isAdmin ? (
-            <Paper
-              id="matriz-role-permissions-bd"
-              elevation={0}
-              sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
-            >
-              <SectionHeader
-                icon={<VpnKeyOutlinedIcon fontSize="small" />}
-                title="Matriz rol ↔ permiso (base de datos)"
-                subtitle="Asignación persistida · role_permissions · fuente de verdad para PermissionsGuard"
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 2, lineHeight: 1.6 }}>
-                Aquí concede o revoca <strong>códigos de permiso</strong> por <strong>rol institucional</strong>. Si la
-                lista aparece vacía, ejecute <code>npx prisma db seed</code> en el servidor (crea permisos y valores por
-                defecto).
-              </Typography>
-              {rbacPermissionCatalog.length === 0 ? (
-                <Alert severity="warning">
-                  No hay permisos en catálogo. Verifique backend actualizado y seed ejecutado.
-                </Alert>
-              ) : (
-                <>
-                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                    <InputLabel id="rbac-role-label">Rol a editar</InputLabel>
-                    <Select<RbacRoleRow['codigo']>
-                      labelId="rbac-role-label"
-                      label="Rol a editar"
-                      value={
-                        rbacRolesCatalog.some((r) => r.codigo === rbacRoleCodigo) ? rbacRoleCodigo : ''
-                      }
-                      onChange={(e) => setRbacRoleCodigo(String(e.target.value))}
-                    >
-                      {rbacRolesCatalog.map((r) => (
-                        <MenuItem key={r.id} value={r.codigo}>
-                          {r.nombre} ({r.codigo})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  {rbacRoleCodigo === 'ADMIN' ? (
-                    <Alert severity="warning" sx={{ mb: 2 }}>
-                      Modificar los permisos del rol ADMIN puede impedir operaciones administrativas. Mantenga todos los
-                      códigos a menos que tenga un plan explícito de segregación de funciones.
-                    </Alert>
-                  ) : null}
-                  <Box
-                    sx={{
-                      maxHeight: 420,
-                      overflow: 'auto',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      p: 1.5,
-                      bgcolor: 'action.hover',
-                    }}
-                    aria-busy={rbacRolePermsLoading || rbacMatrixSaving}
-                  >
-                    {rbacRolePermsLoading ? (
-                      <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
-                        <CircularProgress size={32} aria-label="Cargando permisos del rol" />
-                      </Box>
-                    ) : (
-                      rbacPermissionCatalog
-                        .slice()
-                        .sort((a, b) => a.codigo.localeCompare(b.codigo))
-                        .map((p) => (
-                          <FormControlLabel
-                            key={p.id}
-                            sx={{ display: 'flex', alignItems: 'flex-start', ml: 0, mb: 0.5 }}
-                            control={
-                              <Checkbox
-                                size="small"
-                                checked={rbacSelectedCodes.has(p.codigo)}
-                                onChange={() => toggleRbacPermission(p.codigo)}
-                              />
-                            }
-                            label={
-                              <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                  {p.codigo}
-                                </Typography>
-                                {p.descripcion ? (
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                    {p.descripcion}
-                                  </Typography>
-                                ) : null}
-                              </Box>
-                            }
-                          />
-                        ))
-                    )}
-                  </Box>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      disabled={rbacMatrixSaving || rbacRolePermsLoading || !rbacRoleCodigo}
-                      onClick={() => void saveRbacMatrix()}
-                      sx={{
-                        textTransform: 'none',
-                        fontWeight: 800,
-                      }}
-                    >
-                      {rbacMatrixSaving ? 'Guardando…' : 'Guardar permisos del rol'}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      href="#matriz-rbac"
-                      sx={{ textTransform: 'none', fontWeight: 700 }}
-                    >
-                      Ver matriz de referencia (rutas)
-                    </Button>
-                  </Stack>
-                </>
-              )}
-            </Paper>
-          ) : null}
-
-        <Paper
-          id="matriz-rbac"
-          elevation={0}
-          sx={{ ...paperCardSx, p: { xs: 2.25, sm: 3, md: 3.25 } }}
-        >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            sx={{ mb: 2, alignItems: { md: 'flex-start' }, justifyContent: 'space-between' }}
-          >
-            <SectionHeader
-              icon={<TableChartOutlinedIcon fontSize="small" />}
-              title="Matriz de permisos (referencia)"
-              subtitle="Lectura · comparación por rol · desplazamiento horizontal si aplica"
-            />
-            <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 520, lineHeight: 1.55 }}>
-              Para otorgar o quitar acceso a una persona use <strong>Editar</strong> en el directorio. Detalle de fuentes
-              API y normativa en el acordeón superior.
-            </Typography>
-          </Stack>
-
-            <TableContainer
-              sx={{
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                bgcolor: 'action.hover',
-                maxWidth: '100%',
-              }}
-            >
-              <Table size="small" sx={{ minWidth: 720 }} aria-label="Matriz de permisos por rol">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'action.hover' }}>
-                    <TableCell sx={{ ...matrixStickyModuleHeadSx, fontWeight: 800 }}>Módulo</TableCell>
-                    {matrizReferencia.columnas.map((c) => (
-                      <TableCell key={c} align="center" sx={{ fontWeight: 700, px: 0.5 }}>
-                        <Tooltip title={`Código rol: ${c}`}>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{ fontWeight: 800, display: 'block', lineHeight: 1.1 }}>
-                              {ROL_COLUMNA_ETIQUETA[c] ?? c}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ display: 'block', fontSize: '0.65rem' }}
-                            >
-                              {c}
-                            </Typography>
-                          </Box>
-                        </Tooltip>
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {matrizReferencia.filas.map((row) => (
-                    <TableRow key={row.modulo} hover>
-                      <TableCell sx={matrixStickyModuleSx}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {row.modulo}
-                        </Typography>
-                        {row.ayuda ? (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
-                            {row.ayuda}
-                          </Typography>
-                        ) : null}
-                      </TableCell>
-                      {matrizReferencia.columnas.map((c) => (
-                        <MatrixCell key={c} allowed={Boolean(row.porRol[c])} />
-                      ))}
-                    </TableRow>
-                  ))}
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+        </ListPanel>
+      </TabPanel>
 
-            <Stack spacing={0.75} sx={{ mt: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>
-                {matrizReferencia.nota}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                Generado:{' '}
-                <time dateTime={matrizReferencia.generadoEn}>
-                  {new Date(matrizReferencia.generadoEn).toLocaleString('es-EC')}
-                </time>
-              </Typography>
-            </Stack>
+      {isAdmin ? (
+        <TabPanel value={mainTab} index={1}>
+          <RolePermissionsPanel
+            catalog={rbacPermissionCatalog}
+            rolesCatalog={rbacRolesCatalog}
+            onSaved={setRbacNotice}
+            onError={setError}
+          />
+        </TabPanel>
+      ) : null}
 
-            <Button
-              fullWidth
-              component="a"
-              href="#tabla-usuarios-institucionales"
-              variant="outlined"
-              color="primary"
-              sx={{ mt: 2, textTransform: 'none', fontWeight: 700, py: 1 }}
-            >
-              Volver al directorio de usuarios
-            </Button>
-          </Paper>
-      </Stack>
+      <TabPanel value={mainTab} index={isAdmin ? 2 : 1}>
+        <AccessMatrix matrizReferencia={matrizReferencia} />
+      </TabPanel>
+
+      <Accordion
+        defaultExpanded={false}
+        elevation={0}
+        sx={{ mt: 3, ...paperCardSx, '&:before': { display: 'none' } }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="tech-usuarios" id="tech-usuarios-header">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <InfoOutlinedIcon color="primary" sx={{ opacity: 0.85 }} fontSize="small" />
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              Información técnica
+            </Typography>
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.65 }}>
+            Directorio: <strong>GET /usuarios</strong>. Matriz referencia:{' '}
+            <strong>GET /usuarios/matriz-acceso-referencia</strong>. Permisos por rol:{' '}
+            <strong>GET/PUT /rbac/roles/:codigo/permissions</strong> (<code>role_permissions</code>,{' '}
+            <code>PermissionsGuard</code>).
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
+            <strong>ISO/IEC 27001 A.5.16/A.5.18</strong> — ciclo de vida de identidades.{' '}
+            <strong>ISO 15489</strong> — trazabilidad institucional. Último acceso: campo{' '}
+            <strong>ultimoLoginAt</strong> tras login con credenciales (no refresh silencioso).
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
 
       <Menu
         anchorEl={actionsAnchor}
@@ -1264,10 +871,10 @@ export function UsuariosPage() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{
-          paper: { sx: { minWidth: 200, mt: 0.5 } },
+          paper: { sx: { minWidth: 240, mt: 0.5 } },
         }}
       >
-        {isAdmin ? (
+        {canMutateTarget ? (
           <>
             <MenuItem
               dense
@@ -1275,10 +882,43 @@ export function UsuariosPage() {
                 if (!actionsUsuario) return;
                 const u = actionsUsuario;
                 closeActionsMenu();
-                openEdit(u);
+                openEdit(u, false);
               }}
             >
-              <ListItemText primary="Editar usuario" secondary="Roles, dependencia, cargo" />
+              <ListItemText primary="Ver detalles" secondary="Datos, rol y dependencia" />
+            </MenuItem>
+            <MenuItem
+              dense
+              onClick={() => {
+                if (!actionsUsuario) return;
+                const u = actionsUsuario;
+                closeActionsMenu();
+                openEdit(u, false);
+              }}
+            >
+              <ListItemText primary="Editar usuario" />
+            </MenuItem>
+            <MenuItem
+              dense
+              onClick={() => {
+                if (!actionsUsuario) return;
+                const u = actionsUsuario;
+                closeActionsMenu();
+                openEdit(u, false);
+              }}
+            >
+              <ListItemText primary="Cambiar rol" secondary="Rol institucional y complementos" />
+            </MenuItem>
+            <MenuItem
+              dense
+              onClick={() => {
+                if (!actionsUsuario) return;
+                const u = actionsUsuario;
+                closeActionsMenu();
+                openEdit(u, true);
+              }}
+            >
+              <ListItemText primary="Permisos adicionales" secondary="Excepciones solo para esta cuenta" />
             </MenuItem>
             <MenuItem
               dense
@@ -1291,32 +931,45 @@ export function UsuariosPage() {
             >
               <ListItemText primary="Restablecer contraseña" />
             </MenuItem>
-            <MenuItem
-              dense
-              sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0.5 }}
-              onClick={() => {
-                if (!actionsUsuario) return;
-                const u = actionsUsuario;
-                closeActionsMenu();
-                void onToggleActivo(u);
-              }}
-            >
-              <ListItemText
-                primary={actionsUsuario?.activo ? 'Desactivar cuenta' : 'Activar cuenta'}
-                slotProps={{
-                  primary: {
-                    sx: {
-                      fontWeight: 600,
-                      ...(actionsUsuario?.activo ? { color: 'warning.main' } : {}),
-                    },
-                  },
+            {!actionsTargetIsSuper || isSuperAdmin ? (
+              <MenuItem
+                dense
+                sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0.5 }}
+                onClick={() => {
+                  if (!actionsUsuario) return;
+                  const u = actionsUsuario;
+                  closeActionsMenu();
+                  void onToggleActivo(u);
                 }}
-              />
-            </MenuItem>
+              >
+                <ListItemText
+                  primary={actionsUsuario?.activo ? 'Desactivar' : 'Activar'}
+                  secondary={actionsUsuario?.activo ? 'Suspender acceso' : 'Rehabilitar cuenta'}
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        fontWeight: 600,
+                        ...(actionsUsuario?.activo ? { color: 'warning.main' } : { color: 'success.main' }),
+                      },
+                    },
+                  }}
+                />
+              </MenuItem>
+            ) : null}
           </>
+        ) : actionsTargetIsSuper ? (
+          <MenuItem dense disabled>
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              <ShieldOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Cuenta protegida"
+              secondary="Super Administrador — no modificable"
+            />
+          </MenuItem>
         ) : (
           <MenuItem dense disabled>
-            <ListItemText primary="Acciones restringidas" secondary="Solo ADMIN" />
+            <ListItemText primary="Acciones restringidas" secondary="Requiere permisos de administración" />
           </MenuItem>
         )}
       </Menu>
@@ -1414,10 +1067,12 @@ export function UsuariosPage() {
             editorDocComplement={editorDocComplement}
             onEditorDocChange={setEditorDocComplement}
           />
-          <PermissionCodesPicker
+          <AdditionalPermissionsSection
             catalog={sortedPermCatalog}
             value={directPermCodes}
             onChange={setDirectPermCodes}
+            primaryRole={primaryRole}
+            editorDocComplement={editorDocComplement}
             restrictCriticalForAdmin={!isSuperAdmin}
           />
         </DialogContent>
@@ -1437,18 +1092,68 @@ export function UsuariosPage() {
           setEditOpen(false);
           setSelected(null);
           setExtrasDropped([]);
+          setEditFocusPermissions(false);
         }}
         fullWidth
         maxWidth="md"
+        scroll="paper"
       >
-        <DialogTitle>Editar usuario</DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mt: 1, mb: 1 }}>
-            Elija <strong>un rol institucional</strong> (el que debe tener esta persona). El
-            complemento <strong>Editor documental</strong> es opcional. Los permisos directos se
-            suman al rol; el efecto completo se nota al iniciar sesión de nuevo o al renovar el
-            token.
-          </Alert>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack spacing={0.5}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              {selected ? displayUsuario(selected) : 'Editar usuario'}
+            </Typography>
+            {selected ? (
+              <Typography variant="body2" color="text.secondary">
+                {selected.email}
+              </Typography>
+            ) : null}
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers id={editFocusPermissions ? 'edit-permisos-adicionales' : undefined}>
+          {selected ? (
+            <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Estado
+                  </Typography>
+                  <Box>
+                    <Chip
+                      size="small"
+                      label={selected.activo ? 'Activo' : 'Inactivo'}
+                      color={selected.activo ? 'success' : 'default'}
+                      sx={{ fontWeight: 700 }}
+                    />
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Rol
+                  </Typography>
+                  <Box sx={{ mt: 0.25 }}>
+                    <RoleChips u={selected} />
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Dependencia
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {selected.dependenciaId
+                      ? (departamentoPorId.get(selected.dependenciaId) ?? '—')
+                      : '—'}
+                  </Typography>
+                </Box>
+              </Stack>
+              {selectedIsSuperAdmin ? (
+                <Alert severity="info" icon={<ShieldOutlinedIcon />} sx={{ mt: 1.5 }}>
+                  <strong>Super Administrador</strong> — Cuenta protegida del sistema.
+                </Alert>
+              ) : null}
+            </Paper>
+          ) : null}
+
           <TextField
             label="Correo"
             type="email"
@@ -1515,13 +1220,18 @@ export function UsuariosPage() {
             editorDocComplement={editorDocComplement}
             onEditorDocChange={setEditorDocComplement}
             extrasDropped={extrasDropped}
+            disabled={selectedIsSuperAdmin}
           />
-          <PermissionCodesPicker
-            catalog={sortedPermCatalog}
-            value={directPermCodes}
-            onChange={setDirectPermCodes}
-            restrictCriticalForAdmin={!isSuperAdmin}
-          />
+          <Box id="edit-permisos-adicionales">
+            <AdditionalPermissionsSection
+              catalog={sortedPermCatalog}
+              value={directPermCodes}
+              onChange={setDirectPermCodes}
+              primaryRole={primaryRole}
+              editorDocComplement={editorDocComplement}
+              restrictCriticalForAdmin={!isSuperAdmin}
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button

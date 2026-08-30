@@ -160,39 +160,32 @@ Guía ampliada (contenido, rutas, permisos y funcionamiento de cada entrada): **
 
 ### 5.1 Gestión de usuarios (crear/editar/desactivar/reset)
 
-La pantalla **Administración de identidades** muestra, en orden vertical y a **ancho completo**, primero el **directorio de usuarios institucionales** y, más abajo, la **matriz RBAC de referencia** (así la tabla no queda tan estrecha como en diseños de dos columnas). Los detalles técnicos (endpoints API, último ingreso `ultimoLoginAt`, alcance efectivo `@Roles`) y las referencias ISO/ASVS están en el apartado **Evidencia técnica y normativa (API, último ingreso)** (panel colapsable bajo la cabecera).
+La pantalla **Administración de identidades** se organiza en **tres pestañas**: **Usuarios** (directorio principal), **Roles y permisos** (configuración por rol, solo ADMIN) y **Matriz de acceso** (comparación visual por rol). Los textos visibles usan **nombres comprensibles** (p. ej. «Crear documentos», «Subir archivos»); los códigos técnicos (`DOC_CREATE`, etc.) aparecen solo como información secundaria. Los detalles de API y normativa están en **Información técnica** (acordeón al final de la página, cerrado por defecto).
 
-La tabla reproduce `GET /usuarios` y la **matriz de referencia** `GET /usuarios/matriz-acceso-referencia` (lectura útil por rol vs módulos; no persiste cambios).
+La tabla de usuarios reproduce `GET /usuarios`; la matriz de referencia `GET /usuarios/matriz-acceso-referencia` (lectura; no persiste cambios).
 
-La **capacidad técnica** del API combina rol JWT (`ADMIN`, `USUARIO`, etc.) + **permisos en base de datos**: por **rol** (`role_permissions`) **y opcionalmente por persona** (`user_permissions`, llamados «permisos directos» en la pantalla), aplicados por el servidor (`@Permissions`). La sección **Matriz rol ↔ permiso (base de datos)** permite **marcar/desmarcar códigos** por cada rol institucional y **Guardar** (API `PUT /rbac/roles/:codigo/permissions`; queda evidencia **`ROLE_PERMISSIONS_UPDATED`** en auditoría para administradores).
+La **capacidad efectiva** combina rol JWT + **permisos en base de datos** por rol (`role_permissions`) y, opcionalmente, **permisos adicionales** por cuenta (`user_permissions`), aplicados por el servidor. En **Roles y permisos** puede marcar capacidades por rol con **Guardar permisos** (tras confirmación si hay cambios; API `PUT /rbac/roles/:codigo/permissions`; auditoría **`ROLE_PERMISSIONS_UPDATED`**).
 
-**Los usuarios** se administran con **un rol institucional** (el que debe tener la cuenta) y, si hace falta, el complemento **Editor documental** y **permisos directos** en **Crear usuario** / **Editar usuario**. Los permisos directos se **suman** a lo que otorgue el rol (p. ej. asignar solo `DOC_FILES_UPLOAD` sin crear un rol nuevo). Quedan registrados cambios fuertes en auditoría (**`USER_DIRECT_PERMISSIONS_UPDATED`**). Quien cambie de combinación debe **volver a iniciar sesión** (o esperar renovación del token) para ver el efecto completo.
+**Los usuarios** se administran con **un rol institucional**, complemento opcional **Editor documental** y **permisos adicionales** en **Crear usuario** / **Editar usuario**. Los permisos adicionales se **suman** al rol. En edición verá **permisos heredados del rol** (solo lectura) y **permisos adicionales** (editables). Cambios fuertes quedan en auditoría (**`USER_DIRECT_PERMISSIONS_UPDATED`**). Tras cambios de acceso, conviene **volver a iniciar sesión** para ver el efecto completo.
 
 **Los roles** siguen siendo obligatorios (al menos uno): si un rol no tiene permisos en BD, la API puede responder `403` aun con el mismo código de rol en la cuenta.
 
 1. En el menú lateral, entra a **Administración → Usuarios y roles**.
-2. En el directorio, revisa chips **Activos** / **Total** (colores del tema; icono de **Usuarios** en el encabezado del listado) y la tabla de usuario (nombre preferente o correo), **cargo y dependencia** cuando están en el catálogo, rol(es), estado (**Activo** / **Suspendido**) y **Último ingreso** según **`ultimoLoginAt`** (tras login **exitoso con credenciales**; no sólo renovación silenciosa). Cuentas antiguas pueden mostrar «sin acceso» hasta el próximo login tras el despliegue del campo. Bajo los botones hay enlaces rápidos: **Ver matriz RBAC** (baja a la matriz) y, en la matriz, **Volver al directorio de usuarios**.
+2. Pestaña **Usuarios**: usa **Buscar usuario**, filtros **Estado** (Todos / Activos / Inactivos) y **Rol**. Revisa la tabla (nombre + correo, rol con chips, **Área / Dependencia**, **Activo** / **Inactivo**, **Último acceso** con tooltip de fecha exacta). Chip **Super Administrador** indica cuenta protegida.
 3. Para crear un usuario:
-   - Presiona **Crear usuario**
-   - Completa **Correo**, **Contraseña temporal** (respaldo hasta que el usuario defina la suya), (opcional) **Nombres/Apellidos**, (opcional) **Dependencia/Cargo**, **Rol institucional** (elija **uno**: Usuario, Revisor, Auditor, Consulta o Administrador) y, si aplica, marque **Editor documental (complemento)** para crear/editar documentos y adjuntos sin ser ADMIN. Opcionalmente asigne **Permisos directos** (casillas del catálogo; vacío = solo hereda del rol). El **alcance en API** es la **unión** de permisos del rol (y del complemento si está marcado) + **permisos directos**.
-   - Deja marcada la opción recomendada **“Enviar al correo un enlace…”** para que llegue un mensaje con el enlace a **definir contraseña** (página de restablecer). Si no marcas la casilla, el usuario solo puede entrar con la contraseña temporal.
+   - Presiona **+ Crear usuario**
+   - Completa **Correo**, **Contraseña temporal**, (opcional) **Nombres/Apellidos**, **Dependencia/Cargo**, **Rol institucional** y, si aplica, **Editor documental · Permiso adicional**. Opcionalmente asigne **Permisos adicionales** (buscador por nombre o código).
+   - Deja marcada **“Enviar al correo un enlace…”** (recomendado).
    - Presiona **Crear**
-   - Si aparece un aviso de que no se envió el correo, el administrador debe revisar la configuración SMTP del servidor o repetir más tarde el flujo de recuperación de contraseña para ese usuario.
-4. Para editar:
-   - En la fila del usuario, pulsa el botón **⋮ / Acciones** (icono junto al final de la fila).
-   - Elige **Editar usuario** (rol institucional, complemento editor, dependencia, cargo, permisos directos).
-   - Marque el **rol que debe tener** esa persona (un solo rol institucional; ya no se apilan varios roles al pulsar opciones). Si la cuenta tenía varios roles acumulados, verá un aviso y al **Guardar** quedará solo el rol elegido.
-   - Ajusta y presiona **Guardar** (si cambió permisos directos, revise auditoría y pida al usuario que cierre sesión si hace falta).
-5. Para activar/desactivar:
-   - En **Acciones**, elija **Activar cuenta** o **Desactivar cuenta**
-6. Para restablecer contraseña:
-   - En **Acciones**, elija **Restablecer contraseña**
-   - Ingresa nueva contraseña y confirma
-7. **Permisos por rol (BD)** (matriz efectiva ante el API):
-   - Usa **Permisos por rol (BD)** o desplázate a **Matriz rol ↔ permiso (base de datos)**.
-   - En **Rol a editar**, elige el código (`USUARIO`, `REVISOR`, etc.).
-   - Marca o quita los códigos de permiso necesarios (**Guardar permisos del rol**).
-   - Tras un cambio, los usuarios con ese rol heredan el nuevo conjunto; si ya tenían sesión abierta puede bastar esperar caducidad/refresh según configuración JWT o volver a iniciar sesión.
+4. Para editar (menú **⋮ Acciones**):
+   - **Ver detalles** / **Editar usuario** / **Cambiar rol**: datos, rol y dependencia.
+   - **Permisos adicionales**: excepciones solo para esa cuenta (heredados del rol aparecen bloqueados).
+   - **Restablecer contraseña** o **Activar** / **Desactivar** (acciones sensibles separadas; **Super Administrador** no se desactiva salvo cuenta SUPERADMIN).
+5. Pestaña **Roles y permisos**:
+   - Elija **Rol a configurar**, revise módulos (Documentos, Revisiones, etc.), use **Buscar permiso**.
+   - **Guardar permisos** solo tras revisar el diálogo de confirmación; **Cancelar cambios** descarta edición local.
+6. Pestaña **Matriz de acceso**:
+   - Compare capacidades por rol; en móvil use el selector **Ver rol** (lista vertical). En escritorio puede resaltar una columna de rol.
 
 **Resultado esperado**
 - El listado de usuarios refleja altas/edición; la matriz de referencia muestra vista comparativa por rol.

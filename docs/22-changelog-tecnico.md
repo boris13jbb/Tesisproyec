@@ -24,6 +24,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-08-30 — Rediseño UX Administración → Usuarios y roles
+
+- **Frontend:** pestañas Usuarios / Roles y permisos / Matriz de acceso; permisos humanizados (`permission-display.ts`, `role-display.ts`).
+- Componentes: `RolePermissionsPanel`, `AccessMatrix`, `AdditionalPermissionsSection`, `PermissionRow`.
+- Sin cambios de BD, guards ni lógica RBAC backend; mismos endpoints `GET/PUT /rbac/roles/:codigo/permissions` y `GET /usuarios`.
+- Manual §5.1 actualizado.
+
 ### 2026-08-30 — Wizard creación documento (archivo → metadatos → upload)
 
 - **UI:** `NuevoDocumentoPage` con Stepper; botón y menú lateral unificados a `/documentos/nuevo`.
