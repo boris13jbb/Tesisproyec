@@ -161,11 +161,15 @@ export class UsuariosService {
     }
   }
 
-  private rolesRequireSessionRevocation(antes: string[], despues: string[]): boolean {
+  private rolesRequireSessionRevocation(
+    antes: string[],
+    despues: string[],
+  ): boolean {
     const antesSet = new Set(antes);
     const despuesSet = new Set(despues);
-    const changed = [...antesSet].some((r) => !despuesSet.has(r))
-      || [...despuesSet].some((r) => !antesSet.has(r));
+    const changed =
+      [...antesSet].some((r) => !despuesSet.has(r)) ||
+      [...despuesSet].some((r) => !antesSet.has(r));
     if (!changed) return false;
     const sensitive = new Set<string>([ROLE_ADMIN, 'REVISOR', 'SUPERADMIN']);
     return [...antesSet, ...despuesSet].some((r) => sensitive.has(r));

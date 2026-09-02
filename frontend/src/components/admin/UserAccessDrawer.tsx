@@ -38,6 +38,7 @@ import {
 import { useSerializedMutation } from '../../hooks/useSerializedMutation';
 import { toggleRoleInList } from '../../utils/effective-permissions';
 import { getApiErrorMessage } from '../../utils/api-error-message';
+import { displayUsuario } from './users/user-display';
 import { EffectivePermissionsPanel } from './EffectivePermissionsPanel';
 import { PermissionRow } from './PermissionRow';
 
@@ -70,11 +71,6 @@ type AdminConfirmState =
   | { mode: 'revoke'; roleCode: 'ADMIN' }
   | null;
 
-function displayUsuario(u: Usuario): string {
-  const n = `${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim();
-  return n || u.email;
-}
-
 export function UserAccessDrawer({
   open,
   usuario,
@@ -103,7 +99,10 @@ export function UserAccessDrawer({
   }, []);
 
   useEffect(() => {
-    if (open && usuario) syncFromUsuario(usuario);
+    if (open && usuario) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza drawer con usuario seleccionado
+      syncFromUsuario(usuario);
+    }
   }, [open, usuario, syncFromUsuario]);
 
   const loadRolePermissions = useCallback(async (codes: string[]) => {
@@ -127,6 +126,7 @@ export function UserAccessDrawer({
 
   useEffect(() => {
     if (!open || roleCodes.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia mapa cuando no hay roles activos
       setRolePermissionMap(new Map());
       return;
     }
