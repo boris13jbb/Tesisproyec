@@ -42,6 +42,10 @@ import {
 import { DashboardServiceStatus } from '../components/dashboard/DashboardServiceStatus';
 import { DASHBOARD_SECTION_GAP } from '../components/dashboard/dashboard-surface';
 import { dashboardCardPadding, dashboardSurfaceSx } from '../components/dashboard/dashboard-surface';
+import {
+  resolveDashboardRouteAccess,
+  resolveDashboardUiVisibility,
+} from '../components/dashboard/dashboard-visibility';
 import { EvaluacionLikertCharts } from '../components/EvaluacionLikertCharts';
 import {
   pickFirstDashboardAlertDestination,
@@ -324,27 +328,43 @@ export function DashboardPage() {
   const displayRole =
     primaryAdminRoleName(user?.roles) ?? user?.roles[0]?.nombre ?? 'Usuario';
 
-  const permissionCodes = myPermissionCodes ?? [];
-  const canCreateDocumento =
-    isAdmin ||
-    (permissionCodes.includes('DOC_CREATE') && permissionCodes.includes('DOC_FILES_UPLOAD'));
+  const permissionCodes = useMemo(
+    () => myPermissionCodes ?? [],
+    [myPermissionCodes],
+  );
   const canReview =
     isRevisorOrAdmin || permissionCodes.includes('DOC_REVISION_RESOLVE');
   const canManageUsers = isAdmin || permissionCodes.includes('USERS_READ');
   const canAudit = isAdmin || permissionCodes.includes('AUDIT_READ');
-  const canReports = isAdmin || permissionCodes.includes('REPORTS_EXPORT');
+
+  const uiVisibility = useMemo(
+    () =>
+      resolveDashboardUiVisibility({
+        isAdmin,
+        permissionCodes,
+        canReview,
+        canManageUsers,
+        canAudit,
+      }),
+    [isAdmin, permissionCodes, canReview, canManageUsers, canAudit],
+  );
+
+  const routeAccess = useMemo(
+    () =>
+      resolveDashboardRouteAccess({
+        roles: user?.roles ?? [],
+        permissionCodes,
+      }),
+    [user?.roles, permissionCodes],
+  );
 
   const quickActions = useMemo(
     () =>
       buildQuickActions({
         isAdmin,
-        canCreateDocumento,
-        canReview,
-        canManageUsers,
-        canAudit,
-        canReports,
+        ...routeAccess,
       }),
-    [isAdmin, canCreateDocumento, canReview, canManageUsers, canAudit, canReports],
+    [isAdmin, routeAccess],
   );
 
   const handleBellClick = () => {
@@ -364,7 +384,7 @@ export function DashboardPage() {
   };
 
   const initialLoad = summaryLoading && !summary;
-  const showPendingSection = isRevisorOrAdmin || canReview;
+  const showPendingSection = uiVisibility.showPendingSection;
   const sectionMb = { mb: DASHBOARD_SECTION_GAP };
 
   if (initialLoad) {
@@ -456,7 +476,7 @@ export function DashboardPage() {
         </Grid>
       </Grid>
 
-      {!isAdmin ? (
+      {uiVisibility.showMyActivity ? (
         <Box sx={sectionMb}>
           <DashboardMyActivity
             data={summary?.miActividadDocumental}
@@ -468,30 +488,32 @@ export function DashboardPage() {
       ) : null}
 
       <Grid container spacing={2} sx={{ ...sectionMb, alignItems: 'flex-start' }}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <DashboardPendingReview
-            items={summary?.documentosPendientes ?? []}
-            totalPendientes={summary?.kpis.pendientesRevision ?? 0}
-            loading={summaryLoading}
-            visible={showPendingSection}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        {showPendingSection ? (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <DashboardPendingReview
+              items={summary?.documentosPendientes ?? []}
+              totalPendientes={summary?.kpis.pendientesRevision ?? 0}
+              loading={summaryLoading}
+              visible
+            />
+          </Grid>
+        ) : null}
+        <Grid size={{ xs: 12, md: showPendingSection ? 6 : 12 }}>
           <DashboardQuickActions actions={quickActions} loading={summaryLoading && !summary} />
         </Grid>
       </Grid>
 
       <Grid container spacing={2} sx={{ ...sectionMb, alignItems: 'flex-start' }}>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: uiVisibility.showLikert ? 6 : 12 }}>
           <DashboardRecentActivity
             items={summary?.actividadReciente ?? []}
             loading={summaryLoading}
-            showViewAll={isAdmin}
-            viewAllTo={isAdmin ? '/admin/auditoria' : '/perfil'}
-            viewAllLabel={isAdmin ? 'Ver toda la actividad' : 'Ver toda la actividad'}
+            showViewAll={isAdmin || canAudit}
+            viewAllTo={isAdmin || canAudit ? '/admin/auditoria' : '/perfil'}
+            viewAllLabel={isAdmin || canAudit ? 'Ver toda la actividad' : 'Ver toda la actividad'}
           />
         </Grid>
-        {isAdmin ? (
+        {uiVisibility.showLikert ? (
           <Grid size={{ xs: 12, md: 6 }}>
             <EvaluacionLikertCharts
               variant="compact"
@@ -503,7 +525,7 @@ export function DashboardPage() {
         ) : null}
       </Grid>
 
-      {isAdmin ? (
+      {uiVisibility.showUserActivity ? (
         <Box sx={sectionMb}>
           <DashboardUserActivity
             items={summary?.actividadPorUsuario ?? []}
@@ -516,47 +538,55 @@ export function DashboardPage() {
         </Box>
       ) : null}
 
-      {isAdmin ? (
+      {uiVisibility.showAdminBottomRow ? (
         <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
-          <Grid size={{ xs: 12, lg: 4 }}>
+          <Grid size={{ xs: 12, lg: uiVisibility.showServiceStatus ? 4 : 12 }}>
             <DashboardAlerts
               items={alertasItemsMerged}
-              loading={summaryLoading || healthLoading}
+              loading={summaryLoading || (uiVisibility.showServiceStatus && healthLoading)}
               isAdmin={isAdmin}
               serverItems={summary?.kpis.alertasItems ?? []}
-              ackInFlight={ackInFlight}
-              ackError={ackError}
-              onAcknowledge={(c) => void acknowledgeServerAlert(c)}
+              ackInFlight={uiVisibility.showAdminAlertsAck ? ackInFlight : null}
+              ackError={uiVisibility.showAdminAlertsAck ? ackError : null}
+              onAcknowledge={
+                uiVisibility.showAdminAlertsAck
+                  ? (c) => void acknowledgeServerAlert(c)
+                  : undefined
+              }
             />
           </Grid>
-          <Grid size={{ xs: 12, lg: 4 }}>
-            <DashboardAdminInsights
-              usuarios={summary?.usuariosResumen}
-              audit={summary?.auditResumen}
-              lastBackupAt={summary?.lastSignals.lastBackupVerifiedAt ?? null}
-              lastAuditAt={summary?.lastSignals.lastAuditAt ?? null}
-              loading={summaryLoading}
-              canManageUsers={canManageUsers}
-              canViewAudit={canAudit}
-              formatBackup={formatUltimoRespaldoVerificado}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, lg: 4 }}>
-            <Box id="estado-servicio" sx={{ scrollMarginTop: { xs: 88, md: 96 } }}>
-              <DashboardServiceStatus
-                health={health}
-                healthLoading={healthLoading}
-                healthError={healthError}
-                adminOk={adminOk}
-                adminError={adminError}
-                adminLoading={adminOk === null && !adminError}
+          {uiVisibility.showAdminInsights ? (
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <DashboardAdminInsights
+                usuarios={summary?.usuariosResumen}
+                audit={summary?.auditResumen}
+                lastBackupAt={summary?.lastSignals.lastBackupVerifiedAt ?? null}
+                lastAuditAt={summary?.lastSignals.lastAuditAt ?? null}
+                loading={summaryLoading}
+                canManageUsers={canManageUsers}
+                canViewAudit={canAudit}
+                formatBackup={formatUltimoRespaldoVerificado}
               />
-            </Box>
-          </Grid>
+            </Grid>
+          ) : null}
+          {uiVisibility.showServiceStatus ? (
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <Box id="estado-servicio" sx={{ scrollMarginTop: { xs: 88, md: 96 } }}>
+                <DashboardServiceStatus
+                  health={health}
+                  healthLoading={healthLoading}
+                  healthError={healthError}
+                  adminOk={adminOk}
+                  adminError={adminError}
+                  adminLoading={adminOk === null && !adminError}
+                />
+              </Box>
+            </Grid>
+          ) : null}
         </Grid>
       ) : (
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{ xs: 12 }}>
             <DashboardAlerts
               items={alertasItemsMerged}
               loading={summaryLoading}

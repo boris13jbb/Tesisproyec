@@ -17,15 +17,15 @@ export type QuickAction = {
 
 export function buildQuickActions(input: {
   isAdmin: boolean;
-  canCreateDocumento: boolean;
-  canReview: boolean;
-  canManageUsers: boolean;
-  canAudit: boolean;
-  canReports: boolean;
+  canOpenNewDocument: boolean;
+  canOpenReview: boolean;
+  canOpenUsers: boolean;
+  canOpenAudit: boolean;
+  canOpenReports: boolean;
 }): QuickAction[] {
   const actions: QuickAction[] = [];
 
-  if (input.canCreateDocumento) {
+  if (input.canOpenNewDocument) {
     actions.push({
       id: 'nuevo',
       label: 'Nuevo documento',
@@ -35,7 +35,7 @@ export function buildQuickActions(input: {
     });
   }
 
-  if (input.canReview || input.isAdmin) {
+  if (input.canOpenReview) {
     actions.push({
       id: 'pendientes',
       label: 'Revisar pendientes',
@@ -63,7 +63,7 @@ export function buildQuickActions(input: {
     });
   }
 
-  if (input.canManageUsers) {
+  if (input.canOpenUsers) {
     actions.push({
       id: 'usuarios',
       label: 'Usuarios',
@@ -73,7 +73,7 @@ export function buildQuickActions(input: {
     });
   }
 
-  if (input.canAudit) {
+  if (input.canOpenAudit) {
     actions.push({
       id: 'auditoria',
       label: 'Auditoría',
@@ -83,7 +83,7 @@ export function buildQuickActions(input: {
     });
   }
 
-  if (input.canReports) {
+  if (input.canOpenReports) {
     actions.push({
       id: 'reportes',
       label: 'Reportes',

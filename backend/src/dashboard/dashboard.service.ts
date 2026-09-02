@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 import type { JwtRequestUser } from '../auth/request-user';
-import { jwtUserIsAdmin, jwtUserIsRevisor } from '../auth/request-user';
+import { jwtUserIsAdmin } from '../auth/request-user';
 import type { AuditResult } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { mesNombreEc } from '../common/date-labels.util';
@@ -55,6 +55,8 @@ import {
   BACKUP_META_SOURCE_MANUAL,
 } from '../backup/backup.constants';
 import { documentoVisibilityWhere } from '../documentos/documento-scope.util';
+import { PermissionsService } from '../auth/permissions.service';
+import { resolveDashboardSummaryVisibility } from './dashboard-summary-visibility.util';
 import { PrismaService } from '../prisma/prisma.service';
 import type { DashboardAlertCodigo } from './dto/acknowledge-dashboard-alert.dto';
 
@@ -542,13 +544,12 @@ async function buildDocumentosPorMes(
 
 async function buildEvaluacionLikert(
   prisma: PrismaService,
-  scopeWhere: Prisma.DocumentoWhereInput | undefined,
+  docWhere: Prisma.DocumentoWhereInput,
   now: Date,
 ): Promise<EvaluacionLikertSummary> {
-  const where: Prisma.DocumentoWhereInput = scopeWhere ?? {};
   const MAX_ROWS = 5000;
   const rows = await prisma.documento.findMany({
-    where,
+    where: docWhere,
     take: MAX_ROWS,
     select: {
       activo: true,
@@ -597,6 +598,7 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   async recordBackupVerification(
@@ -744,6 +746,11 @@ export class DashboardService {
     actividadPeriodo: ActividadDocumentalPeriodo = ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
   ): Promise<DashboardSummary> {
     const isAdmin = jwtUserIsAdmin(viewer);
+    const permCodes = isAdmin
+      ? new Set<string>()
+      : await this.permissions.getCodesForUserId(viewer.id);
+    const visibility = resolveDashboardSummaryVisibility(viewer, permCodes);
+
     const vis = documentoVisibilityWhere(viewer);
     const docWhere = vis ? { AND: [{ activo: true }, vis] } : { activo: true };
 
@@ -768,7 +775,7 @@ export class DashboardService {
       0,
     );
 
-    const canSeePendientesList = isAdmin || jwtUserIsRevisor(viewer);
+    const canSeePendientesList = visibility.canSeePendientesList;
 
     const activityActionFilter = isAdmin
       ? dashboardActivityActionsForAdmin()
@@ -788,6 +795,12 @@ export class DashboardService {
             { result: 'OK' },
           ],
         };
+
+    const queryGlobalAudit = visibility.includeGlobalAuditQueries;
+    const queryLastSignals = visibility.includeLastSignals;
+    const queryUsuariosResumen = visibility.includeUsuariosResumen;
+    const queryAuditResumen = visibility.includeAuditResumen;
+    const queryLikert = visibility.includeLikert;
 
     const [
       documentosTotal,
@@ -855,10 +868,14 @@ export class DashboardService {
         : Promise.resolve([]),
       isAdmin
         ? this.prisma.user.count({ where: { activo: true } })
-        : Promise.resolve(null),
+        : queryUsuariosResumen
+          ? this.prisma.user.count({ where: { activo: true } })
+          : Promise.resolve(null),
       isAdmin
         ? this.prisma.user.count({ where: { activo: false } })
-        : Promise.resolve(null),
+        : queryUsuariosResumen
+          ? this.prisma.user.count({ where: { activo: false } })
+          : Promise.resolve(null),
       isAdmin
         ? this.prisma.user.count({
             where: {
@@ -866,10 +883,21 @@ export class DashboardService {
               roles: { some: { role: { activo: true } } },
             },
           })
-        : Promise.resolve(null),
+        : queryUsuariosResumen
+          ? this.prisma.user.count({
+              where: {
+                activo: true,
+                roles: { some: { role: { activo: true } } },
+              },
+            })
+          : Promise.resolve(null),
       countDocumentosPorEstado(this.prisma, docWhere),
       buildDocumentosPorMes(this.prisma, docWhere, now),
-      buildEvaluacionLikert(this.prisma, vis, now),
+      queryLikert
+        ? buildEvaluacionLikert(this.prisma, docWhere, now)
+        : Promise.resolve(
+            emptyEvaluacionLikertSummary(LIKERT_DIAS_UMBRAL_DEFAULT),
+          ),
       this.prisma.auditLog.findMany({
         where: activityWhere,
         orderBy: { createdAt: 'desc' },
@@ -891,27 +919,37 @@ export class DashboardService {
             select: { nombre: true },
           })
         : Promise.resolve(null),
-      this.prisma.auditLog.count({
-        where: { action: 'AUTH_LOGIN_OK', createdAt: { gte: since30d } },
-      }),
-      this.prisma.auditLog.count({
-        where: { action: 'AUTH_LOGIN_FAIL', createdAt: { gte: since30d } },
-      }),
-      this.prisma.auditLog.count({
-        where: { action: 'AUTHZ_FORBIDDEN', createdAt: { gte: since30d } },
-      }),
-      this.prisma.auditLog.count({ where: { createdAt: { gte: since30d } } }),
-      isAdmin
+      queryGlobalAudit
+        ? this.prisma.auditLog.count({
+            where: { action: 'AUTH_LOGIN_OK', createdAt: { gte: since30d } },
+          })
+        : Promise.resolve(0),
+      queryGlobalAudit
+        ? this.prisma.auditLog.count({
+            where: { action: 'AUTH_LOGIN_FAIL', createdAt: { gte: since30d } },
+          })
+        : Promise.resolve(0),
+      queryGlobalAudit
+        ? this.prisma.auditLog.count({
+            where: { action: 'AUTHZ_FORBIDDEN', createdAt: { gte: since30d } },
+          })
+        : Promise.resolve(0),
+      queryGlobalAudit
+        ? this.prisma.auditLog.count({
+            where: { createdAt: { gte: since30d } },
+          })
+        : Promise.resolve(0),
+      queryAuditResumen
         ? this.prisma.auditLog.count({
             where: { createdAt: { gte: inicioDia } },
           })
         : Promise.resolve(0),
-      isAdmin
+      queryAuditResumen
         ? this.prisma.auditLog.count({
             where: { createdAt: { gte: inicioDia }, result: 'OK' },
           })
         : Promise.resolve(0),
-      isAdmin
+      queryAuditResumen
         ? this.prisma.auditLog.count({
             where: { createdAt: { gte: inicioDia }, result: 'FAIL' },
           })
@@ -922,34 +960,44 @@ export class DashboardService {
           eventos: { some: { createdAt: { gte: since30d } } },
         },
       }),
-      this.prisma.auditLog.count({
-        where: {
-          action: { startsWith: 'DOC_' },
-          result: 'OK',
-          createdAt: { gte: since30d },
-        },
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          action: { startsWith: 'DOC_' },
-          result: 'FAIL',
-          createdAt: { gte: since30d },
-        },
-      }),
-      this.prisma.auditLog.findFirst({
-        orderBy: [{ createdAt: 'desc' }],
-        select: { createdAt: true },
-      }),
-      this.prisma.auditLog.findFirst({
-        where: { action: 'AUTH_LOGIN_OK' },
-        orderBy: [{ createdAt: 'desc' }],
-        select: { createdAt: true },
-      }),
-      this.prisma.auditLog.findFirst({
-        where: { action: AUDIT_ACTION_BACKUP_VERIFIED, result: 'OK' },
-        orderBy: [{ createdAt: 'desc' }],
-        select: { createdAt: true },
-      }),
+      queryGlobalAudit
+        ? this.prisma.auditLog.count({
+            where: {
+              action: { startsWith: 'DOC_' },
+              result: 'OK',
+              createdAt: { gte: since30d },
+            },
+          })
+        : Promise.resolve(0),
+      queryGlobalAudit
+        ? this.prisma.auditLog.count({
+            where: {
+              action: { startsWith: 'DOC_' },
+              result: 'FAIL',
+              createdAt: { gte: since30d },
+            },
+          })
+        : Promise.resolve(0),
+      queryLastSignals
+        ? this.prisma.auditLog.findFirst({
+            orderBy: [{ createdAt: 'desc' }],
+            select: { createdAt: true },
+          })
+        : Promise.resolve(null),
+      queryLastSignals
+        ? this.prisma.auditLog.findFirst({
+            where: { action: 'AUTH_LOGIN_OK' },
+            orderBy: [{ createdAt: 'desc' }],
+            select: { createdAt: true },
+          })
+        : Promise.resolve(null),
+      queryLastSignals
+        ? this.prisma.auditLog.findFirst({
+            where: { action: AUDIT_ACTION_BACKUP_VERIFIED, result: 'OK' },
+            orderBy: [{ createdAt: 'desc' }],
+            select: { createdAt: true },
+          })
+        : Promise.resolve(null),
     ]);
 
     const [
@@ -960,7 +1008,7 @@ export class DashboardService {
     ] = await Promise.all([
       buildDistribucionPorTipoForDashboard(this.prisma, docWhere),
       buildTiposPorMesForDashboard(this.prisma, docWhere, now),
-      isAdmin
+      visibility.includeActividadPorUsuario
         ? buildActividadPorUsuarioForDashboard(
             this.prisma,
             docWhere,
@@ -968,7 +1016,7 @@ export class DashboardService {
             now,
           )
         : Promise.resolve(null),
-      !isAdmin
+      visibility.includeMiActividad
         ? buildMiActividadDocumentalForDashboard(
             this.prisma,
             docWhere,
@@ -1011,7 +1059,7 @@ export class DashboardService {
     const inputValidationPercent =
       docTotalActions > 0 ? (docOk30d / docTotalActions) * 100 : 0;
 
-    const ackMap = isAdmin
+    const ackMap = visibility.includeAdminSecurityAlerts
       ? await this.loadDashboardAlertAckMap(viewer.id)
       : new Map<string, { acknowledgedAt: Date; metaJson: string | null }>();
 
@@ -1030,7 +1078,7 @@ export class DashboardService {
         });
       }
     }
-    if (isAdmin && authzForbidden30d > 0) {
+    if (visibility.includeAdminSecurityAlerts && authzForbidden30d > 0) {
       const ack403 = ackMap.get('AUTHZ_FORBIDDEN');
       const show403 =
         !ack403 ||
@@ -1046,7 +1094,7 @@ export class DashboardService {
         });
       }
     }
-    if (isAdmin && loginFail30d > 0) {
+    if (visibility.includeAdminSecurityAlerts && loginFail30d > 0) {
       const ackLogin = ackMap.get('AUTH_LOGIN_FAIL');
       const showLoginFail =
         !ackLogin ||
@@ -1065,7 +1113,11 @@ export class DashboardService {
     const backupAutoEnabled =
       this.config.get<string>('BACKUP_AUTOMATED_ENABLED')?.toLowerCase() ===
       'true';
-    if (isAdmin && !lastBackupVerified && !ackMap.has('BACKUP_SIN_REGISTRO')) {
+    if (
+      visibility.includeAdminSecurityAlerts &&
+      !lastBackupVerified &&
+      !ackMap.has('BACKUP_SIN_REGISTRO')
+    ) {
       alertasItems.push({
         codigo: 'BACKUP_SIN_REGISTRO',
         mensaje: backupAutoEnabled
@@ -1130,63 +1182,65 @@ export class DashboardService {
         ultimaActividadAt: d.updatedAt.toISOString(),
       }));
 
-    const compliance: DashboardComplianceMetric[] = [
-      {
-        key: 'access_control',
-        title: 'Control de acceso',
-        standard:
-          'Proporción de eventos de auditoría sin denegación por permiso (últimos 30 días).',
-        percent: clampPercent(accessControlPercent),
-        evidence: {
-          audit_total_30d: accessTotal,
-          authz_forbidden_30d: authzForbidden30d,
-        },
-      },
-      {
-        key: 'identity_management',
-        title: 'Gestión de identidades',
-        standard:
-          'Usuarios activos con al menos un rol asignado en el sistema.',
-        percent: clampPercent(identityPercent),
-        evidence: {
-          users_active: usuariosActivos ?? 0,
-          users_active_with_role: activeUsersWithRole ?? 0,
-        },
-      },
-      {
-        key: 'authentication_information',
-        title: 'Información de autenticación',
-        standard:
-          'Proporción de inicios de sesión exitosos frente a intentos fallidos (30 días).',
-        percent: clampPercent(authSuccessPercent),
-        evidence: {
-          auth_login_ok_30d: loginOk30d,
-          auth_login_fail_30d: loginFail30d,
-        },
-      },
-      {
-        key: 'document_traceability',
-        title: 'Trazabilidad documental',
-        standard:
-          'Documentos con al menos un evento de auditoría en los últimos 30 días.',
-        percent: clampPercent(traceabilityPercent),
-        evidence: {
-          documentos_total: documentosTotal,
-          documentos_con_eventos_30d: docsWithEvents30d,
-        },
-      },
-      {
-        key: 'input_validation',
-        title: 'Validación de entradas',
-        standard:
-          'Operaciones documentales aceptadas frente a rechazos por validación (30 días).',
-        percent: clampPercent(inputValidationPercent),
-        evidence: {
-          doc_actions_ok_30d: docOk30d,
-          doc_actions_fail_30d: docFail30d,
-        },
-      },
-    ];
+    const compliance: DashboardComplianceMetric[] = visibility.includeCompliance
+      ? [
+          {
+            key: 'access_control',
+            title: 'Control de acceso',
+            standard:
+              'Proporción de eventos de auditoría sin denegación por permiso (últimos 30 días).',
+            percent: clampPercent(accessControlPercent),
+            evidence: {
+              audit_total_30d: accessTotal,
+              authz_forbidden_30d: authzForbidden30d,
+            },
+          },
+          {
+            key: 'identity_management',
+            title: 'Gestión de identidades',
+            standard:
+              'Usuarios activos con al menos un rol asignado en el sistema.',
+            percent: clampPercent(identityPercent),
+            evidence: {
+              users_active: usuariosActivos ?? 0,
+              users_active_with_role: activeUsersWithRole ?? 0,
+            },
+          },
+          {
+            key: 'authentication_information',
+            title: 'Información de autenticación',
+            standard:
+              'Proporción de inicios de sesión exitosos frente a intentos fallidos (30 días).',
+            percent: clampPercent(authSuccessPercent),
+            evidence: {
+              auth_login_ok_30d: loginOk30d,
+              auth_login_fail_30d: loginFail30d,
+            },
+          },
+          {
+            key: 'document_traceability',
+            title: 'Trazabilidad documental',
+            standard:
+              'Documentos con al menos un evento de auditoría en los últimos 30 días.',
+            percent: clampPercent(traceabilityPercent),
+            evidence: {
+              documentos_total: documentosTotal,
+              documentos_con_eventos_30d: docsWithEvents30d,
+            },
+          },
+          {
+            key: 'input_validation',
+            title: 'Validación de entradas',
+            standard:
+              'Operaciones documentales aceptadas frente a rechazos por validación (30 días).',
+            percent: clampPercent(inputValidationPercent),
+            evidence: {
+              doc_actions_ok_30d: docOk30d,
+              doc_actions_fail_30d: docFail30d,
+            },
+          },
+        ]
+      : [];
 
     return {
       generatedAt: new Date().toISOString(),
@@ -1211,10 +1265,12 @@ export class DashboardService {
       actividadReciente,
       documentosPendientes: pendientesRevisionItems,
       usuariosResumen:
-        isAdmin && usuariosActivos !== null && usuariosInactivos !== null
+        visibility.includeUsuariosResumen &&
+        usuariosActivos !== null &&
+        usuariosInactivos !== null
           ? { activos: usuariosActivos, inactivos: usuariosInactivos }
           : null,
-      auditResumen: isAdmin
+      auditResumen: visibility.includeAuditResumen
         ? {
             accionesHoy: auditHoy,
             okHoy: auditOkHoy,
@@ -1234,12 +1290,18 @@ export class DashboardService {
         ultimaActividadAt: d.updatedAt.toISOString(),
       })),
       compliance,
-      lastSignals: {
-        lastAuditAt: lastAudit?.createdAt?.toISOString() ?? null,
-        lastLoginOkAt: lastLoginOk?.createdAt?.toISOString() ?? null,
-        lastBackupVerifiedAt:
-          lastBackupVerified?.createdAt?.toISOString() ?? null,
-      },
+      lastSignals: visibility.includeLastSignals
+        ? {
+            lastAuditAt: lastAudit?.createdAt?.toISOString() ?? null,
+            lastLoginOkAt: lastLoginOk?.createdAt?.toISOString() ?? null,
+            lastBackupVerifiedAt:
+              lastBackupVerified?.createdAt?.toISOString() ?? null,
+          }
+        : {
+            lastAuditAt: null,
+            lastLoginOkAt: null,
+            lastBackupVerifiedAt: null,
+          },
     };
   }
 
