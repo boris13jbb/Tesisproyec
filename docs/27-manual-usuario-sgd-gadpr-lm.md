@@ -76,7 +76,7 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 1. Tras iniciar sesión, en la barra superior presiona tu **avatar / correo** para abrir el menú de cuenta.
 2. Elige **Mi perfil**. También puedes abrir directamente la ruta **`/perfil`**.
 3. Revisa **Información personal** (icono de persona; correo, rol principal, área/dependencia si está asignada, chip de **estado** y **último ingreso** preferentemente desde el campo **`ultimoLoginAt`**, con respaldo por último **`AUTH_LOGIN_OK`** en auditoría cuando el campo sea nulo).
-4. En **Actividad reciente** verás las últimas acciones en lenguaje claro (por ejemplo «Inició sesión correctamente», «Cargó documento EXP-…»). No se muestran códigos técnicos ni métricas internas del sistema.
+4. En **Actividad reciente** (bloque de esta página **Mi perfil**, no el del Panel principal) verás las últimas acciones en lenguaje claro (por ejemplo «Inició sesión correctamente», «Cargó documento EXP-…»). No se muestran códigos técnicos ni métricas internas del sistema.
 5. Los mensajes de error en formularios y pantallas usan texto entendible (sin códigos como `DOC_ACCESS_MANAGE` o `HTTP 403`). En **Auditoría** (solo ADMIN) las acciones tienen nombre legible; el código técnico aparece solo al pasar el cursor para soporte.
 5. Para iniciar el **cambio de contraseña** vía recuperación, presiona **Cambiar contraseña** (lleva a **`/recuperar`**; es el mismo flujo que “olvidé mi contraseña”).
 6. Para salir, usa **Cerrar sesión de forma segura** o la opción **Cerrar sesión** del mismo menú superior.
@@ -128,26 +128,30 @@ Sin correo institucional (entorno de desarrollo típico), el sistema puede mostr
 
 ### 4.1 Qué verás
 
-- **Indicadores**: totales **en tiempo real** desde la API (**`GET /dashboard/summary`** para todos los roles). Las tarjetas KPI usan **colores del tema** (primary, warning, success, error) y se adaptan al modo claro/oscuro. La verificación **`GET /health`** y su sondeo automático solo se ejecutan cuando el usuario es **`ADMIN`** (coincide con las secciones de salud y alertas que solo ellos ven). **Documentos** y **Pendientes** ven todos los roles; tarjetas **Usuarios** y **Alertas** solo **`ADMIN`**; hay **actualización automática** y etiqueta **«Actualizado: …»**.
-- **Gestión documental (por estado)**: bloque con totales por **estado del ciclo de vida** (Registrado, Borrador, En revisión, Aprobado, Rechazado). No debe confundirse con el tipo documental.
-- **Distribución por tipo de documento**: gráfico circular (donut) con la **composición por tipo documental** del catálogo (p. ej. Memorando, Oficio). Muestra cantidad, porcentaje y total en el centro. Si hay muchos tipos, el sistema agrupa el resto en **Otros**.
-- **Documentos registrados por mes**: gráfico de barras de los **últimos 12 meses** (volumen total mensual). Es el único gráfico de total por mes; no se duplica en otras secciones.
-- **Tipo documental por mes**: barras apiladas que muestran **qué tipos** se registraron en cada mes (composición, no solo el total).
-- **Actividad del mes**: comparación del mes actual frente al anterior (bloque existente).
-- **Actividad documental por usuario** (solo **`ADMIN`** / superadministrador): ranking del **mes en curso** con nombre, rol principal y cantidad de documentos **registrados** por cada usuario (máximo 5). Enlace **Ver más** hacia Usuarios y roles. No es un juicio de «productividad»; solo cuenta registros documentales.
-- **Mi actividad** (usuarios sin rol administrador): documentos **registrados este mes** por usted y total de documentos **visibles** en su ámbito. No muestra ranking de otros usuarios.
-- **Escala de Likert (semáforo documental)**: debajo del bloque Documentos aparece **Dashboard de Auditoría y Evaluación (Escala de Likert)** con tarjetas y gráficos (donut, barras y proporción) calculados en el servidor:
-  - **Nivel 5 Óptimo (verde):** documentos activos actualizados en los últimos 60 días, sin alerta crítica.
-  - **Nivel 3 Moderado (amarillo):** documentos activos con más de 60 días sin actualización.
+Bloques del Panel principal (**Inicio**), en orden aproximado de la pantalla. Todos los roles consumen **`GET /dashboard/summary`**; la verificación **`GET /health`** y el sondeo automático solo aplican cuando el usuario es **`ADMIN`**. Hay **actualización automática** y etiqueta **«Actualizado: …»**; use **Actualizar ahora** en la cabecera para forzar una recarga. La cabecera muestra saludo **«Bienvenido de nuevo, …»**, chip de rol, dependencia (si aplica) y **campana de notificaciones in-app** (eventos de revisión, resolución y vencimientos).
+
+1. **Indicadores (KPI)**: tarjetas con totales en tiempo real; colores del tema (primary, warning, success, error). **Documentos** y **Pendientes** ven todos los roles; **Usuarios** y **Alertas** solo **`ADMIN`**.
+2. **Gestión documental (por estado)**: totales por **estado del ciclo de vida** (Registrado, Borrador, En revisión, Aprobado, Rechazado). No debe confundirse con el tipo documental.
+3. **Distribución por tipo de documento**: gráfico circular (donut) con la composición por tipo documental del catálogo (p. ej. Memorando, Oficio). Cantidad, porcentaje y total en el centro. Si hay muchos tipos, el resto se agrupa en **Otros**.
+4. **Documentos registrados por mes**: barras de los **últimos 12 meses** (volumen total mensual). Es el único gráfico de total por mes en el dashboard.
+5. **Tipo documental por mes**: barras apiladas con la composición por tipo en cada mes (no solo el total).
+6. **Actividad del mes**: comparación del mes actual frente al anterior.
+7. **Registros por usuario y tipo documental** (solo **`ADMIN`** / superadministrador): **una sola sección** de actividad global por usuario (no existe un ranking paralelo con otro nombre). Muestra tarjetas del **mes en curso** para hasta **5** usuarios con mayor actividad documental (**3** visibles inicialmente; **Mostrar más** para el resto). Cada tarjeta incluye **avatar** con iniciales, **nombre** (o correo si no hay nombre), **rol** principal, **total de documentos registrados** y **gráfico de barras por tipo documental** (mismos tipos y **colores** que el donut y tipo×mes). Enlace **Ver usuarios** hacia Usuarios y roles. **No** es una valoración de «productividad»; solo cuenta registros documentales en el período.
+8. **Mi actividad** (usuarios **sin** rol administrador): documentos **registrados este mes** por usted y total **visibles** en su ámbito. **No** muestra ranking ni actividad de otros usuarios (el backend no envía `actividadPorUsuario` a estos perfiles).
+9. **Pendientes de revisión** y **Alertas**: **Requieren atención** lista documentos en revisión (todos los roles con visibilidad). La tarjeta **Alertas** y el bloque **Ocultar alertas revisadas** (**Marcar como revisada**) son solo **`ADMIN`** (señales operativas: revisión pendiente, 403, login fallido, respaldo, salud API/BD). Ocultar una alerta no borra auditoría; la acción queda como **`DASHBOARD_ALERT_ACK`** hasta que haya actividad nueva.
+10. **Acciones rápidas**: accesos directos según permisos (nuevo documento, pendientes, documentos, usuarios, auditoría, reportes, perfil).
+11. **Actividad reciente** (Panel principal): lista de acciones relevantes del sistema en lenguaje claro. **`ADMIN`**: bloque dedicado **debajo** de Registros por usuario y tipo documental; **Ver todos** → Auditoría. **Resto de roles**: en la zona de pendientes/alertas; **Ver todos** → Mi perfil.
+
+Bloques adicionales (sin duplicar lo anterior):
+
+- **Escala de Likert (semáforo documental)**: **Dashboard de Auditoría y Evaluación** con tarjetas y gráficos (donut, barras, proporción):
+  - **Nivel 5 Óptimo (verde):** activos actualizados en los últimos 60 días.
+  - **Nivel 3 Moderado (amarillo):** activos con más de 60 días sin actualización.
   - **Nivel 1 Crítico (rojo):** inactivos, rechazados o en revisión con SLA vencido.
-  Los conteos respetan el ámbito de visibilidad del usuario (mismos criterios anti‑IDOR que el listado). **Pulse una tarjeta o barra** para abrir **Documentos** con el filtro `likert` correspondiente (mismo criterio). En Documentos verá un aviso «Filtro Likert activo» y podrá quitarlo con la X o **Limpiar**.
-- Cabecera con saludo **«Bienvenido de nuevo, …»** y **campana de notificaciones in-app** (icono junto al tema): muestra eventos de revisión, resolución y vencimientos; el badge indica no leídas. En el panel **Inicio**, la campana del dashboard sigue mostrando alertas (ADMIN) o pendientes de revisión (resto).
-- Use **Actualizar ahora** en la cabecera del panel si quiere traer datos de nuevo al instante (sin esperar al intervalo automático); el botón se desactiva brevemente mientras termina la petición.
-- **Alertas (tarjeta, solo `ADMIN`)**: el número es la cantidad de **señales activas** que el sistema detecta; debajo de la tarjeta se listan en texto claro. Pueden combinarse, por ejemplo: documentos en **En revisión**, accesos **403** recientes en auditoría, **intentos fallidos de login** (30 días), **falta de registro de respaldo verificado** (hasta que se use Respaldos → registrar), o problemas de **salud del API/base de datos** detectados en el navegador.
-- **Ocultar tras revisar**: debajo de las tarjetas KPI, si hay alertas del servidor, aparece el bloque **«Ocultar alertas del panel»** con el botón **Marcar como revisada** por cada señal. Eso **no borra** los registros de auditoría; solo deja de mostrar esa alerta en el panel hasta que ocurra actividad **nueva** (otro 403/login fallido posterior, más documentos en revisión que al descartar, o respaldo verificado registrado). La acción queda en auditoría como **`DASHBOARD_ALERT_ACK`**.
-- **Actividad reciente** (usuarios **`ADMIN`**: bloque dedicado junto a actividad por usuario; resto de roles: en la zona de pendientes/alertas): lista de acciones relevantes en el sistema. **Ver todos** lleva a Auditoría (ADMIN) o Perfil (resto).
-- **Indicadores operativos (solo `ADMIN`)**: barras con métricas de los últimos 30 días (cada una indica **qué mide**; no son certificación ISO). El bloque **Señales recientes** muestra último respaldo verificado, última línea auditada y último ingreso correcto.
-- **Estado del servicio (solo `ADMIN`)**: confirmación de API y base de datos; el enlace rápido **Ir a documentos** aparece dentro de ese bloque. Los usuarios sin rol administrador pueden ir a documentos desde el menú o desde **Ver todos** en la actividad reciente.
+  Pulse una tarjeta o barra para abrir **Documentos** con filtro `likert`. Los conteos respetan el ámbito visible (anti‑IDOR).
+- **Usuarios**, **Actividad del sistema (auditoría)** y **Señales recientes** (solo **`ADMIN`**): resumen de cuentas, registros de hoy y último respaldo verificado / última línea auditada.
+- **Indicadores operativos** (solo **`ADMIN`**): barras de métricas de los últimos 30 días (no son certificación ISO).
+- **Estado del servicio** (solo **`ADMIN`**): API y base de datos; enlace **Ir a documentos** dentro del bloque.
 - **Comprobación de rol administrador** (si aplica): indicador de acceso ADMIN.
 
 ### 4.2 Menú lateral (navegación)

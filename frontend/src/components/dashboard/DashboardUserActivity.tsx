@@ -1,9 +1,11 @@
-import { Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useMemo, useState } from 'react';
+import { Box, Button, Grid, Skeleton, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { listSurfaceSx } from '../listSurfaces';
 import type { DashboardActividadPorUsuarioItem } from './dashboard-types';
-import { formatDashboardNumber } from './dashboard-utils';
+import { DashboardUserDocumentCard } from './DashboardUserDocumentCard';
+
+const INITIAL_VISIBLE = 3;
 
 type Props = {
   items: DashboardActividadPorUsuarioItem[];
@@ -11,79 +13,103 @@ type Props = {
   canViewMore?: boolean;
 };
 
+function LoadingSkeleton() {
+  return (
+    <Grid container spacing={2}>
+      {[0, 1, 2].map((i) => (
+        <Grid key={i} size={{ xs: 12, sm: 6, lg: 4 }}>
+          <Box sx={{ ...listSurfaceSx, p: 2.25 }}>
+            <Stack direction="row" spacing={1.25} sx={{ mb: 2 }}>
+              <Skeleton variant="circular" width={36} height={36} />
+              <Box sx={{ flex: 1 }}>
+                <Skeleton width="70%" />
+                <Skeleton width="50%" />
+                <Skeleton width={80} height={22} sx={{ mt: 0.75 }} />
+              </Box>
+            </Stack>
+            <Skeleton width="60%" sx={{ mb: 2 }} />
+            <Skeleton variant="rounded" height={72} />
+          </Box>
+        </Grid>
+      ))}
+    </Grid>
+  );
+}
+
 export function DashboardUserActivity({ items, loading, canViewMore }: Props) {
-  const theme = useTheme();
-  const max = Math.max(1, ...items.map((i) => i.documentosRegistrados));
+  const [expanded, setExpanded] = useState(false);
+
+  const visibleItems = useMemo(
+    () => (expanded ? items : items.slice(0, INITIAL_VISIBLE)),
+    [expanded, items],
+  );
+  const hasHidden = items.length > INITIAL_VISIBLE;
 
   if (loading) {
     return (
-      <Box sx={{ ...listSurfaceSx, p: 2.5, height: '100%' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
-          Actividad documental por usuario
+      <Box>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+          Registros por usuario y tipo documental
         </Typography>
-        <LinearProgress />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Distribución de los documentos registrados por cada usuario según su tipo documental.
+          Período: <strong>este mes</strong>.
+        </Typography>
+        <LoadingSkeleton />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
-        Actividad documental por usuario
+    <Box>
+      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+        Registros por usuario y tipo documental
       </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-        Documentos registrados este mes en su ámbito de visibilidad.
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Distribución de los documentos registrados por cada usuario según su tipo documental.
+        Período: <strong>este mes</strong>.
       </Typography>
 
       {items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-          No hay actividad documental para este período.
-        </Typography>
+        <Box sx={{ ...listSurfaceSx, p: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            No hay documentos registrados por usuarios en este período.
+          </Typography>
+        </Box>
       ) : (
-        <Stack spacing={1.5}>
-          {items.map((row, idx) => {
-            const pct = Math.round((row.documentosRegistrados / max) * 100);
-            return (
-              <Box key={row.usuarioId}>
-                <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 800 }} noWrap>
-                      {idx + 1}. {row.nombre}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {row.rol} · {formatDashboardNumber(row.documentosRegistrados)} documentos
-                    </Typography>
-                  </Box>
-                </Stack>
-                <LinearProgress
-                  variant="determinate"
-                  value={pct}
-                  sx={{
-                    height: 8,
-                    borderRadius: 999,
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 999,
-                      bgcolor: theme.palette.secondary.main,
-                    },
-                  }}
-                />
-              </Box>
-            );
-          })}
-        </Stack>
-      )}
+        <>
+          <Grid container spacing={2}>
+            {visibleItems.map((item) => (
+              <Grid key={item.usuarioId} size={{ xs: 12, sm: 6, lg: 4 }}>
+                <DashboardUserDocumentCard item={item} />
+              </Grid>
+            ))}
+          </Grid>
 
-      {canViewMore ? (
-        <Button
-          component={RouterLink}
-          to="/admin/usuarios"
-          size="small"
-          sx={{ mt: 2, fontWeight: 800 }}
-        >
-          Ver más
-        </Button>
-      ) : null}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
+            {hasHidden && !expanded ? (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => setExpanded(true)}
+                sx={{ fontWeight: 800, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+              >
+                Mostrar más ({items.length - INITIAL_VISIBLE} adicionales)
+              </Button>
+            ) : null}
+            {canViewMore ? (
+              <Button
+                component={RouterLink}
+                to="/admin/usuarios"
+                size="small"
+                sx={{ fontWeight: 800, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+              >
+                Ver usuarios
+              </Button>
+            ) : null}
+          </Stack>
+        </>
+      )}
     </Box>
   );
 }

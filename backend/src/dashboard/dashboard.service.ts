@@ -305,41 +305,86 @@ async function buildActividadPorUsuarioForDashboard(
   desde: Date,
 ): Promise<DashboardActividadPorUsuarioItem[]> {
   const grouped = await prisma.documento.groupBy({
-    by: ['createdById'],
+    by: ['createdById', 'tipoDocumentalId'],
     where: { ...docWhere, createdAt: { gte: desde } },
     _count: { _all: true },
   });
   if (grouped.length === 0) {
     return [];
   }
-  const userIds = grouped.map((g) => g.createdById);
-  const users = await prisma.user.findMany({
-    where: { id: { in: userIds } },
-    select: {
-      id: true,
-      email: true,
-      nombres: true,
-      apellidos: true,
-      roles: {
-        where: { role: { activo: true } },
-        select: { role: { select: { nombre: true } } },
-        take: 1,
-        orderBy: { role: { codigo: 'asc' } },
+
+  const userIds = [...new Set(grouped.map((g) => g.createdById))];
+  const tipoIds = [...new Set(grouped.map((g) => g.tipoDocumentalId))];
+
+  const [users, tipos] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: {
+        id: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        roles: {
+          where: { role: { activo: true } },
+          select: { role: { select: { nombre: true } } },
+          take: 1,
+          orderBy: { role: { codigo: 'asc' } },
+        },
       },
-    },
-  });
+    }),
+    prisma.tipoDocumental.findMany({
+      where: { id: { in: tipoIds } },
+      select: { id: true, codigo: true, nombre: true },
+    }),
+  ]);
+
   const userMap = new Map(users.map((u) => [u.id, u]));
-  const raw = grouped.map((g) => {
-    const u = userMap.get(g.createdById);
+  const tipoMap = new Map(tipos.map((t) => [t.id, t]));
+
+  const byUser = new Map<
+    string,
+    {
+      total: number;
+      tipos: Map<
+        string,
+        { tipoId: string; codigo: string; nombre: string; cantidad: number }
+      >;
+    }
+  >();
+
+  for (const g of grouped) {
+    const count = g._count._all;
+    if (!byUser.has(g.createdById)) {
+      byUser.set(g.createdById, { total: 0, tipos: new Map() });
+    }
+    const entry = byUser.get(g.createdById)!;
+    entry.total += count;
+
+    const tipo = tipoMap.get(g.tipoDocumentalId);
+    const tipoId = g.tipoDocumentalId;
+    const codigo = tipo?.codigo ?? 'SIN_TIPO';
+    const nombre = tipo?.nombre ?? 'Sin clasificar';
+    const existing = entry.tipos.get(tipoId);
+    if (existing) {
+      existing.cantidad += count;
+    } else {
+      entry.tipos.set(tipoId, { tipoId, codigo, nombre, cantidad: count });
+    }
+  }
+
+  const raw = [...byUser.entries()].map(([usuarioId, data]) => {
+    const u = userMap.get(usuarioId);
     const email = u?.email ?? 'usuario@local';
     return {
-      usuarioId: g.createdById,
+      usuarioId,
       nombre: displayUserName(u?.nombres ?? null, u?.apellidos ?? null, email),
       email,
       rolNombre: u?.roles[0]?.role.nombre ?? 'Usuario',
-      documentosRegistrados: g._count._all,
+      documentosRegistrados: data.total,
+      tiposRaw: [...data.tipos.values()],
     };
   });
+
   return buildTopActividadPorUsuario(raw);
 }
 

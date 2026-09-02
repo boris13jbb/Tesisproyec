@@ -44,12 +44,20 @@ export type DashboardTipoPorMesItem = {
   total: number;
 };
 
+export type DashboardActividadPorUsuarioTipoItem = {
+  tipoId: string;
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+};
+
 export type DashboardActividadPorUsuarioItem = {
   usuarioId: string;
   nombre: string;
   email: string;
   rol: string;
   documentosRegistrados: number;
+  tipos: DashboardActividadPorUsuarioTipoItem[];
 };
 
 export type DashboardMiActividadDocumental = {

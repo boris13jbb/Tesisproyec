@@ -540,35 +540,36 @@ export function DashboardPage() {
       </Grid>
 
       {isAdmin ? (
-        <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <DashboardUserActivity
-              items={summary?.actividadPorUsuario ?? []}
-              loading={summaryLoading}
-              canViewMore={canManageUsers}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <DashboardRecentActivity
-              items={summary?.actividadReciente ?? []}
-              loading={summaryLoading}
-              showViewAll={isAdmin}
-              viewAllTo="/admin/auditoria"
-            />
-          </Grid>
-        </Grid>
+        <Box sx={{ mb: 2.5 }}>
+          <DashboardUserActivity
+            items={summary?.actividadPorUsuario ?? []}
+            loading={summaryLoading}
+            canViewMore={canManageUsers}
+          />
+        </Box>
       ) : null}
 
       {isAdmin ? (
-        <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <DashboardUsersSummary
-              resumen={summary?.usuariosResumen}
-              loading={summaryLoading}
-              canManage={canManageUsers}
-            />
+        <>
+          <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <DashboardRecentActivity
+                items={summary?.actividadReciente ?? []}
+                loading={summaryLoading}
+                showViewAll={isAdmin}
+                viewAllTo="/admin/auditoria"
+              />
+            </Grid>
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <DashboardUsersSummary
+                resumen={summary?.usuariosResumen}
+                loading={summaryLoading}
+                canManage={canManageUsers}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
             <DashboardAuditSummary
               resumen={summary?.auditResumen}
               loading={summaryLoading}
@@ -606,6 +607,7 @@ export function DashboardPage() {
             </Paper>
           </Grid>
         </Grid>
+        </>
       ) : null}
 
       <EvaluacionLikertCharts data={summary?.evaluacionLikert} loading={summaryLoading} />
