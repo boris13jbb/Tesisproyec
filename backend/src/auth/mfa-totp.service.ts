@@ -33,7 +33,7 @@ export class MfaTotpService {
   }
 
   private issuerLabel(): string {
-    return this.config.get<string>('APP_PUBLIC_NAME')?.trim() || 'SGD GADPR-LM';
+    return this.config.get<string>('APP_PUBLIC_NAME')?.trim() || 'SGD-GADPR-LM';
   }
 
   private hashChallengeToken(raw: string): string {

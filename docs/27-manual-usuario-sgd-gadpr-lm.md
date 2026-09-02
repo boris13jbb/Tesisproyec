@@ -58,6 +58,18 @@ La pantalla del SGD prioriza **lo que el sistema aplica y puede verificar** (acc
 3. Si olvidó la contraseña, use **¿Olvidó su contraseña?** para el flujo de recuperación.
 4. Presiona **Ingresar al sistema**.
 
+**Verificación en dos pasos (MFA/TOTP)**
+
+Si su rol administrativo exige MFA y aún no tiene TOTP enrolado, tras credenciales válidas verá **Configurar verificación en dos pasos**:
+
+1. **Paso 1 — Escanee el código QR** con Google Authenticator, Microsoft Authenticator u otra app compatible. El emisor aparece como **SGD-GADPR-LM** (o el nombre institucional configurado) y la cuenta es su correo.
+2. Si no puede escanear, use **¿No puede escanearlo? Usar clave manual** para ver/copiar la clave de respaldo (oculta por defecto).
+3. **Paso 2 — Ingrese el código de 6 dígitos** generado por la app y presione **Finalizar configuración**.
+
+En accesos posteriores, tras usuario y contraseña, solo verá **Verificación en dos pasos** con el campo de código (sin QR).
+
+Si la sesión de configuración expira (~5 min), el sistema mostrará **La sesión de configuración expiró** y deberá volver a iniciar sesión.
+
 **Resultado esperado**
 - El sistema te redirige al **Panel principal**.
 - En la barra superior verás tu **avatar** (iniciales), correo, la chip **Sesión activa** y el botón de **tema claro/oscuro**.

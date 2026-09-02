@@ -2,11 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { useState } from 'react';
+import { isAxiosError } from 'axios';
+import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { apiClient } from '../api/client';
+import { MfaSetupPanel, type MfaSetupPayload } from '../components/auth/MfaSetupPanel';
+import { MfaVerifyPanel } from '../components/auth/MfaVerifyPanel';
 import { useAuth } from '../auth/useAuth';
 import { getApiErrorMessage } from '../utils/api-error-message';
 
@@ -19,6 +22,9 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+const MFA_INVALID_CODE_MSG =
+  'El código ingresado no es válido. Verifica tu aplicación autenticadora e inténtalo nuevamente.';
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { setSession, user, ready } = useAuth();
@@ -30,10 +36,12 @@ export function LoginPage() {
   const [setupChallengeToken, setSetupChallengeToken] = useState<
     string | null
   >(null);
+  const [setupEmail, setSetupEmail] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
   const [setupBusy, setSetupBusy] = useState(false);
-  const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [setupPayload, setSetupPayload] = useState<MfaSetupPayload | null>(null);
+  const [setupLoadError, setSetupLoadError] = useState<string | null>(null);
 
   const {
     register,
@@ -44,12 +52,59 @@ export function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
+  const clearSensitiveMfaState = useCallback(() => {
+    setSetupPayload(null);
+    setSetupLoadError(null);
+    setSetupEmail(null);
+    setMfaCode('');
+  }, []);
+
+  const resetToCredentials = useCallback(() => {
+    setStep('CREDENTIALS');
+    setChallengeToken(null);
+    setSetupChallengeToken(null);
+    clearSensitiveMfaState();
+    setError(null);
+  }, [clearSensitiveMfaState]);
+
+  useEffect(() => {
+    return () => {
+      setSetupPayload(null);
+    };
+  }, []);
+
+  const loadMfaSetup = useCallback(async (token: string) => {
+    setSetupBusy(true);
+    setSetupLoadError(null);
+    setSetupPayload(null);
+    try {
+      const { data } = await apiClient.post<MfaSetupPayload>(
+        '/auth/mfa/setup/begin-login',
+        { setupChallengeToken: token },
+      );
+      setSetupPayload({
+        otpauthUrl: data.otpauthUrl,
+        secret: data.secret,
+        secretMasked: data.secretMasked,
+      });
+    } catch (err: unknown) {
+      if (isAxiosError(err) && err.response?.status === 401) {
+        setSetupLoadError('La sesión de configuración expiró.');
+      } else {
+        setSetupLoadError('No fue posible preparar la verificación en dos pasos.');
+      }
+    } finally {
+      setSetupBusy(false);
+    }
+  }, []);
+
   if (ready && user) {
     return <Navigate to="/" replace />;
   }
 
   const onSubmitCredentials = async (data: LoginForm) => {
     setError(null);
+    clearSensitiveMfaState();
     try {
       const { data: loginRes } = await apiClient.post<
         | {
@@ -78,7 +133,6 @@ export function LoginPage() {
         setStep('MFA_REQUIRED');
         setChallengeToken(loginRes.challengeToken);
         setSetupChallengeToken(null);
-        setSetupSecret(null);
         setMfaCode('');
         return;
       }
@@ -89,21 +143,10 @@ export function LoginPage() {
       ) {
         setStep('MFA_SETUP_REQUIRED');
         setSetupChallengeToken(loginRes.setupChallengeToken);
+        setSetupEmail(loginRes.email);
         setChallengeToken(null);
         setMfaCode('');
-        setSetupBusy(true);
-        setSetupSecret(null);
-        try {
-          const { data: setupBegin } = await apiClient.post<{ secret: string }>(
-            '/auth/mfa/setup/begin-login',
-            {
-              setupChallengeToken: loginRes.setupChallengeToken,
-            },
-          );
-          setSetupSecret(setupBegin.secret);
-        } finally {
-          setSetupBusy(false);
-        }
+        await loadMfaSetup(loginRes.setupChallengeToken);
         return;
       }
     } catch (err: unknown) {
@@ -129,6 +172,10 @@ export function LoginPage() {
       setError('Falta el token de enrolamiento.');
       return;
     }
+    if (step === 'MFA_SETUP_REQUIRED' && !setupPayload) {
+      setError('Espere a que el código QR esté listo o reintente la configuración.');
+      return;
+    }
 
     setError(null);
     setMfaBusy(true);
@@ -141,6 +188,7 @@ export function LoginPage() {
           challengeToken,
           code: mfaCode,
         });
+        clearSensitiveMfaState();
         setSession(data.accessToken, data.user);
         await navigate('/', { replace: true });
         return;
@@ -153,10 +201,28 @@ export function LoginPage() {
         setupChallengeToken,
         code: mfaCode,
       });
+      clearSensitiveMfaState();
       setSession(data.accessToken, data.user);
       await navigate('/', { replace: true });
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Código de verificación inválido o expirado.'));
+      if (isAxiosError(err) && err.response?.status === 401) {
+        const msg = messageFromBody(err.response.data);
+        if (step === 'MFA_SETUP_REQUIRED' && !msg) {
+          setSetupLoadError('La sesión de configuración expiró.');
+          setSetupPayload(null);
+          setError(null);
+        } else {
+          setError(
+            msg && !msg.toLowerCase().includes('expir')
+              ? MFA_INVALID_CODE_MSG
+              : 'La sesión de configuración expiró. Vuelva a iniciar sesión.',
+          );
+        }
+      } else {
+        setError(
+          getApiErrorMessage(err, MFA_INVALID_CODE_MSG),
+        );
+      }
     } finally {
       setMfaBusy(false);
     }
@@ -317,170 +383,118 @@ export function LoginPage() {
                 p: { xs: 3, sm: 4, md: 5 },
               }}
             >
-              <Typography variant="h4" component="h2" sx={{ fontWeight: 900, mb: 0.5 }}>
-                Iniciar sesión
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Ingrese sus credenciales institucionales.
-              </Typography>
-
               {step === 'CREDENTIALS' ? (
-                <Box
-                  component="form"
-                  onSubmit={handleSubmit(onSubmitCredentials)}
-                  noValidate
-                >
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                      {error}
-                    </Alert>
-                  )}
-
-                  <TextField
-                    label="Correo o usuario"
-                    type="email"
-                    fullWidth
-                    margin="normal"
-                    autoComplete="email"
-                    placeholder="admin@gadprlm.local"
-                    error={!!errors.email}
-                    helperText={errors.email?.message}
-                    {...register('email')}
-                  />
-                  <TextField
-                    label="Contraseña"
-                    type="password"
-                    fullWidth
-                    margin="normal"
-                    autoComplete="current-password"
-                    error={!!errors.password}
-                    helperText={errors.password?.message}
-                    {...register('password')}
-                  />
-
-                  <Box sx={{ mt: 1, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button component={RouterLink} to="/recuperar" variant="text" size="small">
-                      ¿Olvidó su contraseña?
-                    </Button>
-                  </Box>
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="secondary"
-                    fullWidth
-                    size="large"
-                    sx={{ mt: 0.5, borderRadius: 3, py: 1.3 }}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Ingresando…' : 'Ingresar al sistema'}
-                  </Button>
-
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      mt: 2,
-                      px: 2,
-                      py: 1.1,
-                      borderRadius: 3,
-                      bgcolor: (t) => alpha(t.palette.error.main, 0.08),
-                      border: (t) => `1px solid ${alpha(t.palette.error.main, 0.12)}`,
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ color: 'error.dark', fontWeight: 700 }}>
-                      Acceso restringido a la red local institucional
-                    </Typography>
-                  </Paper>
-                </Box>
-              ) : (
-                <Box component="form" onSubmit={(e) => { e.preventDefault(); void onSubmitMfa(); }} noValidate>
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                      {error}
-                    </Alert>
-                  )}
-
-                  <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5 }}>
-                    {step === 'MFA_REQUIRED'
-                      ? 'Verificación en dos pasos'
-                      : 'Configurar verificación en dos pasos'}
+                <>
+                  <Typography variant="h4" component="h2" sx={{ fontWeight: 900, mb: 0.5 }}>
+                    Iniciar sesión
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-                    Ingrese el código de su app autenticadora.
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Ingrese sus credenciales institucionales.
                   </Typography>
 
-                  {step === 'MFA_SETUP_REQUIRED' && (
-                    <>
-                      <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
-                          En este acceso el sistema solicita enrolar su TOTP. En la app
-                          autenticadora agregue una cuenta con la clave indicada.
-                        </Typography>
+                  <Box
+                    component="form"
+                    onSubmit={handleSubmit(onSubmitCredentials)}
+                    noValidate
+                  >
+                    {error && (
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        {error}
                       </Alert>
+                    )}
 
-                      <TextField
-                        label="Clave TOTP (secret)"
-                        value={setupSecret ?? ''}
-                        placeholder="Generando…"
-                        fullWidth
-                        margin="normal"
-                        size="small"
-                        disabled={setupBusy}
-                      />
-                      {setupBusy ? (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                          Preparando enrolamiento…
-                        </Typography>
-                      ) : null}
-                    </>
+                    <TextField
+                      label="Correo o usuario"
+                      type="email"
+                      fullWidth
+                      margin="normal"
+                      autoComplete="email"
+                      placeholder="admin@gadprlm.local"
+                      error={!!errors.email}
+                      helperText={errors.email?.message}
+                      {...register('email')}
+                    />
+                    <TextField
+                      label="Contraseña"
+                      type="password"
+                      fullWidth
+                      margin="normal"
+                      autoComplete="current-password"
+                      error={!!errors.password}
+                      helperText={errors.password?.message}
+                      {...register('password')}
+                    />
+
+                    <Box sx={{ mt: 1, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button component={RouterLink} to="/recuperar" variant="text" size="small">
+                        ¿Olvidó su contraseña?
+                      </Button>
+                    </Box>
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="secondary"
+                      fullWidth
+                      size="large"
+                      sx={{ mt: 0.5, borderRadius: 3, py: 1.3 }}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Ingresando…' : 'Ingresar al sistema'}
+                    </Button>
+
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        mt: 2,
+                        px: 2,
+                        py: 1.1,
+                        borderRadius: 3,
+                        bgcolor: (t) => alpha(t.palette.error.main, 0.08),
+                        border: (t) => `1px solid ${alpha(t.palette.error.main, 0.12)}`,
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: 'error.dark', fontWeight: 700 }}>
+                        Acceso restringido a la red local institucional
+                      </Typography>
+                    </Paper>
+                  </Box>
+                </>
+              ) : (
+                <>
+                  {error ? (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {error}
+                    </Alert>
+                  ) : null}
+
+                  {step === 'MFA_REQUIRED' ? (
+                    <MfaVerifyPanel
+                      mfaCode={mfaCode}
+                      busy={mfaBusy}
+                      onCodeChange={setMfaCode}
+                      onSubmit={() => void onSubmitMfa()}
+                      onBack={resetToCredentials}
+                    />
+                  ) : (
+                    <MfaSetupPanel
+                      email={setupEmail ?? undefined}
+                      setupPayload={setupPayload}
+                      loading={setupBusy}
+                      loadError={setupLoadError}
+                      mfaCode={mfaCode}
+                      busy={mfaBusy}
+                      onCodeChange={setMfaCode}
+                      onSubmit={() => void onSubmitMfa()}
+                      onBack={resetToCredentials}
+                      onRetrySetup={() => {
+                        if (setupChallengeToken) {
+                          void loadMfaSetup(setupChallengeToken);
+                        }
+                      }}
+                    />
                   )}
-
-                  <TextField
-                    label="Código de 6 dígitos"
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    fullWidth
-                    margin="normal"
-                    slotProps={{
-                      htmlInput: {
-                        inputMode: 'numeric',
-                        pattern: '[0-9]*',
-                        maxLength: 6,
-                        autoComplete: 'one-time-code',
-                        'aria-label': 'Código de verificación de 6 dígitos',
-                      },
-                    }}
-                  />
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="secondary"
-                    fullWidth
-                    size="large"
-                    disabled={mfaBusy || setupBusy}
-                    sx={{ mt: 1, borderRadius: 3, py: 1.3 }}
-                  >
-                    {mfaBusy ? 'Verificando…' : step === 'MFA_REQUIRED' ? 'Confirmar código' : 'Finalizar configuración'}
-                  </Button>
-
-                  <Button
-                    variant="text"
-                    fullWidth
-                    sx={{ mt: 1 }}
-                    disabled={mfaBusy || setupBusy}
-                    onClick={() => {
-                      setStep('CREDENTIALS');
-                      setChallengeToken(null);
-                      setSetupChallengeToken(null);
-                      setSetupSecret(null);
-                      setMfaCode('');
-                      setError(null);
-                    }}
-                  >
-                    Volver a iniciar con credenciales
-                  </Button>
-                </Box>
+                </>
               )}
             </Paper>
           </Box>
@@ -488,4 +502,19 @@ export function LoginPage() {
       </Container>
     </Box>
   );
+}
+
+function messageFromBody(data: unknown): string | null {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  const m = (data as { message?: string | string[] }).message;
+  if (Array.isArray(m)) {
+    const joined = m.map((x) => String(x).trim()).filter(Boolean).join(' ');
+    return joined.length > 0 ? joined : null;
+  }
+  if (typeof m === 'string' && m.trim()) {
+    return m.trim();
+  }
+  return null;
 }
