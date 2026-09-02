@@ -33,6 +33,7 @@ import { DashboardErrorState } from '../components/dashboard/DashboardErrorState
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardKpiGrid } from '../components/dashboard/DashboardKpiGrid';
 import { DashboardMonthlyComparison } from '../components/dashboard/DashboardMonthlyComparison';
+import { DashboardMyActivity } from '../components/dashboard/DashboardMyActivity';
 import { DashboardPendingReview } from '../components/dashboard/DashboardPendingReview';
 import { DashboardQuickActions } from '../components/dashboard/DashboardQuickActions';
 import { buildQuickActions } from '../components/dashboard/dashboard-quick-actions';
@@ -40,6 +41,9 @@ import { DashboardRecentActivity } from '../components/dashboard/DashboardRecent
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton';
 import type { DashboardSummary } from '../components/dashboard/dashboard-types';
 import { formatTimeEc } from '../components/dashboard/dashboard-utils';
+import { DashboardTypeDistribution } from '../components/dashboard/DashboardTypeDistribution';
+import { DashboardTypesByMonth } from '../components/dashboard/DashboardTypesByMonth';
+import { DashboardUserActivity } from '../components/dashboard/DashboardUserActivity';
 import { DashboardUsersSummary } from '../components/dashboard/DashboardUsersSummary';
 import { EvaluacionLikertCharts } from '../components/EvaluacionLikertCharts';
 import { listSurfaceSx } from '../components/listSurfaces';
@@ -467,13 +471,38 @@ export function DashboardPage() {
           <DashboardDocumentStatus documentos={summary?.documentos} loading={summaryLoading} />
         </Grid>
         <Grid size={{ xs: 12, lg: 5 }}>
-          <DashboardMonthlyComparison actividad={summary?.actividadMes} loading={summaryLoading} />
+          <DashboardTypeDistribution
+            items={summary?.distribucionPorTipo ?? []}
+            totalDocumentos={summary?.documentos?.total ?? 0}
+            loading={summaryLoading}
+          />
         </Grid>
       </Grid>
 
       <Paper elevation={0} sx={{ ...listSurfaceSx, mb: 2.5, p: { xs: 2, md: 2.5 } }}>
         <DocumentosMonthlyChart items={summary?.documentosPorMes ?? []} loading={summaryLoading} />
       </Paper>
+
+      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 12, lg: 8 }}>
+          <Paper elevation={0} sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
+            <DashboardTypesByMonth
+              series={summary?.tiposDocumentalesSeries ?? []}
+              items={summary?.tiposPorMes ?? []}
+              loading={summaryLoading}
+            />
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <DashboardMonthlyComparison actividad={summary?.actividadMes} loading={summaryLoading} />
+        </Grid>
+      </Grid>
+
+      {!isAdmin && summary?.miActividadDocumental ? (
+        <Box sx={{ mb: 2.5 }}>
+          <DashboardMyActivity data={summary.miActividadDocumental} loading={summaryLoading} />
+        </Box>
+      ) : null}
 
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 1, md: 1 } }}>
@@ -488,12 +517,14 @@ export function DashboardPage() {
           <DashboardQuickActions actions={quickActions} loading={summaryLoading && !summary} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 2, md: 3 } }}>
-          <DashboardRecentActivity
-            items={summary?.actividadReciente ?? []}
-            loading={summaryLoading}
-            showViewAll={isAdmin}
-            viewAllTo={isAdmin ? '/admin/auditoria' : '/perfil'}
-          />
+          {!isAdmin ? (
+            <DashboardRecentActivity
+              items={summary?.actividadReciente ?? []}
+              loading={summaryLoading}
+              showViewAll={false}
+              viewAllTo="/perfil"
+            />
+          ) : null}
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 4, md: 4 } }}>
           <DashboardAlerts
@@ -507,6 +538,26 @@ export function DashboardPage() {
           />
         </Grid>
       </Grid>
+
+      {isAdmin ? (
+        <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <DashboardUserActivity
+              items={summary?.actividadPorUsuario ?? []}
+              loading={summaryLoading}
+              canViewMore={canManageUsers}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <DashboardRecentActivity
+              items={summary?.actividadReciente ?? []}
+              loading={summaryLoading}
+              showViewAll={isAdmin}
+              viewAllTo="/admin/auditoria"
+            />
+          </Grid>
+        </Grid>
+      ) : null}
 
       {isAdmin ? (
         <Grid container spacing={2.5} sx={{ mb: 2.5 }}>

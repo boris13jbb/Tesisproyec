@@ -18,6 +18,45 @@ export type DashboardDocumentoPorMesItem = {
   cantidad: number;
 };
 
+export type DashboardDistribucionPorTipoItem = {
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+  porcentaje: number;
+};
+
+export type DashboardTipoDocumentalSerie = {
+  codigo: string;
+  nombre: string;
+};
+
+export type DashboardTipoPorMesSegmento = {
+  codigo: string;
+  nombre: string;
+  cantidad: number;
+};
+
+export type DashboardTipoPorMesItem = {
+  anio: number;
+  mes: number;
+  nombreMes: string;
+  tipos: DashboardTipoPorMesSegmento[];
+  total: number;
+};
+
+export type DashboardActividadPorUsuarioItem = {
+  usuarioId: string;
+  nombre: string;
+  email: string;
+  rol: string;
+  documentosRegistrados: number;
+};
+
+export type DashboardMiActividadDocumental = {
+  documentosRegistradosEsteMes: number;
+  documentosVisibles: number;
+};
+
 export type DashboardActividadMes = {
   esteMes: number;
   mesAnterior: number;
@@ -91,6 +130,11 @@ export type DashboardSummary = {
   };
   documentos: DashboardDocumentosBloque;
   documentosPorMes: DashboardDocumentoPorMesItem[];
+  distribucionPorTipo: DashboardDistribucionPorTipoItem[];
+  tiposDocumentalesSeries: DashboardTipoDocumentalSerie[];
+  tiposPorMes: DashboardTipoPorMesItem[];
+  actividadPorUsuario: DashboardActividadPorUsuarioItem[] | null;
+  miActividadDocumental: DashboardMiActividadDocumental | null;
   actividadMes: DashboardActividadMes;
   actividadReciente: DashboardActivityItem[];
   documentosPendientes: DashboardPendienteItem[];

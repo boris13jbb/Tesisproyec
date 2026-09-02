@@ -7,10 +7,24 @@ import type { AuditResult } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { mesNombreEc } from '../common/date-labels.util';
 import {
+  buildDistribucionPorTipo,
+  type DistribucionPorTipoItem,
+} from './documentos-distribucion-tipo.util';
+import {
+  buildTopActividadPorUsuario,
+  displayUserName,
+  type ActividadPorUsuarioItem,
+} from './documentos-por-usuario.util';
+import {
   aggregateCreatedAtByMonth,
   buildUltimos12MesesRanges,
   fillDocumentosPorMesSeries,
 } from './documentos-por-mes.util';
+import {
+  buildTiposPorMes,
+  type TipoDocumentalSerie,
+  type TipoPorMesItem,
+} from './documentos-tipo-por-mes.util';
 import { fillDocumentosPorEstadoCounts } from './documentos-por-estado.util';
 import {
   buildDashboardActivityItems,
@@ -154,6 +168,19 @@ export type DashboardViewerContext = {
   dependenciaNombre: string | null;
 };
 
+export type DashboardDistribucionPorTipoItem = DistribucionPorTipoItem;
+
+export type DashboardTipoDocumentalSerie = TipoDocumentalSerie;
+
+export type DashboardTipoPorMesItem = TipoPorMesItem;
+
+export type DashboardActividadPorUsuarioItem = ActividadPorUsuarioItem;
+
+export type DashboardMiActividadDocumental = {
+  documentosRegistradosEsteMes: number;
+  documentosVisibles: number;
+};
+
 export type DashboardSummary = {
   generatedAt: string;
   kpis: {
@@ -169,6 +196,11 @@ export type DashboardSummary = {
   };
   documentos: DashboardDocumentosBloque;
   documentosPorMes: DashboardDocumentoPorMesItem[];
+  distribucionPorTipo: DashboardDistribucionPorTipoItem[];
+  tiposDocumentalesSeries: DashboardTipoDocumentalSerie[];
+  tiposPorMes: DashboardTipoPorMesItem[];
+  actividadPorUsuario: DashboardActividadPorUsuarioItem[] | null;
+  miActividadDocumental: DashboardMiActividadDocumental | null;
   actividadMes: DashboardActividadMes;
   actividadReciente: DashboardActivityItem[];
   documentosPendientes: DashboardPendienteRevision[];
@@ -204,6 +236,111 @@ async function countDocumentosPorEstado(
   return fillDocumentosPorEstadoCounts(
     grouped.map((g) => ({ estado: g.estado, count: g._count._all })),
   );
+}
+
+async function buildDistribucionPorTipoForDashboard(
+  prisma: PrismaService,
+  docWhere: Prisma.DocumentoWhereInput,
+): Promise<DashboardDistribucionPorTipoItem[]> {
+  const grouped = await prisma.documento.groupBy({
+    by: ['tipoDocumentalId'],
+    where: docWhere,
+    _count: { _all: true },
+  });
+  if (grouped.length === 0) {
+    return [];
+  }
+  const ids = grouped.map((g) => g.tipoDocumentalId);
+  const tipos = await prisma.tipoDocumental.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, codigo: true, nombre: true },
+  });
+  const map = new Map(tipos.map((t) => [t.id, t]));
+  const raw = grouped.map((g) => {
+    const t = map.get(g.tipoDocumentalId);
+    return {
+      codigo: t?.codigo ?? 'SIN_TIPO',
+      nombre: t?.nombre ?? 'Sin tipo',
+      cantidad: g._count._all,
+    };
+  });
+  return buildDistribucionPorTipo(raw);
+}
+
+async function buildTiposPorMesForDashboard(
+  prisma: PrismaService,
+  docWhere: Prisma.DocumentoWhereInput,
+  now: Date,
+): Promise<{
+  series: DashboardTipoDocumentalSerie[];
+  items: DashboardTipoPorMesItem[];
+}> {
+  const ranges = buildUltimos12MesesRanges(now);
+  const desde = ranges[0]?.desde;
+  const hasta = ranges[ranges.length - 1]?.hasta;
+  if (!desde || !hasta) {
+    return { series: [], items: [] };
+  }
+  const rows = await prisma.documento.findMany({
+    where: {
+      ...docWhere,
+      createdAt: { gte: desde, lte: hasta },
+    },
+    select: {
+      createdAt: true,
+      tipoDocumental: { select: { codigo: true, nombre: true } },
+    },
+  });
+  const mapped = rows.map((r) => ({
+    createdAt: r.createdAt,
+    tipoCodigo: r.tipoDocumental.codigo,
+    tipoNombre: r.tipoDocumental.nombre,
+  }));
+  return buildTiposPorMes(ranges, mapped, mesNombreEc);
+}
+
+async function buildActividadPorUsuarioForDashboard(
+  prisma: PrismaService,
+  docWhere: Prisma.DocumentoWhereInput,
+  desde: Date,
+): Promise<DashboardActividadPorUsuarioItem[]> {
+  const grouped = await prisma.documento.groupBy({
+    by: ['createdById'],
+    where: { ...docWhere, createdAt: { gte: desde } },
+    _count: { _all: true },
+  });
+  if (grouped.length === 0) {
+    return [];
+  }
+  const userIds = grouped.map((g) => g.createdById);
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: {
+      id: true,
+      email: true,
+      nombres: true,
+      apellidos: true,
+      roles: {
+        where: { role: { activo: true } },
+        select: { role: { select: { nombre: true } } },
+        take: 1,
+        orderBy: { role: { codigo: 'asc' } },
+      },
+    },
+  });
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const raw = grouped.map((g) => {
+    const u = userMap.get(g.createdById);
+    const email = u?.email ?? 'usuario@local';
+    return {
+      usuarioId: g.createdById,
+      nombre: displayUserName(u?.nombres ?? null, u?.apellidos ?? null, email),
+      email,
+      rolNombre: u?.roles[0]?.role.nombre ?? 'Usuario',
+      documentosRegistrados: g._count._all,
+    };
+  });
+  return buildTopActividadPorUsuario(raw);
 }
 
 async function buildDocumentosPorMes(
@@ -637,6 +774,28 @@ export class DashboardService {
       }),
     ]);
 
+    const [
+      distribucionPorTipo,
+      tiposPorMesBlock,
+      actividadPorUsuario,
+      miDocsEsteMes,
+    ] = await Promise.all([
+      buildDistribucionPorTipoForDashboard(this.prisma, docWhere),
+      buildTiposPorMesForDashboard(this.prisma, docWhere, now),
+      isAdmin
+        ? buildActividadPorUsuarioForDashboard(this.prisma, docWhere, inicioMes)
+        : Promise.resolve(null),
+      !isAdmin
+        ? this.prisma.documento.count({
+            where: {
+              ...docWhere,
+              createdById: viewer.id,
+              createdAt: { gte: inicioMes },
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
     const loginTotal = loginOk30d + loginFail30d;
     const authSuccessPercent =
       loginTotal > 0 ? (loginOk30d / loginTotal) * 100 : 0;
@@ -846,6 +1005,17 @@ export class DashboardService {
       },
       documentos: documentosBloque,
       documentosPorMes,
+      distribucionPorTipo,
+      tiposDocumentalesSeries: tiposPorMesBlock.series,
+      tiposPorMes: tiposPorMesBlock.items,
+      actividadPorUsuario,
+      miActividadDocumental:
+        !isAdmin && miDocsEsteMes !== null
+          ? {
+              documentosRegistradosEsteMes: miDocsEsteMes,
+              documentosVisibles: documentosTotal,
+            }
+          : null,
       actividadMes,
       actividadReciente,
       documentosPendientes: pendientesRevisionItems,
