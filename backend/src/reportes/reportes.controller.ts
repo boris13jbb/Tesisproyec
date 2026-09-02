@@ -15,7 +15,9 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PERM } from '../auth/permission-codes';
 import { JwtRequestUser } from '../auth/request-user';
+import { redactAuditMetaJsonForExport } from '../auditoria/audit-export-meta.util';
 import { AuditService } from '../auditoria/audit.service';
+import { addSanitizedSpreadsheetRow } from './reportes-spreadsheet.util';
 import type { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
@@ -97,7 +99,7 @@ export class ReportesController {
     ws.getRow(1).font = { bold: true };
 
     for (const d of items) {
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         codigo: d.codigo,
         asunto: d.asunto,
         fechaDocumento: d.fechaDocumento.toISOString().slice(0, 10),
@@ -243,7 +245,7 @@ export class ReportesController {
     ws.getRow(1).font = { bold: true };
 
     for (const d of items) {
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         codigo: d.codigo,
         asunto: d.asunto,
         fechaDocumento: d.fechaDocumento.toISOString().slice(0, 10),
@@ -403,7 +405,7 @@ export class ReportesController {
     ];
     ws.getRow(1).font = { bold: true };
     for (const row of items) {
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         createdAt: row.createdAt.toISOString().replace('T', ' ').slice(0, 19),
         action: row.action,
         result: row.result,
@@ -412,7 +414,7 @@ export class ReportesController {
         resourceType: row.resourceType ?? '',
         resourceId: row.resourceId ?? '',
         resourceCodigo: row.resourceCodigo ?? '',
-        metaJson: row.metaJson ?? '',
+        metaJson: redactAuditMetaJsonForExport(row.metaJson),
       });
     }
 
@@ -496,7 +498,7 @@ export class ReportesController {
   }
 
   @Get('usuarios.xlsx')
-  @Permissions(PERM.REPORTS_EXPORT)
+  @Permissions(PERM.REPORTS_EXPORT, PERM.USERS_READ)
   @Header(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -522,7 +524,7 @@ export class ReportesController {
     ];
     ws.getRow(1).font = { bold: true };
     for (const u of items) {
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         ...u,
         ultimoLoginAt: u.ultimoLoginAt
           ? u.ultimoLoginAt.toISOString().replace('T', ' ').slice(0, 19)
@@ -564,7 +566,7 @@ export class ReportesController {
       { header: 'Total documentos', key: 'total', width: 16 },
     ];
     ws.getRow(1).font = { bold: true };
-    for (const row of items) ws.addRow(row);
+    for (const row of items) addSanitizedSpreadsheetRow(ws, row);
     const filename = `documentos_por_dependencia_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     await wb.xlsx.write(res);
@@ -595,7 +597,7 @@ export class ReportesController {
       { header: 'Total', key: 'total', width: 12 },
     ];
     ws.getRow(1).font = { bold: true };
-    for (const row of items) ws.addRow(row);
+    for (const row of items) addSanitizedSpreadsheetRow(ws, row);
     const filename = `documentos_por_estado_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     await wb.xlsx.write(res);
@@ -631,7 +633,7 @@ export class ReportesController {
     ];
     ws.getRow(1).font = { bold: true };
     for (const row of items) {
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         fecha: row.fecha.toISOString().replace('T', ' ').slice(0, 19),
         accion: row.accion,
         actorEmail: row.actorEmail,
@@ -768,7 +770,7 @@ export class ReportesController {
 
     for (const d of report.items) {
       const rev = d.revision;
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         codigo: d.codigo,
         asunto: d.asunto,
         tipo: `${d.tipoDocumental.codigo} — ${d.tipoDocumental.nombre}`,
@@ -810,7 +812,7 @@ export class ReportesController {
       to: { row: 1, column: 7 },
     };
     for (const u of report.porUsuario) {
-      wsSum.addRow({
+      addSanitizedSpreadsheetRow(wsSum, {
         usuario: this.formatPersonaLabel(u),
         email: u.email,
         total: u.total,
@@ -989,7 +991,7 @@ export class ReportesController {
     ];
     ws.getRow(1).font = { bold: true };
     for (const d of items) {
-      ws.addRow({
+      addSanitizedSpreadsheetRow(ws, {
         ...d,
         fechaVencimiento: d.fechaVencimiento
           ? d.fechaVencimiento.toISOString().slice(0, 10)
