@@ -1,7 +1,9 @@
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
 import {
   Alert,
   Box,
+  Chip,
   CircularProgress,
   FormControl,
   InputLabel,
@@ -69,6 +71,7 @@ export function RolePermissionsPanel({
   }, [catalog.length]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza permisos al cambiar rol seleccionado
     void loadRole(roleCodigo);
   }, [roleCodigo, loadRole]);
 
@@ -159,9 +162,20 @@ export function RolePermissionsPanel({
       </FormControl>
 
       <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-          {roleLabel}
-        </Typography>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+            {roleLabel}
+          </Typography>
+          {roleCodigo === 'SUPERADMIN' ? (
+            <Chip
+              size="small"
+              icon={<ShieldOutlinedIcon />}
+              label="Rol protegido"
+              color="primary"
+              sx={{ fontWeight: 700 }}
+            />
+          ) : null}
+        </Stack>
         {roleHelp ? (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {roleHelp}
@@ -171,6 +185,13 @@ export function RolePermissionsPanel({
           <strong>{selected.size}</strong> de <strong>{catalog.length}</strong> permisos habilitados
         </Typography>
       </Box>
+
+      {roleCodigo === 'SUPERADMIN' ? (
+        <Alert severity="info" icon={<ShieldOutlinedIcon />} sx={{ mb: 2 }}>
+          El rol Super Administrador es una cuenta protegida del sistema. Modifique sus permisos solo con autorización
+          explícita.
+        </Alert>
+      ) : null}
 
       {roleCodigo === 'ADMIN' ? (
         <Alert severity="warning" sx={{ mb: 2 }}>

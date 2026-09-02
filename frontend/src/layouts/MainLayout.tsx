@@ -265,13 +265,15 @@ function NavSectionLabel({ open, children }: { open: boolean; children: ReactNod
       component="div"
       sx={{
         bgcolor: 'transparent',
-        lineHeight: 2.2,
+        lineHeight: 2.4,
         color: 'text.secondary',
         fontWeight: 700,
-        fontSize: '0.7rem',
-        letterSpacing: 0.6,
+        fontSize: '0.68rem',
+        letterSpacing: 0.8,
         textTransform: 'uppercase',
         px: 2.5,
+        mt: 1.25,
+        mb: 0.25,
       }}
     >
       {children}
@@ -296,10 +298,31 @@ function NavButton({
         selected={selected}
         onClick={() => onNavigate(item.to)}
         aria-label={item.label}
+        aria-current={selected ? 'page' : undefined}
         sx={{
           justifyContent: open ? 'flex-start' : 'center',
           px: open ? 1.5 : 1,
           mx: open ? 1 : 0.75,
+          my: 0.25,
+          borderRadius: 2,
+          minHeight: 42,
+          transition: 'background-color 120ms ease, border-color 120ms ease',
+          '&.Mui-selected': {
+            bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.18 : 0.1),
+            borderLeft: '3px solid',
+            borderColor: 'primary.main',
+            pl: open ? 1.125 : 1,
+            '&:hover': {
+              bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.22 : 0.14),
+            },
+            '& .MuiListItemIcon-root': {
+              color: 'primary.main',
+            },
+            '& .MuiListItemText-primary': {
+              fontWeight: 700,
+              color: 'text.primary',
+            },
+          },
         }}
       >
         <ListItemIcon

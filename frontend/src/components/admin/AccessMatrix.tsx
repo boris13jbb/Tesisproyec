@@ -117,6 +117,24 @@ export function AccessMatrix({ matrizReferencia }: AccessMatrixProps) {
         </Select>
       </FormControl>
 
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        <Chip
+          size="small"
+          icon={<CheckCircleRoundedIcon />}
+          label="Permitido"
+          color="success"
+          variant="outlined"
+          sx={{ fontWeight: 700, '& .MuiChip-icon': { fontSize: 18 } }}
+        />
+        <Chip
+          size="small"
+          icon={<CancelRoundedIcon />}
+          label="No permitido"
+          variant="outlined"
+          sx={{ fontWeight: 700, '& .MuiChip-icon': { fontSize: 18, color: 'text.disabled' } }}
+        />
+      </Stack>
+
       {isMobile ? (
         <Stack spacing={1}>
           {mobileRows.map((row) => (

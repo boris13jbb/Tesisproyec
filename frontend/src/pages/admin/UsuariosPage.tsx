@@ -1,7 +1,7 @@
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
@@ -14,8 +14,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -35,17 +33,11 @@ import {
   RadioGroup,
   Select,
   Stack,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode, type SyntheticEvent } from 'react';
 import { apiClient } from '../../api/client';
@@ -55,12 +47,17 @@ import { AccessMatrix } from '../../components/admin/AccessMatrix';
 import { AdditionalPermissionsSection } from '../../components/admin/AdditionalPermissionsSection';
 import { RolePermissionsPanel } from '../../components/admin/RolePermissionsPanel';
 import { UserAccessDrawer } from '../../components/admin/UserAccessDrawer';
+import { IdentityTabs } from '../../components/admin/users/IdentityTabs';
+import { UsersFiltersBar } from '../../components/admin/users/UsersFiltersBar';
+import { UsersMobileList } from '../../components/admin/users/UsersMobileList';
+import { UsersSummaryStats } from '../../components/admin/users/UsersSummaryStats';
+import { UsersTable } from '../../components/admin/users/UsersTable';
+import { displayUsuario } from '../../components/admin/users/user-display';
+import { UserRoleChips } from '../../components/admin/users/UserRoleChips';
+import { UserStatusChip } from '../../components/admin/users/UserStatusChip';
 import { PageHeader } from '../../components/PageHeader';
-import { EmptyState } from '../../components/EmptyState';
-import { ListPanel } from '../../components/ListPanel';
-import { listSurfaceSx, listTableContainerSx } from '../../components/listSurfaces';
+import { listSurfaceSx } from '../../components/listSurfaces';
 import {
-  FILTER_ROLE_OPTIONS,
   composeRoleCodes,
   isPrimaryRoleCode,
   isRoleCode,
@@ -75,7 +72,6 @@ import {
   buildLocalAccessMatrixFallback,
   type AccessMatrixReferencia,
 } from '../../constants/roles-access-matrix';
-import { formatUltimoIngreso } from '../../utils/formatUltimoIngreso';
 import { getApiErrorMessage } from '../../utils/api-error-message';
 import { administrativeInputOnChange } from '../../utils/form-text';
 
@@ -120,60 +116,6 @@ type UsuarioCreateResponse = Usuario & {
 
 type RbacPermRow = { id: string; codigo: string; descripcion: string | null };
 type RbacRoleRow = { id: string; codigo: string; nombre: string };
-
-function mensajeErrorApi(err: unknown, fallback: string): string {
-  return getApiErrorMessage(err, fallback);
-}
-
-function displayUsuario(u: Usuario) {
-  const n = `${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim();
-  return n || u.email;
-}
-
-function roleChipLabel(r: { codigo: string; nombre: string }) {
-  if (r.codigo === 'SUPERADMIN') return 'Super Administrador';
-  if (r.nombre?.trim()) return r.nombre;
-  return isRoleCode(r.codigo) ? ROLE_DISPLAY_NAME[r.codigo] : r.codigo;
-}
-
-function RoleChips({ u }: { u: Usuario }) {
-  if (!u.roles.length) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        —
-      </Typography>
-    );
-  }
-  const isSuper = userIsSuperAdminAccount(u.roles);
-
-  return (
-    <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-      {isSuper ? (
-        <Tooltip title="Cuenta protegida del sistema.">
-          <Chip
-            size="small"
-            icon={<ShieldOutlinedIcon />}
-            label="Super Administrador"
-            color="primary"
-            sx={{ fontWeight: 700 }}
-          />
-        </Tooltip>
-      ) : null}
-      {u.roles
-        .filter((r) => r.codigo !== 'SUPERADMIN')
-        .map((r) => (
-          <Chip
-            key={r.codigo}
-            size="small"
-            label={roleChipLabel(r)}
-            color={r.codigo === 'ADMIN' ? 'primary' : 'default'}
-            variant={r.codigo === 'EDITOR_DOC' ? 'outlined' : 'filled'}
-            sx={{ fontWeight: 700 }}
-          />
-        ))}
-    </Stack>
-  );
-}
 
 function RoleAssignmentFields({
   idPrefix,
@@ -271,6 +213,8 @@ function RoleAssignmentFields({
 }
 
 export function UsuariosPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
   const isSuperAdmin = userIsSuperAdmin(user?.roles);
@@ -300,6 +244,8 @@ export function UsuariosPage() {
   const [userSearch, setUserSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterRol, setFilterRol] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [accessDrawerOpen, setAccessDrawerOpen] = useState(false);
   const [accessUsuario, setAccessUsuario] = useState<Usuario | null>(null);
 
@@ -420,7 +366,7 @@ export function UsuariosPage() {
       await load();
     } catch (err: unknown) {
       setError(
-        mensajeErrorApi(err, 'No se pudo crear el usuario (correo duplicado o datos inválidos).'),
+        getApiErrorMessage(err, 'No se pudo crear el usuario (correo duplicado o datos inválidos).'),
       );
     }
   };
@@ -465,7 +411,7 @@ export function UsuariosPage() {
       await load();
     } catch (err: unknown) {
       setError(
-        mensajeErrorApi(
+        getApiErrorMessage(
           err,
           'No se pudo actualizar el usuario. Si asignó un rol nuevo (p. ej. EDITOR_DOC), ejecute migraciones o `npx prisma db seed` en el backend.',
         ),
@@ -479,7 +425,7 @@ export function UsuariosPage() {
       await apiClient.patch(`/usuarios/${u.id}`, { activo: !u.activo });
       await load();
     } catch (err: unknown) {
-      setError(mensajeErrorApi(err, 'No se pudo actualizar el estado del usuario.'));
+      setError(getApiErrorMessage(err, 'No se pudo actualizar el estado del usuario.'));
     }
   };
 
@@ -500,7 +446,7 @@ export function UsuariosPage() {
       setSelected(null);
     } catch (err: unknown) {
       setError(
-        mensajeErrorApi(
+        getApiErrorMessage(
           err,
           'No se pudo restablecer la contraseña (usuario inactivo o datos inválidos).',
         ),
@@ -550,6 +496,37 @@ export function UsuariosPage() {
     });
   }, [items, userSearch, filterEstado, filterRol]);
 
+  const hasActiveFilters = userSearch.trim().length > 0 || filterEstado !== 'all' || filterRol !== '';
+
+  const paginatedItems = useMemo(() => {
+    const start = page * rowsPerPage;
+    return filteredItems.slice(start, start + rowsPerPage);
+  }, [filteredItems, page, rowsPerPage]);
+
+  const clearFilters = () => {
+    setUserSearch('');
+    setFilterEstado('all');
+    setFilterRol('');
+    setPage(0);
+  };
+
+  const openCreateDialog = () => {
+    setInviteNotice(null);
+    resetIdentityForm();
+    setOpen(true);
+  };
+
+  const identityTabs = useMemo(() => {
+    const tabs = [
+      { id: 'usuarios', label: 'Usuarios', icon: <PeopleOutlinedIcon fontSize="small" /> },
+    ];
+    if (isAdmin) {
+      tabs.push({ id: 'roles', label: 'Roles y permisos', icon: <VpnKeyOutlinedIcon fontSize="small" /> });
+    }
+    tabs.push({ id: 'matriz', label: 'Matriz de acceso', icon: <TableChartOutlinedIcon fontSize="small" /> });
+    return tabs;
+  }, [isAdmin]);
+
   const selectedIsSuperAdmin = selected ? userIsSuperAdminAccount(selected.roles) : false;
   const actionsTargetIsSuper = actionsUsuario ? userIsSuperAdminAccount(actionsUsuario.roles) : false;
   const canMutateTarget =
@@ -563,18 +540,26 @@ export function UsuariosPage() {
     <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
       <PageHeader
         title="Administración de identidades"
-        description="Administre usuarios, roles y niveles de acceso del sistema."
+        description="Gestiona usuarios, roles y niveles de acceso del sistema."
         actions={
           <Tooltip title="Recargar datos">
-            <IconButton
-              aria-label="Actualizar administración de identidades"
-              onClick={() => void load()}
-              disabled={loading}
-              color="primary"
-              size="small"
-            >
-              <RefreshIcon />
-            </IconButton>
+            <span>
+              <IconButton
+                aria-label="Actualizar administración de identidades"
+                onClick={() => void load()}
+                disabled={loading}
+                color="primary"
+                size="medium"
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <RefreshIcon
+                  sx={{
+                    animation: loading ? 'spin 1s linear infinite' : 'none',
+                    '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
+                  }}
+                />
+              </IconButton>
+            </span>
           </Tooltip>
         }
       />
@@ -597,205 +582,123 @@ export function UsuariosPage() {
         </Alert>
       ) : null}
 
-      <Paper elevation={0} sx={{ ...paperCardSx, mb: 2 }}>
-        <Tabs
-          value={mainTab}
-          onChange={handleMainTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          aria-label="Administración de identidades"
-        >
-          <Tab icon={<PeopleOutlinedIcon />} iconPosition="start" label="Usuarios" />
-          {isAdmin ? (
-            <Tab icon={<VpnKeyOutlinedIcon />} iconPosition="start" label="Roles y permisos" />
-          ) : null}
-          <Tab icon={<TableChartOutlinedIcon />} iconPosition="start" label="Matriz de acceso" />
-        </Tabs>
-      </Paper>
+      <IdentityTabs
+        value={mainTab}
+        onChange={handleMainTabChange}
+        tabs={identityTabs}
+        aria-label="Administración de identidades"
+      />
 
       <TabPanel value={mainTab} index={0}>
-        <ListPanel
-          badge={<PeopleOutlinedIcon fontSize="small" />}
-          title="Usuarios institucionales"
-          subtitle="Administre las cuentas, roles y estado de los usuarios del sistema."
-          meta={
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-              <Chip label={`Activos · ${usuariosActivos}`} size="small" color="success" sx={{ fontWeight: 700 }} />
-              <Chip label={`Total · ${items.length}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
-              <Chip
-                label={`Mostrando · ${filteredItems.length}`}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 700 }}
-              />
-            </Stack>
-          }
-          footer={
-            isAdmin ? (
+        <Paper elevation={0} sx={{ ...paperCardSx, p: { xs: 2, sm: 2.5, md: 3 } }}>
+          <Stack
+            direction={{ xs: 'column', lg: 'row' }}
+            spacing={2}
+            sx={{ mb: 2.5, alignItems: { lg: 'flex-start' }, justifyContent: 'space-between' }}
+          >
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>
+                Usuarios institucionales
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 520 }}>
+                Gestiona las cuentas, roles y estado de los usuarios.
+              </Typography>
+              <Box sx={{ mt: 2, maxWidth: { lg: 480 } }}>
+                <UsersSummaryStats
+                  activos={usuariosActivos}
+                  total={items.length}
+                  visibles={filteredItems.length}
+                  loading={loading}
+                />
+              </Box>
+            </Box>
+            {isAdmin ? (
               <Button
                 variant="contained"
-                color="secondary"
-                fullWidth
-                sx={{ textTransform: 'none', fontWeight: 800, py: 1.15 }}
-                onClick={() => {
-                  setInviteNotice(null);
-                  resetIdentityForm();
-                  setOpen(true);
+                color="primary"
+                startIcon={<PersonAddOutlinedIcon />}
+                onClick={openCreateDialog}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  alignSelf: { xs: 'stretch', lg: 'flex-start' },
+                  whiteSpace: 'nowrap',
                 }}
               >
-                + Crear usuario
+                Crear usuario
               </Button>
-            ) : null
-          }
-        >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={1.5}
-            sx={{ mb: 2, alignItems: { md: 'flex-end' } }}
-          >
-            <TextField
-              size="small"
-              label="Buscar usuario"
-              placeholder="Nombre o correo…"
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              fullWidth
-              sx={{ maxWidth: { md: 360 } }}
-            />
-            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
-              <InputLabel id="filter-estado">Estado</InputLabel>
-              <Select
-                labelId="filter-estado"
-                label="Estado"
-                value={filterEstado}
-                onChange={(e) => setFilterEstado(e.target.value as typeof filterEstado)}
-              >
-                <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="active">Activos</MenuItem>
-                <MenuItem value="inactive">Inactivos</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-              <InputLabel id="filter-rol">Rol</InputLabel>
-              <Select
-                labelId="filter-rol"
-                label="Rol"
-                value={filterRol}
-                onChange={(e) => setFilterRol(String(e.target.value))}
-              >
-                {FILTER_ROLE_OPTIONS.map((opt) => (
-                  <MenuItem key={opt.value || 'all'} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            ) : null}
           </Stack>
 
-          {loading ? (
-            <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress aria-label="Cargando usuarios" />
-            </Box>
+          <UsersFiltersBar
+            search={userSearch}
+            onSearchChange={(v) => {
+              setUserSearch(v);
+              setPage(0);
+            }}
+            estado={filterEstado}
+            onEstadoChange={(v) => {
+              setFilterEstado(v);
+              setPage(0);
+            }}
+            rol={filterRol}
+            onRolChange={(v) => {
+              setFilterRol(v);
+              setPage(0);
+            }}
+            onClear={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+
+          {error && !loading && items.length === 0 ? (
+            <Alert
+              severity="error"
+              sx={{ mb: 2 }}
+              action={
+                <Button color="inherit" size="small" onClick={() => void load()} sx={{ fontWeight: 700 }}>
+                  Reintentar
+                </Button>
+              }
+            >
+              No fue posible cargar los usuarios.
+            </Alert>
+          ) : null}
+
+          {isMobile ? (
+            <UsersMobileList
+              items={paginatedItems}
+              totalFiltered={filteredItems.length}
+              departamentoPorId={departamentoPorId}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setPage}
+              onRowsPerPageChange={setRowsPerPage}
+              onOpenActions={openActionsMenu}
+              loading={loading}
+              emptyTotal={items.length}
+              onClearFilters={clearFilters}
+              onCreateFirst={openCreateDialog}
+              canCreate={isAdmin}
+            />
           ) : (
-            <TableContainer sx={{ ...listTableContainerSx, maxHeight: { xs: 480, md: 620 }, overflow: 'auto' }}>
-              <Table size="medium" stickyHeader sx={{ minWidth: 860 }} aria-label="Usuarios institucionales">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'action.hover' }}>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 200 }}>Usuario</TableCell>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 140 }}>Rol</TableCell>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 160 }}>Área / Dependencia</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
-                    <TableCell sx={{ fontWeight: 800, minWidth: 140 }}>Último acceso</TableCell>
-                    <TableCell sx={{ fontWeight: 800, width: 72 }} align="right">
-                      Acciones
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredItems.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6}>
-                        <EmptyState
-                          dense
-                          title={items.length === 0 ? 'Sin usuarios' : 'Sin coincidencias'}
-                          description={
-                            items.length === 0
-                              ? 'Cree cuentas con el botón Crear usuario.'
-                              : 'Ajuste la búsqueda o los filtros.'
-                          }
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredItems.map((u) => {
-                      const fmt = formatUltimoIngreso(u.ultimoLoginAt ?? null);
-                      const dn = u.dependenciaId ? departamentoPorId.get(u.dependenciaId) : null;
-                      const cn = u.cargoId ? cargoPorId.get(u.cargoId) : null;
-                      const extraCount = u.directPermissionCodes?.length ?? 0;
-                      return (
-                        <TableRow key={u.id} hover>
-                          <TableCell>
-                            <Typography sx={{ fontWeight: 700 }}>{displayUsuario(u)}</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              {u.email}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <RoleChips u={u} />
-                            {extraCount > 0 ? (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                label={`${extraCount} permiso${extraCount === 1 ? '' : 's'} adicional${extraCount === 1 ? '' : 'es'}`}
-                                sx={{ mt: 0.5, fontWeight: 600 }}
-                              />
-                            ) : null}
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {dn ?? '—'}
-                            </Typography>
-                            {cn ? (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                {cn}
-                              </Typography>
-                            ) : null}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={u.activo ? 'Activo' : 'Inactivo'}
-                              color={u.activo ? 'success' : 'default'}
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip title={fmt.absoluto}>
-                              <Typography variant="body2" sx={{ fontWeight: 600, cursor: 'default' }}>
-                                {fmt.relativo}
-                              </Typography>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Acciones del usuario">
-                              <IconButton
-                                size="small"
-                                aria-label={`Acciones para ${displayUsuario(u)}`}
-                                onClick={(e) => openActionsMenu(e, u)}
-                              >
-                                <MoreHorizRoundedIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <UsersTable
+              items={paginatedItems}
+              totalFiltered={filteredItems.length}
+              departamentoPorId={departamentoPorId}
+              cargoPorId={cargoPorId}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setPage}
+              onRowsPerPageChange={setRowsPerPage}
+              onOpenActions={openActionsMenu}
+              loading={loading}
+              emptyTotal={items.length}
+              onClearFilters={clearFilters}
+              onCreateFirst={openCreateDialog}
+              canCreate={isAdmin}
+            />
           )}
-        </ListPanel>
+        </Paper>
       </TabPanel>
 
       {isAdmin ? (
@@ -816,7 +719,12 @@ export function UsuariosPage() {
       <Accordion
         defaultExpanded={false}
         elevation={0}
-        sx={{ mt: 3, ...paperCardSx, '&:before': { display: 'none' } }}
+        sx={{
+          mt: 3,
+          ...paperCardSx,
+          '&:before': { display: 'none' },
+          bgcolor: 'action.hover',
+        }}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="tech-usuarios" id="tech-usuarios-header">
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -1076,13 +984,8 @@ export function UsuariosPage() {
                   <Typography variant="caption" color="text.secondary">
                     Estado
                   </Typography>
-                  <Box>
-                    <Chip
-                      size="small"
-                      label={selected.activo ? 'Activo' : 'Inactivo'}
-                      color={selected.activo ? 'success' : 'default'}
-                      sx={{ fontWeight: 700 }}
-                    />
+                  <Box sx={{ mt: 0.25 }}>
+                    <UserStatusChip activo={selected.activo} />
                   </Box>
                 </Box>
                 <Box>
@@ -1090,7 +993,7 @@ export function UsuariosPage() {
                     Roles
                   </Typography>
                   <Box sx={{ mt: 0.25 }}>
-                    <RoleChips u={selected} />
+                    <UserRoleChips usuario={selected} />
                   </Box>
                 </Box>
                 <Box>
@@ -1099,8 +1002,8 @@ export function UsuariosPage() {
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     {selected.dependenciaId
-                      ? (departamentoPorId.get(selected.dependenciaId) ?? '—')
-                      : '—'}
+                      ? (departamentoPorId.get(selected.dependenciaId) ?? 'Sin asignar')
+                      : 'Sin asignar'}
                   </Typography>
                 </Box>
               </Stack>
