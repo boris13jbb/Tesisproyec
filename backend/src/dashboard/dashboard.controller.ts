@@ -23,7 +23,9 @@ import {
   type DashboardSummary,
 } from './dashboard.service';
 import { AcknowledgeDashboardAlertDto } from './dto/acknowledge-dashboard-alert.dto';
+import { DashboardSummaryQueryDto } from './dto/dashboard-summary-query.dto';
 import { RecordBackupVerificationDto } from './dto/record-backup-verification.dto';
+import { normalizeActividadPeriodo } from './actividad-periodo.util';
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -34,8 +36,10 @@ export class DashboardController {
   @Permissions(PERM.DASHBOARD_SUMMARY)
   getSummary(
     @Req() req: Request & { user: JwtRequestUser },
+    @Query() query: DashboardSummaryQueryDto,
   ): Promise<DashboardSummary> {
-    return this.service.getSummary(req.user);
+    const periodo = normalizeActividadPeriodo(query.actividadPeriodo);
+    return this.service.getSummary(req.user, periodo);
   }
 
   /**

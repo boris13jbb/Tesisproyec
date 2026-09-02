@@ -44,6 +44,10 @@ import { formatTimeEc } from '../components/dashboard/dashboard-utils';
 import { DashboardTypeDistribution } from '../components/dashboard/DashboardTypeDistribution';
 import { DashboardTypesByMonth } from '../components/dashboard/DashboardTypesByMonth';
 import { DashboardUserActivity } from '../components/dashboard/DashboardUserActivity';
+import {
+  ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
+  type ActividadDocumentalPeriodo,
+} from '../components/dashboard/actividad-documental-periodo';
 import { DashboardUsersSummary } from '../components/dashboard/DashboardUsersSummary';
 import { EvaluacionLikertCharts } from '../components/EvaluacionLikertCharts';
 import { listSurfaceSx } from '../components/listSurfaces';
@@ -139,12 +143,18 @@ export function DashboardPage() {
   const [ackInFlight, setAckInFlight] = useState<string | null>(null);
   const [ackError, setAckError] = useState<string | null>(null);
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
+  const [actividadPeriodo, setActividadPeriodo] = useState<ActividadDocumentalPeriodo>(
+    ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
+  );
 
   const aliveRef = useRef(false);
   const isAdminRef = useRef(false);
   const healthInflightRef = useRef(false);
   const summaryInflightRef = useRef(false);
   const manualRefreshingLockRef = useRef(false);
+  const actividadPeriodoRef = useRef<ActividadDocumentalPeriodo>(
+    ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
+  );
 
   useEffect(() => {
     aliveRef.current = true;
@@ -156,6 +166,10 @@ export function DashboardPage() {
   useLayoutEffect(() => {
     isAdminRef.current = isAdmin;
   }, [isAdmin]);
+
+  useLayoutEffect(() => {
+    actividadPeriodoRef.current = actividadPeriodo;
+  }, [actividadPeriodo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,18 +211,25 @@ export function DashboardPage() {
     }
   }, []);
 
-  const reloadSummary = useCallback(async (opts?: { silent?: boolean }) => {
+  const reloadSummary = useCallback(async (opts?: {
+    silent?: boolean;
+    actividadPeriodo?: ActividadDocumentalPeriodo;
+  }) => {
     if (summaryInflightRef.current) return;
     summaryInflightRef.current = true;
     const silent = opts?.silent ?? false;
+    const period = opts?.actividadPeriodo ?? actividadPeriodoRef.current;
     try {
       if (!silent && aliveRef.current) {
         setSummaryError(null);
         setSummaryLoading(true);
       }
-      const { data } = await apiClient.get<DashboardSummary>('/dashboard/summary');
+      const { data } = await apiClient.get<DashboardSummary>('/dashboard/summary', {
+        params: { actividadPeriodo: period },
+      });
       if (!aliveRef.current) return;
       setSummary(data);
+      setActividadPeriodo(data.actividadPeriodo ?? period);
       setSummaryError(null);
     } catch {
       if (!aliveRef.current) return;
@@ -219,6 +240,14 @@ export function DashboardPage() {
       if (aliveRef.current) setSummaryLoading(false);
     }
   }, []);
+
+  const handleActividadPeriodoChange = useCallback(
+    (period: ActividadDocumentalPeriodo) => {
+      setActividadPeriodo(period);
+      void reloadSummary({ silent: false, actividadPeriodo: period });
+    },
+    [reloadSummary],
+  );
 
   const acknowledgeServerAlert = useCallback(
     async (codigo: string) => {
@@ -498,9 +527,14 @@ export function DashboardPage() {
         </Grid>
       </Grid>
 
-      {!isAdmin && summary?.miActividadDocumental ? (
+      {!isAdmin ? (
         <Box sx={{ mb: 2.5 }}>
-          <DashboardMyActivity data={summary.miActividadDocumental} loading={summaryLoading} />
+          <DashboardMyActivity
+            data={summary?.miActividadDocumental}
+            periodo={actividadPeriodo}
+            onPeriodoChange={handleActividadPeriodoChange}
+            loading={summaryLoading}
+          />
         </Box>
       ) : null}
 
@@ -543,6 +577,9 @@ export function DashboardPage() {
         <Box sx={{ mb: 2.5 }}>
           <DashboardUserActivity
             items={summary?.actividadPorUsuario ?? []}
+            meta={summary?.actividadPorUsuarioMeta}
+            periodo={actividadPeriodo}
+            onPeriodoChange={handleActividadPeriodoChange}
             loading={summaryLoading}
             canViewMore={canManageUsers}
           />

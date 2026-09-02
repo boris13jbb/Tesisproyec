@@ -13,6 +13,7 @@ import {
 import {
   buildTopActividadPorUsuario,
   displayUserName,
+  extractEstadoCounts,
   type ActividadPorUsuarioItem,
 } from './documentos-por-usuario.util';
 import {
@@ -26,6 +27,12 @@ import {
   type TipoPorMesItem,
 } from './documentos-tipo-por-mes.util';
 import { fillDocumentosPorEstadoCounts } from './documentos-por-estado.util';
+import {
+  mergeDocumentoWhereWithActividadPeriodo,
+  type ActividadDocumentalPeriodo,
+  USUARIO_NO_IDENTIFICADO_ID,
+  ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
+} from './actividad-periodo.util';
 import {
   buildDashboardActivityItems,
   dashboardActivityActionsForAdmin,
@@ -176,8 +183,18 @@ export type DashboardTipoPorMesItem = TipoPorMesItem;
 
 export type DashboardActividadPorUsuarioItem = ActividadPorUsuarioItem;
 
+export type DashboardActividadPorUsuarioMeta = {
+  periodo: ActividadDocumentalPeriodo;
+  sumaDocumentosPorUsuario: number;
+  documentosSinCreadorIdentificado: number;
+};
+
 export type DashboardMiActividadDocumental = {
-  documentosRegistradosEsteMes: number;
+  totalRegistrados: number;
+  totalEnRevision: number;
+  totalAprobados: number;
+  totalRechazados: number;
+  totalBorradores: number;
   documentosVisibles: number;
 };
 
@@ -200,6 +217,8 @@ export type DashboardSummary = {
   tiposDocumentalesSeries: DashboardTipoDocumentalSerie[];
   tiposPorMes: DashboardTipoPorMesItem[];
   actividadPorUsuario: DashboardActividadPorUsuarioItem[] | null;
+  actividadPorUsuarioMeta: DashboardActividadPorUsuarioMeta | null;
+  actividadPeriodo: ActividadDocumentalPeriodo;
   miActividadDocumental: DashboardMiActividadDocumental | null;
   actividadMes: DashboardActividadMes;
   actividadReciente: DashboardActivityItem[];
@@ -302,19 +321,48 @@ async function buildTiposPorMesForDashboard(
 async function buildActividadPorUsuarioForDashboard(
   prisma: PrismaService,
   docWhere: Prisma.DocumentoWhereInput,
-  desde: Date,
-): Promise<DashboardActividadPorUsuarioItem[]> {
-  const grouped = await prisma.documento.groupBy({
-    by: ['createdById', 'tipoDocumentalId'],
-    where: { ...docWhere, createdAt: { gte: desde } },
-    _count: { _all: true },
-  });
-  if (grouped.length === 0) {
-    return [];
+  periodo: ActividadDocumentalPeriodo,
+  now: Date,
+): Promise<{
+  items: DashboardActividadPorUsuarioItem[];
+  meta: Omit<DashboardActividadPorUsuarioMeta, 'periodo'>;
+}> {
+  const periodWhere = mergeDocumentoWhereWithActividadPeriodo(
+    docWhere,
+    periodo,
+    now,
+  );
+
+  const [groupedEstado, groupedTipo] = await Promise.all([
+    prisma.documento.groupBy({
+      by: ['createdById', 'estado'],
+      where: periodWhere,
+      _count: { _all: true },
+    }),
+    prisma.documento.groupBy({
+      by: ['createdById', 'tipoDocumentalId'],
+      where: periodWhere,
+      _count: { _all: true },
+    }),
+  ]);
+
+  if (groupedEstado.length === 0 && groupedTipo.length === 0) {
+    return {
+      items: [],
+      meta: {
+        sumaDocumentosPorUsuario: 0,
+        documentosSinCreadorIdentificado: 0,
+      },
+    };
   }
 
-  const userIds = [...new Set(grouped.map((g) => g.createdById))];
-  const tipoIds = [...new Set(grouped.map((g) => g.tipoDocumentalId))];
+  const userIds = [
+    ...new Set([
+      ...groupedEstado.map((g) => g.createdById),
+      ...groupedTipo.map((g) => g.createdById),
+    ]),
+  ];
+  const tipoIds = [...new Set(groupedTipo.map((g) => g.tipoDocumentalId))];
 
   const [users, tipos] = await Promise.all([
     prisma.user.findMany({
@@ -332,10 +380,12 @@ async function buildActividadPorUsuarioForDashboard(
         },
       },
     }),
-    prisma.tipoDocumental.findMany({
-      where: { id: { in: tipoIds } },
-      select: { id: true, codigo: true, nombre: true },
-    }),
+    tipoIds.length > 0
+      ? prisma.tipoDocumental.findMany({
+          where: { id: { in: tipoIds } },
+          select: { id: true, codigo: true, nombre: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -344,7 +394,7 @@ async function buildActividadPorUsuarioForDashboard(
   const byUser = new Map<
     string,
     {
-      total: number;
+      estados: Map<string, number>;
       tipos: Map<
         string,
         { tipoId: string; codigo: string; nombre: string; cantidad: number }
@@ -352,14 +402,28 @@ async function buildActividadPorUsuarioForDashboard(
     }
   >();
 
-  for (const g of grouped) {
-    const count = g._count._all;
-    if (!byUser.has(g.createdById)) {
-      byUser.set(g.createdById, { total: 0, tipos: new Map() });
+  const ensureUser = (userId: string) => {
+    if (!byUser.has(userId)) {
+      byUser.set(userId, { estados: new Map(), tipos: new Map() });
     }
-    const entry = byUser.get(g.createdById)!;
-    entry.total += count;
+    return byUser.get(userId)!;
+  };
 
+  for (const g of groupedEstado) {
+    const creatorKey = userMap.has(g.createdById)
+      ? g.createdById
+      : USUARIO_NO_IDENTIFICADO_ID;
+    const entry = ensureUser(creatorKey);
+    const count = g._count._all;
+    entry.estados.set(g.estado, (entry.estados.get(g.estado) ?? 0) + count);
+  }
+
+  for (const g of groupedTipo) {
+    const creatorKey = userMap.has(g.createdById)
+      ? g.createdById
+      : USUARIO_NO_IDENTIFICADO_ID;
+    const entry = ensureUser(creatorKey);
+    const count = g._count._all;
     const tipo = tipoMap.get(g.tipoDocumentalId);
     const tipoId = g.tipoDocumentalId;
     const codigo = tipo?.codigo ?? 'SIN_TIPO';
@@ -372,20 +436,86 @@ async function buildActividadPorUsuarioForDashboard(
     }
   }
 
-  const raw = [...byUser.entries()].map(([usuarioId, data]) => {
-    const u = userMap.get(usuarioId);
-    const email = u?.email ?? 'usuario@local';
+  let documentosSinCreadorIdentificado = 0;
+
+  const raw = [...byUser.entries()].map(([creatorKey, data]) => {
+    const isUnknown = creatorKey === USUARIO_NO_IDENTIFICADO_ID;
+    const u = isUnknown ? undefined : userMap.get(creatorKey);
+    const email = u?.email ?? 'sin-creador@local';
+    const estadoCounts = extractEstadoCounts(data.estados);
+    const totalRegistrados = [...data.estados.values()].reduce(
+      (s, c) => s + c,
+      0,
+    );
+    if (isUnknown) {
+      documentosSinCreadorIdentificado += totalRegistrados;
+    }
     return {
-      usuarioId,
-      nombre: displayUserName(u?.nombres ?? null, u?.apellidos ?? null, email),
-      email,
-      rolNombre: u?.roles[0]?.role.nombre ?? 'Usuario',
-      documentosRegistrados: data.total,
+      usuarioId: creatorKey,
+      nombre: isUnknown
+        ? 'Usuario no identificado'
+        : displayUserName(u?.nombres ?? null, u?.apellidos ?? null, email),
+      email: isUnknown ? 'Usuario no identificado' : email,
+      rolNombre:
+        u?.roles[0]?.role.nombre ?? (isUnknown ? 'Sin rol' : 'Usuario'),
+      totalRegistrados,
+      ...estadoCounts,
       tiposRaw: [...data.tipos.values()],
     };
   });
 
-  return buildTopActividadPorUsuario(raw);
+  const sumaDocumentosPorUsuario = raw.reduce(
+    (s, r) => s + r.totalRegistrados,
+    0,
+  );
+
+  return {
+    items: buildTopActividadPorUsuario(raw),
+    meta: {
+      sumaDocumentosPorUsuario,
+      documentosSinCreadorIdentificado,
+    },
+  };
+}
+
+async function buildMiActividadDocumentalForDashboard(
+  prisma: PrismaService,
+  docWhere: Prisma.DocumentoWhereInput,
+  userId: string,
+  periodo: ActividadDocumentalPeriodo,
+  now: Date,
+  documentosVisibles: number,
+): Promise<DashboardMiActividadDocumental> {
+  const periodWhere = mergeDocumentoWhereWithActividadPeriodo(
+    docWhere,
+    periodo,
+    now,
+  );
+
+  const groupedEstado = await prisma.documento.groupBy({
+    by: ['estado'],
+    where: {
+      ...periodWhere,
+      createdById: userId,
+    },
+    _count: { _all: true },
+  });
+
+  const estadoCounts = fillDocumentosPorEstadoCounts(
+    groupedEstado.map((g) => ({
+      estado: g.estado,
+      count: g._count._all,
+    })),
+  );
+
+  return {
+    totalRegistrados: estadoCounts.total,
+    totalEnRevision: estadoCounts.enRevision,
+    totalAprobados: estadoCounts.aprobados,
+    totalRechazados: estadoCounts.rechazados,
+    totalBorradores: estadoCounts.borradores,
+    documentosVisibles,
+  };
 }
 
 async function buildDocumentosPorMes(
@@ -609,7 +739,10 @@ export class DashboardService {
     };
   }
 
-  async getSummary(viewer: JwtRequestUser): Promise<DashboardSummary> {
+  async getSummary(
+    viewer: JwtRequestUser,
+    actividadPeriodo: ActividadDocumentalPeriodo = ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
+  ): Promise<DashboardSummary> {
     const isAdmin = jwtUserIsAdmin(viewer);
     const vis = documentoVisibilityWhere(viewer);
     const docWhere = vis ? { AND: [{ activo: true }, vis] } : { activo: true };
@@ -822,24 +955,41 @@ export class DashboardService {
     const [
       distribucionPorTipo,
       tiposPorMesBlock,
-      actividadPorUsuario,
-      miDocsEsteMes,
+      actividadPorUsuarioBlock,
+      miActividadDocumental,
     ] = await Promise.all([
       buildDistribucionPorTipoForDashboard(this.prisma, docWhere),
       buildTiposPorMesForDashboard(this.prisma, docWhere, now),
       isAdmin
-        ? buildActividadPorUsuarioForDashboard(this.prisma, docWhere, inicioMes)
+        ? buildActividadPorUsuarioForDashboard(
+            this.prisma,
+            docWhere,
+            actividadPeriodo,
+            now,
+          )
         : Promise.resolve(null),
       !isAdmin
-        ? this.prisma.documento.count({
-            where: {
-              ...docWhere,
-              createdById: viewer.id,
-              createdAt: { gte: inicioMes },
-            },
-          })
+        ? buildMiActividadDocumentalForDashboard(
+            this.prisma,
+            docWhere,
+            viewer.id,
+            actividadPeriodo,
+            now,
+            documentosTotal,
+          )
         : Promise.resolve(null),
     ]);
+
+    const actividadPorUsuario = actividadPorUsuarioBlock?.items ?? null;
+    const actividadPorUsuarioMeta = actividadPorUsuarioBlock
+      ? {
+          periodo: actividadPeriodo,
+          sumaDocumentosPorUsuario:
+            actividadPorUsuarioBlock.meta.sumaDocumentosPorUsuario,
+          documentosSinCreadorIdentificado:
+            actividadPorUsuarioBlock.meta.documentosSinCreadorIdentificado,
+        }
+      : null;
 
     const loginTotal = loginOk30d + loginFail30d;
     const authSuccessPercent =
@@ -1054,13 +1204,9 @@ export class DashboardService {
       tiposDocumentalesSeries: tiposPorMesBlock.series,
       tiposPorMes: tiposPorMesBlock.items,
       actividadPorUsuario,
-      miActividadDocumental:
-        !isAdmin && miDocsEsteMes !== null
-          ? {
-              documentosRegistradosEsteMes: miDocsEsteMes,
-              documentosVisibles: documentosTotal,
-            }
-          : null,
+      actividadPorUsuarioMeta,
+      actividadPeriodo,
+      miActividadDocumental,
       actividadMes,
       actividadReciente,
       documentosPendientes: pendientesRevisionItems,

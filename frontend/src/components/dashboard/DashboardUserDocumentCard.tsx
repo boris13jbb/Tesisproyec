@@ -1,8 +1,8 @@
 import { Avatar, Box, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { listSurfaceSx } from '../listSurfaces';
 import type { DashboardActividadPorUsuarioItem } from './dashboard-types';
-import { DashboardUserTipoBars } from './DashboardUserTipoBars';
-import { formatDashboardNumber } from './dashboard-utils';
+import { DashboardUserEstadoMetrics } from './DashboardUserEstadoMetrics';
+import { DashboardUserTipoCompact } from './DashboardUserTipoCompact';
 
 type Props = {
   item: DashboardActividadPorUsuarioItem;
@@ -20,7 +20,8 @@ function initialsFromName(nombre: string, email: string): string {
 }
 
 export function DashboardUserDocumentCard({ item }: Props) {
-  const showEmail = item.nombre !== item.email;
+  const showEmail =
+    item.nombre !== item.email && item.email !== 'Usuario no identificado';
 
   return (
     <Box
@@ -76,15 +77,18 @@ export function DashboardUserDocumentCard({ item }: Props) {
         </Box>
       </Stack>
 
-      <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 700 }}>
-        Documentos registrados:{' '}
-        <Box component="span" sx={{ fontWeight: 800, color: 'primary.main' }}>
-          {formatDashboardNumber(item.documentosRegistrados)}
-        </Box>
-      </Typography>
+      <DashboardUserEstadoMetrics
+        totalDocumentosSubidos={item.totalRegistrados}
+        metrics={{
+          totalEnRevision: item.totalEnRevision,
+          totalAprobados: item.totalAprobados,
+          totalRechazados: item.totalRechazados,
+          totalBorradores: item.totalBorradores,
+        }}
+      />
 
-      <Box sx={{ flex: 1, minHeight: 88 }}>
-        <DashboardUserTipoBars tipos={item.tipos} />
+      <Box sx={{ flex: 1, minHeight: 0, mt: 'auto' }}>
+        <DashboardUserTipoCompact tipos={item.tipos} />
       </Box>
     </Box>
   );

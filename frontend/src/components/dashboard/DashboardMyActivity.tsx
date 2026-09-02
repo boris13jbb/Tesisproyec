@@ -1,48 +1,95 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { listSurfaceSx } from '../listSurfaces';
+import {
+  ACTIVIDAD_PERIODO_SUBTITLES,
+  type ActividadDocumentalPeriodo,
+} from './actividad-documental-periodo';
 import type { DashboardMiActividadDocumental } from './dashboard-types';
+import {
+  DashboardActividadPeriodoSelect,
+  DashboardUserEstadoMetrics,
+} from './DashboardUserEstadoMetrics';
 import { formatDashboardNumber } from './dashboard-utils';
 
 type Props = {
   data?: DashboardMiActividadDocumental | null;
+  periodo: ActividadDocumentalPeriodo;
+  onPeriodoChange: (periodo: ActividadDocumentalPeriodo) => void;
   loading?: boolean;
 };
 
-export function DashboardMyActivity({ data, loading }: Props) {
-  if (loading) {
-    return (
-      <Box sx={{ ...listSurfaceSx, p: 2.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Mi actividad</Typography>
-      </Box>
-    );
-  }
-
-  if (!data) {
+export function DashboardMyActivity({
+  data,
+  periodo,
+  onPeriodoChange,
+  loading,
+}: Props) {
+  if (!data && !loading) {
     return null;
   }
 
+  const sinActividad =
+    data &&
+    data.totalRegistrados === 0 &&
+    data.totalEnRevision === 0 &&
+    data.totalAprobados === 0 &&
+    data.totalRechazados === 0;
+
   return (
     <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 } }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
-        Mi actividad
-      </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-        Sus documentos en el ámbito visible del sistema.
-      </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <Box>
-          <Typography variant="caption" color="text.secondary">Registrados este mes</Typography>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            {formatDashboardNumber(data.documentosRegistradosEsteMes)}
-          </Typography>
-        </Box>
-        <Box>
-          <Typography variant="caption" color="text.secondary">Documentos visibles</Typography>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>
-            {formatDashboardNumber(data.documentosVisibles)}
-          </Typography>
-        </Box>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1}
+        sx={{
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'flex-start' },
+          mb: 0.5,
+        }}
+      >
+        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+          Mi actividad
+        </Typography>
+        <DashboardActividadPeriodoSelect
+          value={periodo}
+          onChange={(v) => onPeriodoChange(v as ActividadDocumentalPeriodo)}
+          disabled={loading}
+        />
       </Stack>
+
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+        {ACTIVIDAD_PERIODO_SUBTITLES[periodo]}
+      </Typography>
+
+      {loading ? (
+        <Typography variant="body2" color="text.secondary">Actualizando…</Typography>
+      ) : sinActividad ? (
+        <Typography variant="body2" color="text.secondary">
+          Sin actividad documental en este período.
+        </Typography>
+      ) : data ? (
+        <>
+          <DashboardUserEstadoMetrics
+            compact
+            totalDocumentosSubidos={data.totalRegistrados}
+            metrics={{
+              totalEnRevision: data.totalEnRevision,
+              totalAprobados: data.totalAprobados,
+              totalRechazados: data.totalRechazados,
+              totalBorradores: data.totalBorradores,
+            }}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Documentos visibles (histórico)
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {formatDashboardNumber(data.documentosVisibles)}
+              </Typography>
+            </Box>
+          </Stack>
+        </>
+      ) : null}
     </Box>
   );
 }

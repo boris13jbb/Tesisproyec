@@ -1,4 +1,11 @@
 import type { EvaluacionLikertData } from '../EvaluacionLikertCharts';
+import type { ActividadDocumentalPeriodo } from './actividad-documental-periodo';
+
+export type DashboardActividadPorUsuarioMeta = {
+  periodo: ActividadDocumentalPeriodo;
+  sumaDocumentosPorUsuario: number;
+  documentosSinCreadorIdentificado: number;
+};
 
 export type DashboardDocumentosBloque = {
   total: number;
@@ -56,12 +63,20 @@ export type DashboardActividadPorUsuarioItem = {
   nombre: string;
   email: string;
   rol: string;
-  documentosRegistrados: number;
+  totalRegistrados: number;
+  totalEnRevision: number;
+  totalAprobados: number;
+  totalRechazados: number;
+  totalBorradores: number;
   tipos: DashboardActividadPorUsuarioTipoItem[];
 };
 
 export type DashboardMiActividadDocumental = {
-  documentosRegistradosEsteMes: number;
+  totalRegistrados: number;
+  totalEnRevision: number;
+  totalAprobados: number;
+  totalRechazados: number;
+  totalBorradores: number;
   documentosVisibles: number;
 };
 
@@ -142,6 +157,8 @@ export type DashboardSummary = {
   tiposDocumentalesSeries: DashboardTipoDocumentalSerie[];
   tiposPorMes: DashboardTipoPorMesItem[];
   actividadPorUsuario: DashboardActividadPorUsuarioItem[] | null;
+  actividadPorUsuarioMeta: DashboardActividadPorUsuarioMeta | null;
+  actividadPeriodo: ActividadDocumentalPeriodo;
   miActividadDocumental: DashboardMiActividadDocumental | null;
   actividadMes: DashboardActividadMes;
   actividadReciente: DashboardActivityItem[];

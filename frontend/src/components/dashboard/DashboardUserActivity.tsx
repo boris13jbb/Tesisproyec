@@ -1,14 +1,33 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Grid, Skeleton, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Grid,
+  Skeleton,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { listSurfaceSx } from '../listSurfaces';
-import type { DashboardActividadPorUsuarioItem } from './dashboard-types';
+import {
+  ACTIVIDAD_PERIODO_SUBTITLES,
+  type ActividadDocumentalPeriodo,
+} from './actividad-documental-periodo';
+import type {
+  DashboardActividadPorUsuarioItem,
+  DashboardActividadPorUsuarioMeta,
+} from './dashboard-types';
 import { DashboardUserDocumentCard } from './DashboardUserDocumentCard';
+import { DashboardActividadPeriodoSelect } from './DashboardUserEstadoMetrics';
+import { formatDashboardNumber } from './dashboard-utils';
 
 const INITIAL_VISIBLE = 3;
 
 type Props = {
   items: DashboardActividadPorUsuarioItem[];
+  meta?: DashboardActividadPorUsuarioMeta | null;
+  periodo: ActividadDocumentalPeriodo;
+  onPeriodoChange: (periodo: ActividadDocumentalPeriodo) => void;
   loading?: boolean;
   canViewMore?: boolean;
 };
@@ -27,8 +46,17 @@ function LoadingSkeleton() {
                 <Skeleton width={80} height={22} sx={{ mt: 0.75 }} />
               </Box>
             </Stack>
-            <Skeleton width="60%" sx={{ mb: 2 }} />
-            <Skeleton variant="rounded" height={72} />
+            <Skeleton width="40%" height={28} sx={{ mb: 1 }} />
+            <Skeleton width="20%" height={36} sx={{ mb: 2 }} />
+            <Grid container spacing={1} sx={{ mb: 2 }}>
+              {[0, 1, 2].map((j) => (
+                <Grid key={j} size={{ xs: 6, sm: 4 }}>
+                  <Skeleton variant="rounded" height={44} />
+                </Grid>
+              ))}
+            </Grid>
+            <Skeleton width="40%" />
+            <Skeleton width="80%" />
           </Box>
         </Grid>
       ))}
@@ -36,7 +64,14 @@ function LoadingSkeleton() {
   );
 }
 
-export function DashboardUserActivity({ items, loading, canViewMore }: Props) {
+export function DashboardUserActivity({
+  items,
+  meta,
+  periodo,
+  onPeriodoChange,
+  loading,
+  canViewMore,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
 
   const visibleItems = useMemo(
@@ -44,36 +79,47 @@ export function DashboardUserActivity({ items, loading, canViewMore }: Props) {
     [expanded, items],
   );
   const hasHidden = items.length > INITIAL_VISIBLE;
-
-  if (loading) {
-    return (
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
-          Registros por usuario y tipo documental
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Distribución de los documentos registrados por cada usuario según su tipo documental.
-          Período: <strong>este mes</strong>.
-        </Typography>
-        <LoadingSkeleton />
-      </Box>
-    );
-  }
+  const subtitle = ACTIVIDAD_PERIODO_SUBTITLES[periodo];
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
-        Registros por usuario y tipo documental
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Distribución de los documentos registrados por cada usuario según su tipo documental.
-        Período: <strong>este mes</strong>.
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1}
+        sx={{
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'flex-start' },
+          mb: 0.5,
+          gap: 1,
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+          Actividad documental por usuario
+        </Typography>
+        <DashboardActividadPeriodoSelect
+          value={periodo}
+          onChange={(v) => onPeriodoChange(v as ActividadDocumentalPeriodo)}
+          disabled={loading}
+        />
+      </Stack>
+
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        {subtitle} Incluye distribución compacta por tipo documental.
       </Typography>
 
-      {items.length === 0 ? (
+      {meta && meta.documentosSinCreadorIdentificado > 0 ? (
+        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mb: 1.5 }}>
+          {formatDashboardNumber(meta.documentosSinCreadorIdentificado)} documento(s) con
+          creador no identificado en el sistema.
+        </Typography>
+      ) : null}
+
+      {loading ? (
+        <LoadingSkeleton />
+      ) : items.length === 0 ? (
         <Box sx={{ ...listSurfaceSx, p: 3, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            No hay documentos registrados por usuarios en este período.
+            Sin actividad documental en este período.
           </Typography>
         </Box>
       ) : (
