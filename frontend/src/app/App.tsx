@@ -29,6 +29,7 @@ import {
 } from './lazyPages';
 import { MainLayout } from '../layouts/MainLayout';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
+import { PermissionRoute } from '../routes/PermissionRoute';
 import { RoleRoute } from '../routes/RoleRoute';
 import { PostLoginPerfScheduler } from './PostLoginPerfScheduler';
 
@@ -87,9 +88,15 @@ export function App() {
               <Route path="/documentos" element={<DocumentosPage />} />
               <Route path="/tramites" element={<FlujoTramitePage />} />
               <Route path="/bandeja-tramites" element={<BandejaTramitesPage />} />
+              <Route
+                element={
+                  <PermissionRoute permissions={['DOC_CREATE', 'DOC_FILES_UPLOAD']} />
+                }
+              >
+                <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
+              </Route>
               <Route path="/documentos/:id" element={<DocumentoDetallePage />} />
               <Route element={<RoleRoute roles={['ADMIN', 'SUPERADMIN']} />}>
-                <Route path="/documentos/nuevo" element={<NuevoDocumentoPage />} />
                 <Route path="/reportes" element={<ReportesInstitucionalesPage />} />
                 <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
                 <Route path="/admin/auditoria" element={<AuditoriaPage />} />

@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 import type { JwtRequestUser } from '../auth/request-user';
-import { jwtUserIsAdmin } from '../auth/request-user';
+import { jwtUserIsAdmin, jwtUserIsRevisor } from '../auth/request-user';
 import type { AuditResult } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
 import { mesNombreEc } from '../common/date-labels.util';
@@ -13,11 +13,22 @@ import {
 } from './documentos-por-mes.util';
 import { fillDocumentosPorEstadoCounts } from './documentos-por-estado.util';
 import {
+  buildDashboardActivityItems,
+  dashboardActivityActionsForAdmin,
+  dashboardActivityActionsForUser,
+  type DashboardActivityItem,
+} from './dashboard-activity.util';
+import { computeActividadMes } from './dashboard-mes-comparacion.util';
+import {
   buildEvaluacionLikertSummary,
   emptyEvaluacionLikertSummary,
   LIKERT_DIAS_UMBRAL_DEFAULT,
   type EvaluacionLikertSummary,
 } from './evaluacion-likert.util';
+import {
+  profileDocumentoIdFromMeta,
+  parseAuditMetaJson,
+} from '../auditoria/audit-action-labels.util';
 import {
   AUDIT_ACTION_BACKUP_VERIFIED,
   BACKUP_META_SOURCE_MANUAL,
@@ -111,6 +122,38 @@ export type DashboardDocumentosBloque = {
   acumuladosAnteriores: number;
 };
 
+export type DashboardActividadMes = {
+  esteMes: number;
+  mesAnterior: number;
+  variacionPorcentaje: number | null;
+  mensaje: string | null;
+};
+
+export type DashboardPendienteRevision = {
+  id: string;
+  codigo: string;
+  asunto: string;
+  estado: string;
+  fechaDocumento: string;
+  tipoDocumental: string | null;
+  ultimaActividadAt: string;
+};
+
+export type DashboardUsuariosResumen = {
+  activos: number;
+  inactivos: number;
+};
+
+export type DashboardAuditResumen = {
+  accionesHoy: number;
+  okHoy: number;
+  failHoy: number;
+};
+
+export type DashboardViewerContext = {
+  dependenciaNombre: string | null;
+};
+
 export type DashboardSummary = {
   generatedAt: string;
   kpis: {
@@ -126,6 +169,12 @@ export type DashboardSummary = {
   };
   documentos: DashboardDocumentosBloque;
   documentosPorMes: DashboardDocumentoPorMesItem[];
+  actividadMes: DashboardActividadMes;
+  actividadReciente: DashboardActivityItem[];
+  documentosPendientes: DashboardPendienteRevision[];
+  usuariosResumen: DashboardUsuariosResumen | null;
+  auditResumen: DashboardAuditResumen | null;
+  viewer: DashboardViewerContext;
   /** Evaluación Likert / semáforo de salud documental (datos reales). */
   evaluacionLikert: EvaluacionLikertSummary;
   documentosRecientes: DashboardRecentDocumento[];
@@ -394,21 +443,58 @@ export class DashboardService {
       0,
       0,
     );
+    const inicioDia = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const canSeePendientesList = isAdmin || jwtUserIsRevisor(viewer);
+
+    const activityActionFilter = isAdmin
+      ? dashboardActivityActionsForAdmin()
+      : dashboardActivityActionsForUser();
+
+    const activityWhere: Prisma.AuditLogWhereInput = isAdmin
+      ? {
+          action: { in: activityActionFilter },
+          result: 'OK',
+        }
+      : {
+          AND: [
+            {
+              OR: [{ actorUserId: viewer.id }, { actorEmail: viewer.email }],
+            },
+            { action: { in: activityActionFilter } },
+            { result: 'OK' },
+          ],
+        };
 
     const [
       documentosTotal,
       documentosCreadosEsteMes,
       pendientesRevision,
       docsRecent,
+      pendientesList,
       usuariosActivos,
+      usuariosInactivos,
       activeUsersWithRole,
       estadosAgg,
       documentosPorMes,
       evaluacionLikert,
+      activityLogs,
+      viewerDependencia,
       loginOk30d,
       loginFail30d,
       authzForbidden30d,
       totalAudit30d,
+      auditHoy,
+      auditOkHoy,
+      auditFailHoy,
       docsWithEvents30d,
       docOk30d,
       docFail30d,
@@ -436,8 +522,27 @@ export class DashboardService {
           updatedAt: true,
         },
       }),
+      canSeePendientesList
+        ? this.prisma.documento.findMany({
+            where: { ...docWhere, estado: 'EN_REVISION' },
+            orderBy: [{ updatedAt: 'desc' }],
+            take: 5,
+            select: {
+              id: true,
+              codigo: true,
+              asunto: true,
+              estado: true,
+              fechaDocumento: true,
+              updatedAt: true,
+              tipoDocumental: { select: { nombre: true } },
+            },
+          })
+        : Promise.resolve([]),
       isAdmin
         ? this.prisma.user.count({ where: { activo: true } })
+        : Promise.resolve(null),
+      isAdmin
+        ? this.prisma.user.count({ where: { activo: false } })
         : Promise.resolve(null),
       isAdmin
         ? this.prisma.user.count({
@@ -450,6 +555,27 @@ export class DashboardService {
       countDocumentosPorEstado(this.prisma, docWhere),
       buildDocumentosPorMes(this.prisma, docWhere, now),
       buildEvaluacionLikert(this.prisma, vis, now),
+      this.prisma.auditLog.findMany({
+        where: activityWhere,
+        orderBy: { createdAt: 'desc' },
+        take: 24,
+        select: {
+          id: true,
+          createdAt: true,
+          action: true,
+          result: true,
+          actorEmail: true,
+          resourceType: true,
+          resourceId: true,
+          metaJson: true,
+        },
+      }),
+      viewer.dependenciaId
+        ? this.prisma.dependencia.findUnique({
+            where: { id: viewer.dependenciaId },
+            select: { nombre: true },
+          })
+        : Promise.resolve(null),
       this.prisma.auditLog.count({
         where: { action: 'AUTH_LOGIN_OK', createdAt: { gte: since30d } },
       }),
@@ -460,6 +586,21 @@ export class DashboardService {
         where: { action: 'AUTHZ_FORBIDDEN', createdAt: { gte: since30d } },
       }),
       this.prisma.auditLog.count({ where: { createdAt: { gte: since30d } } }),
+      isAdmin
+        ? this.prisma.auditLog.count({
+            where: { createdAt: { gte: inicioDia } },
+          })
+        : Promise.resolve(0),
+      isAdmin
+        ? this.prisma.auditLog.count({
+            where: { createdAt: { gte: inicioDia }, result: 'OK' },
+          })
+        : Promise.resolve(0),
+      isAdmin
+        ? this.prisma.auditLog.count({
+            where: { createdAt: { gte: inicioDia }, result: 'FAIL' },
+          })
+        : Promise.resolve(0),
       this.prisma.documento.count({
         where: {
           ...docWhere,
@@ -596,6 +737,45 @@ export class DashboardService {
       acumuladosAnteriores,
     };
 
+    const actividadMes = computeActividadMes(documentosPorMes, now);
+
+    const docIdsForActivity = new Set<string>();
+    for (const row of activityLogs) {
+      const meta = parseAuditMetaJson(row.metaJson);
+      const fromMeta = profileDocumentoIdFromMeta(meta);
+      if (fromMeta) docIdsForActivity.add(fromMeta);
+      if (row.resourceType === 'Documento' && row.resourceId) {
+        docIdsForActivity.add(row.resourceId);
+      }
+    }
+    const docsForActivity =
+      docIdsForActivity.size > 0
+        ? await this.prisma.documento.findMany({
+            where: { id: { in: [...docIdsForActivity] } },
+            select: { id: true, codigo: true },
+          })
+        : [];
+    const codigoById = new Map(docsForActivity.map((d) => [d.id, d.codigo]));
+    const actividadReciente = buildDashboardActivityItems(
+      activityLogs,
+      codigoById,
+      {
+        includeActor: isAdmin,
+        max: 8,
+      },
+    );
+
+    const pendientesRevisionItems: DashboardPendienteRevision[] =
+      pendientesList.map((d) => ({
+        id: d.id,
+        codigo: d.codigo,
+        asunto: d.asunto,
+        estado: d.estado,
+        fechaDocumento: d.fechaDocumento.toISOString(),
+        tipoDocumental: d.tipoDocumental?.nombre ?? null,
+        ultimaActividadAt: d.updatedAt.toISOString(),
+      }));
+
     const compliance: DashboardComplianceMetric[] = [
       {
         key: 'access_control',
@@ -666,6 +846,23 @@ export class DashboardService {
       },
       documentos: documentosBloque,
       documentosPorMes,
+      actividadMes,
+      actividadReciente,
+      documentosPendientes: pendientesRevisionItems,
+      usuariosResumen:
+        isAdmin && usuariosActivos !== null && usuariosInactivos !== null
+          ? { activos: usuariosActivos, inactivos: usuariosInactivos }
+          : null,
+      auditResumen: isAdmin
+        ? {
+            accionesHoy: auditHoy,
+            okHoy: auditOkHoy,
+            failHoy: auditFailHoy,
+          }
+        : null,
+      viewer: {
+        dependenciaNombre: viewerDependencia?.nombre ?? null,
+      },
       evaluacionLikert,
       documentosRecientes: docsRecent.map((d) => ({
         id: d.id,
