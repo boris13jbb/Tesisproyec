@@ -178,15 +178,14 @@ export class DocumentosController {
     @Body() dto: CreateDocumentoDto,
     @Req() req: Request & { user?: JwtRequestUser },
   ) {
-    const createdById = req.user?.id;
-    if (!createdById) {
+    if (!req.user?.id) {
       throw new InternalServerErrorException(
         'Usuario no disponible en request',
       );
     }
-    return this.service.create(dto, createdById, {
-      actorUserId: createdById,
-      actorEmail: req.user?.email ?? null,
+    return this.service.create(dto, req.user, {
+      actorUserId: req.user.id,
+      actorEmail: req.user.email ?? null,
       ip: req.ip ?? null,
       userAgent: req.headers['user-agent'] ?? null,
     });
@@ -220,18 +219,17 @@ export class DocumentosController {
   )
   uploadArchivo(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: Request & { user?: { id?: string; email?: string } },
+    @Req() req: Request & { user: JwtRequestUser },
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
-    const createdById = req.user?.id;
-    if (!createdById) {
+    if (!req.user?.id) {
       throw new InternalServerErrorException(
         'Usuario no disponible en request',
       );
     }
-    return this.service.uploadArchivo(id, file, createdById, {
-      actorUserId: createdById,
-      actorEmail: req.user?.email ?? null,
+    return this.service.uploadArchivo(id, file, req.user, {
+      actorUserId: req.user.id,
+      actorEmail: req.user.email ?? null,
       ip: req.ip ?? null,
       userAgent: req.headers['user-agent'] ?? null,
     });

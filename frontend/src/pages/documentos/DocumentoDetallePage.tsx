@@ -351,24 +351,28 @@ export function DocumentoDetallePage() {
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
-  const canManageDocAccess = useMemo(() => {
-    if (isAdmin) return true;
-    return myPermissionCodes?.includes('DOC_ACCESS_MANAGE') ?? false;
-  }, [isAdmin, myPermissionCodes]);
+  /** Backend: RolesGuard ADMIN + DOC_ACCESS_MANAGE — no basta el permiso solo. */
+  const canManageDocAccess = useMemo(() => isAdmin, [isAdmin]);
 
   const canUploadFiles = useMemo(() => {
     if (isAdmin) return true;
     return myPermissionCodes?.includes('DOC_FILES_UPLOAD') ?? false;
   }, [isAdmin, myPermissionCodes]);
 
-  const canDeleteFiles = useMemo(() => {
+  /** Backend: RolesGuard ADMIN + DOC_FILES_DELETE. */
+  const canDeleteFiles = useMemo(() => isAdmin, [isAdmin]);
+
+  /** Backend: RolesGuard ADMIN + DOC_UPDATE (edición administrativa). */
+  const canEditDocumento = useMemo(() => isAdmin, [isAdmin]);
+
+  const canDownloadFiles = useMemo(() => {
     if (isAdmin) return true;
-    return myPermissionCodes?.includes('DOC_FILES_DELETE') ?? false;
+    return myPermissionCodes?.includes('DOC_FILES_DOWNLOAD') ?? false;
   }, [isAdmin, myPermissionCodes]);
 
-  const canEditDocumento = useMemo(() => {
+  const canReadFileEvents = useMemo(() => {
     if (isAdmin) return true;
-    return myPermissionCodes?.includes('DOC_UPDATE') ?? false;
+    return myPermissionCodes?.includes('DOC_FILES_READ') ?? false;
   }, [isAdmin, myPermissionCodes]);
 
   const [doc, setDoc] = useState<DocumentoRow | null>(null);
@@ -496,7 +500,11 @@ export function DocumentoDetallePage() {
       (myPermissionCodes?.includes('DOC_REVISION_SEND') ?? false),
   );
   const puedeResolverRevision = Boolean(
-    doc && doc.estado === 'EN_REVISION' && esRevisorOAdmin,
+    doc &&
+      doc.estado === 'EN_REVISION' &&
+      esRevisorOAdmin &&
+      (isAdmin ||
+        (myPermissionCodes?.includes('DOC_REVISION_RESOLVE') ?? false)),
   );
 
   useEffect(() => {
@@ -713,6 +721,13 @@ export function DocumentoDetallePage() {
       };
     }
 
+    if (!canDownloadFiles) {
+      setPreviewLoading(false);
+      return () => {
+        ac.abort();
+      };
+    }
+
     const bytes = previewFetchKey.sizeBytes;
     if (bytes > MAX_PREVIEW_BYTES) {
       const mbArch = (bytes / (1024 * 1024)).toFixed(1);
@@ -808,7 +823,7 @@ export function DocumentoDetallePage() {
         previewObjectUrlRef.current = null;
       }
     };
-  }, [id, previewFetchKey]);
+  }, [id, previewFetchKey, canDownloadFiles]);
 
   const openEdit = () => {
     if (!doc) return;
@@ -1620,18 +1635,22 @@ export function DocumentoDetallePage() {
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                <Button
-                                  sx={{ textTransform: 'none' }}
-                                  onClick={() => void openArchivoEventos(a)}
-                                >
-                                  Historial
-                                </Button>
-                                <Button
-                                  sx={{ textTransform: 'none' }}
-                                  onClick={() => void onDownload(a)}
-                                >
-                                  Descargar
-                                </Button>
+                                {canReadFileEvents && (
+                                  <Button
+                                    sx={{ textTransform: 'none' }}
+                                    onClick={() => void openArchivoEventos(a)}
+                                  >
+                                    Historial
+                                  </Button>
+                                )}
+                                {canDownloadFiles && (
+                                  <Button
+                                    sx={{ textTransform: 'none' }}
+                                    onClick={() => void onDownload(a)}
+                                  >
+                                    Descargar
+                                  </Button>
+                                )}
                                 {canDeleteFiles && (
                                   <Button
                                     sx={{ textTransform: 'none' }}
@@ -1704,15 +1723,19 @@ export function DocumentoDetallePage() {
                       direction={{ xs: 'column', sm: 'row' }}
                       sx={{ mt: 2.25, flexWrap: 'wrap', gap: 1 }}
                     >
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        disabled={!archivoUltimaVersion}
-                        onClick={() => archivoUltimaVersion && void onDownload(archivoUltimaVersion)}
-                        sx={{ textTransform: 'none' }}
-                      >
-                        Descargar
-                      </Button>
+                      {canDownloadFiles && (
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          disabled={!archivoUltimaVersion}
+                          onClick={() =>
+                            archivoUltimaVersion && void onDownload(archivoUltimaVersion)
+                          }
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Descargar
+                        </Button>
+                      )}
                       {canEditDocumento && (
                         <Button
                           variant="contained"

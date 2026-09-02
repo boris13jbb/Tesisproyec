@@ -52,7 +52,7 @@ export class CreateDocumentoDto {
   @IsUUID()
   tipoDocumentalId!: string;
 
-  /** Área propietaria (si se omite se usa la dependencia del usuario ADMIN creador si existe). */
+  /** Área propietaria. ADMIN/SUPERADMIN pueden elegir cualquiera activa; el resto queda forzada a su dependencia en el servidor. */
   @IsOptional()
   @IsUUID()
   dependenciaId?: string;

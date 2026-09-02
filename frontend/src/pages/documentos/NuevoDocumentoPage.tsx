@@ -138,6 +138,8 @@ export function NuevoDocumentoPage() {
   const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
+  const userDependenciaId = user?.dependenciaId?.trim() || '';
+  const canSelectDependencia = isAdmin;
 
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
   const permissionsLoaded = myPermissionCodes !== null;
@@ -295,6 +297,16 @@ export function NuevoDocumentoPage() {
     form.setValue('dependenciaId', did, { shouldValidate: true });
   }, [user?.dependenciaId, dependencias, form]);
 
+  /** USER/EDITOR: fijar siempre su dependencia; no permitir selector libre. */
+  useEffect(() => {
+    if (canSelectDependencia) return;
+    if (!userDependenciaId) {
+      form.setValue('dependenciaId', '', { shouldValidate: true });
+      return;
+    }
+    form.setValue('dependenciaId', userDependenciaId, { shouldValidate: true });
+  }, [canSelectDependencia, userDependenciaId, form]);
+
   useEffect(() => {
     if (tipoUnicoAuto.current || tipos.length !== 1) return;
     tipoUnicoAuto.current = true;
@@ -415,7 +427,11 @@ export function NuevoDocumentoPage() {
             : undefined,
           fechaDocumento: new Date(data.fechaDocumento).toISOString(),
           tipoDocumentalId: data.tipoDocumentalId,
-          dependenciaId: data.dependenciaId?.trim() ? data.dependenciaId : undefined,
+          dependenciaId: canSelectDependencia
+            ? data.dependenciaId?.trim()
+              ? data.dependenciaId
+              : undefined
+            : userDependenciaId || undefined,
           contraparteId: data.contraparteId?.trim() ? data.contraparteId : undefined,
           beneficiarioId: data.beneficiarioId?.trim() ? data.beneficiarioId : undefined,
           responsableInstitucional: data.responsableInstitucional?.trim()
@@ -782,19 +798,48 @@ export function NuevoDocumentoPage() {
             <Controller
               name="dependenciaId"
               control={form.control}
-              render={({ field }) => (
-                <FormControl fullWidth disabled={busy}>
-                  <InputLabel id="dep-label">Dependencia propietaria</InputLabel>
-                  <Select {...field} labelId="dep-label" label="Dependencia propietaria" value={field.value || ''}>
-                    <MenuItem value="">(Sin asignar)</MenuItem>
-                    {dependencias.map((d) => (
-                      <MenuItem key={d.id} value={d.id}>
-                        {d.codigo} — {d.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
+              render={({ field }) => {
+                const ownDep = dependencias.find((d) => d.id === userDependenciaId);
+                if (!canSelectDependencia) {
+                  return (
+                    <TextField
+                      label="Dependencia propietaria"
+                      value={
+                        ownDep
+                          ? `${ownDep.codigo} — ${ownDep.nombre}`
+                          : userDependenciaId
+                            ? 'Dependencia asignada a su cuenta'
+                            : '(Sin dependencia institucional)'
+                      }
+                      fullWidth
+                      disabled
+                      helperText={
+                        userDependenciaId
+                          ? 'Se asigna automáticamente según su cuenta. No puede cambiarla.'
+                          : 'Su cuenta no tiene dependencia; el documento se creará sin área propietaria.'
+                      }
+                    />
+                  );
+                }
+                return (
+                  <FormControl fullWidth disabled={busy}>
+                    <InputLabel id="dep-label">Dependencia propietaria</InputLabel>
+                    <Select
+                      {...field}
+                      labelId="dep-label"
+                      label="Dependencia propietaria"
+                      value={field.value || ''}
+                    >
+                      <MenuItem value="">(Sin asignar)</MenuItem>
+                      {dependencias.map((d) => (
+                        <MenuItem key={d.id} value={d.id}>
+                          {d.codigo} — {d.nombre}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                );
+              }}
             />
 
             <Grid container spacing={2}>

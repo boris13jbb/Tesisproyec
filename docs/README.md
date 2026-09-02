@@ -12,7 +12,7 @@ Pendientes de alineación documental detectados durante la revisión: **`41-pend
 |------|----------------------------|
 | **Autenticación** | JWT + refresh HttpOnly, rotación, inactividad (`last_used_at`), throttling global y en `/auth`, lockout por cuenta (`AUTH_LOCKOUT_*`), recuperación de contraseña. |
 | **RBAC** | Roles seed + **`@Roles`** para menú/UI; **`@Permissions` + `PermissionsGuard`** usando `permissions` / `role_permissions` (seed + UI «Matriz rol ↔ permiso» en Usuarios; API `/rbac/...`; ver **`07`**). |
-| **Documentos** | Estados normalizados y transiciones (`documento-estado.util`); flujo **enviar a revisión** / **resolver** (R-28); `dependencia_id` + `nivel_confidencialidad` en consulta/descarga/export. |
+| **Documentos** | Estados normalizados y transiciones (`documento-estado.util`); flujo **enviar a revisión** / **resolver** (R-28); `dependencia_id` + `nivel_confidencialidad` + ACL; anti-IDOR con `documentoVisibilityWhere` (listado/detalle/archivos/upload/download). Matriz: **`MATRIZ_VISIBILIDAD_DOCUMENTOS_ROLES.md`**. |
 | **Notificaciones** | Correo SMTP opcional (nodemailer) en envío a revisión y al resolver (ver `12`, `28` R-44); sin SMTP el flujo sigue. |
 | **Auditoría** | `audit_logs`; API `GET /auditoria` (ADMIN); UI **`/admin/auditoria`**; `AUTHZ_FORBIDDEN` en 403 autenticados; export Excel/PDF de auditoría. |
 | **Reportes** | Documentos y auditoría → Excel/PDF (**ADMIN**); **pendientes de revisión** → Excel/PDF (**ADMIN** + **REVISOR**); cada export genera `REPORT_EXPORTED`. |
@@ -62,6 +62,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [51-catalogo-subseries.md](./51-catalogo-subseries.md) | **Histórico** — catálogo Subseries (retirado) |
 | [46-cuadro-clasificacion-documental.md](./46-cuadro-clasificacion-documental.md) | **Histórico** — cuadro `/clasificacion` (retirado) |
 | [12-modulo-documentos.md](./12-modulo-documentos.md) | Registro documental |
+| [MATRIZ_VISIBILIDAD_DOCUMENTOS_ROLES.md](./MATRIZ_VISIBILIDAD_DOCUMENTOS_ROLES.md) | **Matriz de visibilidad Documentos × rol** (auditoría ASVS) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |

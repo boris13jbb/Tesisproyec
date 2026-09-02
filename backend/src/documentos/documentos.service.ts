@@ -623,21 +623,62 @@ export class DocumentosService {
     }
   }
 
+  /**
+   * Resuelve la dependencia efectiva al crear un documento.
+   * ADMIN/SUPERADMIN: pueden elegir cualquier dependencia activa (o fallback a la propia).
+   * Resto: solo su dependencia institucional; no pueden inyectar área ajena.
+   */
+  private async resolveCreateDocumentoDependencia(
+    viewer: JwtRequestUser,
+    requestedDependenciaId: string | undefined,
+    creatorDependenciaId: string | null,
+  ): Promise<string | null> {
+    const requested = requestedDependenciaId?.trim() || undefined;
+    const own = creatorDependenciaId ?? viewer.dependenciaId ?? null;
+
+    if (jwtUserIsAdmin(viewer)) {
+      if (requested) {
+        await this.assertDependenciaExists(requested);
+        return requested;
+      }
+      return own;
+    }
+
+    if (!own) {
+      if (requested) {
+        throw new ForbiddenException(
+          'No puede asignar una dependencia: su cuenta no tiene dependencia institucional',
+        );
+      }
+      return null;
+    }
+
+    if (requested && requested !== own) {
+      throw new ForbiddenException(
+        'No puede registrar el documento en una dependencia distinta a la suya',
+      );
+    }
+
+    await this.assertDependenciaExists(own);
+    return own;
+  }
+
   async create(
     dto: CreateDocumentoDto,
-    createdById: string,
+    viewer: JwtRequestUser,
     ctx?: AuditContext,
   ) {
+    const createdById = viewer.id;
     await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
       select: { dependenciaId: true },
     });
-    if (dto.dependenciaId) {
-      await this.assertDependenciaExists(dto.dependenciaId);
-    }
-    const dependenciaId: string | null =
-      dto.dependenciaId ?? creator?.dependenciaId ?? null;
+    const dependenciaId = await this.resolveCreateDocumentoDependencia(
+      viewer,
+      dto.dependenciaId,
+      creator?.dependenciaId ?? null,
+    );
 
     const nivelConfidencialidad = dto.nivelConfidencialidad ?? 'INTERNO';
     const estadoInicial = normalizeDocumentoEstado(dto.estado ?? 'REGISTRADO');
@@ -822,13 +863,37 @@ export class DocumentosService {
     return path.resolve(process.cwd(), '..', 'storage');
   }
 
+  /**
+   * Resuelve pathRel bajo storage y rechaza traversal (`../`, absolutos).
+   * Defensa en profundidad: pathRel en BD debe permanecer anclado al root.
+   */
+  private resolveStoragePathOrThrow(pathRel: string): string {
+    const root = this.storageRootAbs();
+    if (!pathRel?.trim() || pathRel.includes('\0')) {
+      throw new NotFoundException('Archivo físico no disponible');
+    }
+    const rawParts = pathRel.split(/[/\\]+/).filter((s) => s.length > 0);
+    if (!rawParts.length || rawParts.some((s) => s === '..' || s === '.')) {
+      throw new NotFoundException('Archivo físico no disponible');
+    }
+    const absPath = path.resolve(root, ...rawParts);
+    const rootNorm = path.resolve(root);
+    const rel = path.relative(rootNorm, absPath);
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+      throw new NotFoundException('Archivo físico no disponible');
+    }
+    return absPath;
+  }
+
   async uploadArchivo(
     documentoId: string,
     file: Express.Multer.File | undefined,
-    createdById: string,
+    viewer: JwtRequestUser,
     ctx?: AuditContext,
   ) {
-    const docBase = await this.loadDocumentoById(documentoId);
+    // Anti-IDOR: mismo alcance que detalle/descarga (no basta conocer el UUID).
+    const docBase = await this.loadDocumentoVisibleById(documentoId, viewer);
+    const createdById = viewer.id;
     if (normalizeDocumentoEstado(docBase.estado) === 'ARCHIVADO') {
       throw new BadRequestException(
         'No se pueden cargar archivos en un documento archivado',
@@ -969,7 +1034,7 @@ export class DocumentosService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    const absPath = path.join(this.storageRootAbs(), ...row.pathRel.split('/'));
+    const absPath = this.resolveStoragePathOrThrow(row.pathRel);
     try {
       await fs.stat(absPath);
     } catch {

@@ -374,7 +374,7 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 1. Menú → **Nuevo documento** (ruta `/documentos/nuevo`) o, desde **Documentos**, el botón **Nuevo documento** en la cabecera (ambos abren el **mismo** asistente).
 2. Se requieren permisos de **crear** y de **cargar archivos**. Si falta la carga de archivos, el sistema muestra un aviso y no inicia el registro incompleto.
 3. **Paso 1 — Archivo:** seleccione un **PDF** (máx. 50 MB). Sin archivo válido no puede continuar. Puede cambiar o eliminar la selección.
-4. **Paso 2 — Información:** complete metadatos (código/correlativo, asunto, **tipo documental**, dependencia propietaria, contraparte, beneficiario, responsable institucional, confidencialidad, estado inicial, fechas y descripción). Los desplegables provienen del catálogo. El **código** lo asigna el servidor si no lo edita (**Correlativo servidor**). No se solicita Serie ni Subserie.
+4. **Paso 2 — Información:** complete metadatos (código/correlativo, asunto, **tipo documental**, dependencia propietaria, contraparte, beneficiario, responsable institucional, confidencialidad, estado inicial, fechas y descripción). Los desplegables provienen del catálogo. El **código** lo asigna el servidor si no lo edita (**Correlativo servidor**). No se solicita Serie ni Subserie. La **dependencia propietaria** solo es seleccionable por **ADMIN** / **SUPERADMIN**; el resto de usuarios ven su dependencia de cuenta en solo lectura (o «sin dependencia» si no tiene área asignada). El servidor rechaza cualquier intento de asignar un área ajena.
 5. Pulse **Registrar documento**. El sistema:
    - crea el registro (`POST /documentos`);
    - sube automáticamente el PDF (`POST /documentos/:id/archivos`);
@@ -399,9 +399,9 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 
 La pantalla se organiza en dos columnas (en escritorio), con el mismo estilo de **tarjetas** que el panel y la bandeja:
 
-- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** (requiere permiso `DOC_REVISION_SEND` y ser el registrador o un administrador) / **Aprobar** / **Rechazar** (REVISOR, ADMIN o SUPERADMIN).
-- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión. Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión, si tienes **`DOC_FILES_DELETE`**; listar, descargar e historial según permisos de lectura/descarga. Un **ADMIN** sigue viendo las acciones administrativas habituales en UI.
-- **Derecha — Metadatos:** tipo documental; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (última **versión** numérica disponible entre activos), **Editar** (si tienes permiso **`DOC_UPDATE`** en el servidor —p. ej. **ADMIN** o rol con ese permiso asignado en la matriz, como **`EDITOR_DOC`**) y **Ver historial** (desplaza a la tarjeta inferior).
+- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** (requiere permiso `DOC_REVISION_SEND` y ser el registrador o un administrador) / **Aprobar** / **Rechazar** (rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`**).
+- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión (requiere **`DOC_FILES_DOWNLOAD`**). Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión solo para **ADMIN** / **SUPERADMIN**; **Descargar** requiere **`DOC_FILES_DOWNLOAD`**; **Historial** del archivo requiere **`DOC_FILES_READ`**.
+- **Derecha — Metadatos:** tipo documental; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (si tiene **`DOC_FILES_DOWNLOAD`**, última versión activa), **Editar** (solo **ADMIN** / **SUPERADMIN** — el servidor exige rol administrativo además de `DOC_UPDATE`) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 
 Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además el bloque **Acceso al documento (ACL)**:
@@ -411,7 +411,7 @@ Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además
 - **Guardar acceso**: aplica el cambio de inmediato; si eliges **RESTRICTED** y no seleccionas nadie, el documento deja de aparecer para usuarios no administradores.
 - **Aclaración (roles):** los **roles** del ACL solo cruzan con los roles que cada usuario **ya tiene** en su cuenta en el servidor. Aquí **no** se otorga el rol global **Administrador**. Para hacer administrador del sistema a alguien, use **Administración → Usuarios y roles**, **Editar** y cambie roles (solo un usuario que ya sea **ADMIN**).
 
-En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de confidencialidad**. Si tu cuenta tiene permiso **`DOC_UPDATE`**, presiona **Editar** en **Metadatos**, ajusta los campos y **Guardar** en el diálogo cuando la pantalla lo muestre.
+En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de confidencialidad**. Si eres **ADMIN** o **SUPERADMIN**, presiona **Editar** en **Metadatos**, ajusta los campos y **Guardar** en el diálogo cuando la pantalla lo muestre.
 
 ### 8.1.1 Envío y resolución de revisión (flujo MVP)
 
@@ -421,7 +421,7 @@ Cuando el documento está en estado **Registrado**:
 
 Cuando está **En revisión**:
 
-1. Un usuario con rol **REVISOR**, **ADMIN** o **SUPERADMIN** puede pulsar **Aprobar** o **Rechazar**. No se puede cambiar a esos estados editando el documento (PATCH).
+1. Un usuario con rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`** puede pulsar **Aprobar** o **Rechazar**. No se puede cambiar a esos estados editando el documento (PATCH).
 2. Si pulsas **Rechazar**, se abre un diálogo donde debes escribir el **motivo del rechazo** (obligatorio, mínimo 3 caracteres, máximo 2000); el texto queda registrado en **Auditoría** junto con la decisión.
 
 **Consulta rápida de pendientes**
