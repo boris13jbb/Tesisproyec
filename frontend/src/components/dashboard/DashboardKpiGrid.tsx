@@ -95,7 +95,7 @@ export function DashboardKpiGrid({ documentos, loading, creadosEsteMes }: Props)
   return (
     <Grid container spacing={2}>
       {items.map((item) => (
-        <Grid key={item.key} size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+        <Grid key={item.key} size={{ xs: 6, sm: 4, md: 4, lg: 2, xl: 2 }}>
           <DashboardKpiCard
             icon={item.icon}
             title={item.title}

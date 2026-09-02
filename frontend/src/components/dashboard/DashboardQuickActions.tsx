@@ -1,7 +1,12 @@
 import { Box, Button, Grid, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import type { QuickAction } from './dashboard-quick-actions';
 
 type Props = {
@@ -15,11 +20,11 @@ export function DashboardQuickActions({ actions, loading }: Props) {
   if (!loading && actions.length === 0) return null;
 
   return (
-    <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+    <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding }}>
+      <Typography component="h2" sx={dashboardSectionTitleSx}>
         Acciones rápidas
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography sx={{ ...dashboardSectionSubtitleSx, mb: 1.5 }}>
         Accesos directos según sus permisos.
       </Typography>
 
@@ -34,11 +39,12 @@ export function DashboardQuickActions({ actions, loading }: Props) {
               startIcon={'icon' in action ? action.icon : undefined}
               sx={{
                 justifyContent: 'flex-start',
-                py: 1.25,
-                px: 1.5,
+                py: 1,
+                px: 1.25,
                 textAlign: 'left',
-                borderRadius: 2,
+                borderRadius: 1.5,
                 fontWeight: 700,
+                fontSize: '0.8125rem',
                 '&:hover': {
                   bgcolor: (t) => alpha(t.palette.secondary.main, 0.06),
                 },

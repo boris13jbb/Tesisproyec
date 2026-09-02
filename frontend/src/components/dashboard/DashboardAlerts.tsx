@@ -15,7 +15,14 @@ import {
   type DashboardAlertItemClient,
 } from '../../nav/dashboard-alert-navigation';
 import { EmptyState } from '../EmptyState';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
+
+const MAX_ALERTS_VISIBLE = 3;
 
 type Props = {
   items: DashboardAlertItemClient[];
@@ -38,31 +45,32 @@ export function DashboardAlerts({
 }: Props) {
   const navigate = useNavigate();
   const count = items.length;
+  const visibleItems = items.slice(0, MAX_ALERTS_VISIBLE);
   const firstDest = pickFirstDashboardAlertDestination(items, Boolean(isAdmin));
 
   return (
-    <Box id="alertas" sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%', scrollMarginTop: { xs: 88, md: 96 } }}>
+    <Box id="alertas" sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding, scrollMarginTop: { xs: 88, md: 96 } }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
         <Box
           aria-hidden
           sx={{
-            width: 36,
-            height: 36,
-            borderRadius: 2,
+            width: 32,
+            height: 32,
+            borderRadius: 1.5,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: (t) => alpha(t.palette.error.main, 0.12),
+            bgcolor: (t) => alpha(t.palette.error.main, 0.1),
             color: 'error.main',
           }}
         >
-          <NotificationsOutlinedIcon fontSize="small" />
+          <NotificationsOutlinedIcon sx={{ fontSize: 18 }} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+          <Typography component="h2" sx={dashboardSectionTitleSx}>
             Alertas
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Señales operativas que requieren seguimiento.
+          <Typography sx={dashboardSectionSubtitleSx}>
+            Gestiones importantes que requieren seguimiento.
           </Typography>
         </Box>
         <Chip
@@ -82,8 +90,8 @@ export function DashboardAlerts({
           <EmptyState dense title="No existen alertas pendientes." description="Todo está al día." />
         </Box>
       ) : (
-        <Stack spacing={1} sx={{ mt: 1.5 }}>
-          {items.map((item) => {
+        <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+          {visibleItems.map((item) => {
             const href = hrefForDashboardAlertCodigo(item.codigo, Boolean(isAdmin));
             return (
               <Box
@@ -112,6 +120,11 @@ export function DashboardAlerts({
               </Box>
             );
           })}
+          {count > MAX_ALERTS_VISIBLE ? (
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, px: 0.5 }}>
+              +{count - MAX_ALERTS_VISIBLE} alerta(s) adicional(es)
+            </Typography>
+          ) : null}
           {firstDest ? (
             <Button size="small" variant="outlined" sx={{ alignSelf: 'flex-start', fontWeight: 700 }} onClick={() => navigate(firstDest)}>
               Ir a la primera acción sugerida

@@ -783,7 +783,7 @@ function MainLayoutShell() {
           <Toolbar />
           <Box
             sx={{
-              maxWidth: { xs: '100%', xl: 1360 },
+              maxWidth: { xs: '100%', xl: 1560 },
               mx: 'auto',
               width: '100%',
               pt: { xs: 1.5, sm: 2 },

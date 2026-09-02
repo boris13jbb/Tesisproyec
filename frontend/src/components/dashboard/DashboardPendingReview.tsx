@@ -3,10 +3,14 @@ import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { labelDocumentoEstado, documentoEstadoTone } from '../../constants/documento-estado';
-import { EmptyState } from '../EmptyState';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import type { DashboardPendienteItem } from './dashboard-types';
-import { formatRelativeEs } from './dashboard-utils';
+import { formatDashboardNumber, formatRelativeEs } from './dashboard-utils';
 
 type Props = {
   items: DashboardPendienteItem[];
@@ -22,15 +26,15 @@ export function DashboardPendingReview({ items, totalPendientes, loading, visibl
   if (!visible) return null;
 
   return (
-    <Box sx={{ ...listSurfaceSx, overflow: 'hidden', height: '100%' }}>
-      <Box sx={{ px: 2.5, pt: 2.25, pb: 1.5 }}>
+    <Box sx={{ ...dashboardSurfaceSx, overflow: 'hidden' }}>
+      <Box sx={{ px: dashboardCardPadding.xs, pt: dashboardCardPadding.xs, pb: 1 }}>
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+            <Typography component="h2" sx={dashboardSectionTitleSx}>
               Requieren atención
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Documentos en revisión pendientes de resolución.
+            <Typography sx={dashboardSectionSubtitleSx}>
+              Documentos pendientes de revisión.
             </Typography>
           </Box>
           <Chip
@@ -48,11 +52,14 @@ export function DashboardPendingReview({ items, totalPendientes, loading, visibl
             Cargando pendientes…
           </Typography>
         ) : items.length === 0 ? (
-          <EmptyState
-            dense
-            title="No hay documentos pendientes de revisión."
-            description="Cuando existan expedientes en revisión aparecerán aquí."
-          />
+          <Box sx={{ px: 1.25, py: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>
+              {formatDashboardNumber(totalPendientes)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              No hay documentos pendientes de revisión.
+            </Typography>
+          </Box>
         ) : (
           <Stack spacing={0.5} role="list" aria-label="Documentos pendientes de revisión">
             {items.map((d) => {
@@ -75,7 +82,7 @@ export function DashboardPendingReview({ items, totalPendientes, loading, visibl
                     alignItems: 'center',
                     gap: 1.5,
                     px: 1.25,
-                    py: 1.25,
+                    py: 1,
                     borderRadius: 2,
                     cursor: 'pointer',
                     '&:hover': { bgcolor: 'action.hover' },

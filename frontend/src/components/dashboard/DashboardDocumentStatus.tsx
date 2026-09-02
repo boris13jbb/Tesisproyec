@@ -1,6 +1,11 @@
 import { Box, LinearProgress, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import type { DashboardDocumentosBloque } from './dashboard-types';
 import { formatDashboardNumber, formatPercentOfTotal } from './dashboard-utils';
 
@@ -31,12 +36,12 @@ export function DashboardDocumentStatus({ documentos, loading }: Props) {
   const total = documentos?.total ?? 0;
 
   return (
-    <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+    <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding, height: '100%' }}>
+      <Typography component="h2" sx={dashboardSectionTitleSx}>
         Gestión documental
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Distribución por estado en su ámbito de visibilidad.
+      <Typography sx={{ ...dashboardSectionSubtitleSx, mb: 2 }}>
+        Distribución por estado en el período actual.
       </Typography>
 
       <Box
@@ -50,7 +55,7 @@ export function DashboardDocumentStatus({ documentos, loading }: Props) {
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
           Total documentos
         </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1 }}>
           {loading ? '…' : formatDashboardNumber(total)}
         </Typography>
       </Box>

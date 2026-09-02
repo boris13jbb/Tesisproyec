@@ -8,7 +8,12 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import {
   ACTIVIDAD_PERIODO_SUBTITLES,
   type ActividadDocumentalPeriodo,
@@ -36,8 +41,8 @@ function LoadingSkeleton() {
   return (
     <Grid container spacing={2}>
       {[0, 1, 2].map((i) => (
-        <Grid key={i} size={{ xs: 12, sm: 6, lg: 4 }}>
-          <Box sx={{ ...listSurfaceSx, p: 2.25 }}>
+        <Grid key={i} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+          <Box sx={{ ...dashboardSurfaceSx, p: 1.75 }}>
             <Stack direction="row" spacing={1.25} sx={{ mb: 2 }}>
               <Skeleton variant="circular" width={36} height={36} />
               <Box sx={{ flex: 1 }}>
@@ -82,7 +87,7 @@ export function DashboardUserActivity({
   const subtitle = ACTIVIDAD_PERIODO_SUBTITLES[periodo];
 
   return (
-    <Box>
+    <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1}
@@ -93,19 +98,20 @@ export function DashboardUserActivity({
           gap: 1,
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>
-          Actividad documental por usuario
-        </Typography>
+        <Box>
+          <Typography component="h2" sx={dashboardSectionTitleSx}>
+            Actividad documental por usuario
+          </Typography>
+          <Typography sx={dashboardSectionSubtitleSx}>
+            {subtitle}
+          </Typography>
+        </Box>
         <DashboardActividadPeriodoSelect
           value={periodo}
           onChange={(v) => onPeriodoChange(v as ActividadDocumentalPeriodo)}
           disabled={loading}
         />
       </Stack>
-
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        {subtitle} Incluye distribución compacta por tipo documental.
-      </Typography>
 
       {meta && meta.documentosSinCreadorIdentificado > 0 ? (
         <Typography variant="caption" color="warning.main" sx={{ display: 'block', mb: 1.5 }}>
@@ -117,7 +123,7 @@ export function DashboardUserActivity({
       {loading ? (
         <LoadingSkeleton />
       ) : items.length === 0 ? (
-        <Box sx={{ ...listSurfaceSx, p: 3, textAlign: 'center' }}>
+        <Box sx={{ p: 3, textAlign: 'center', borderRadius: 1.5, bgcolor: 'action.hover' }}>
           <Typography variant="body2" color="text.secondary">
             Sin actividad documental en este período.
           </Typography>
@@ -126,7 +132,7 @@ export function DashboardUserActivity({
         <>
           <Grid container spacing={2}>
             {visibleItems.map((item) => (
-              <Grid key={item.usuarioId} size={{ xs: 12, sm: 6, lg: 4 }}>
+              <Grid key={item.usuarioId} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                 <DashboardUserDocumentCard item={item} />
               </Grid>
             ))}

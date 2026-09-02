@@ -1,5 +1,9 @@
 import { Box, Skeleton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import {
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+} from './dashboard/dashboard-surface';
 
 export type MonthlyBarItem = {
   anio: number;
@@ -41,12 +45,21 @@ export function DocumentosMonthlyChart({ items, loading }: Props) {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+      <Typography component="h2" sx={dashboardSectionTitleSx}>
         Documentos registrados por mes
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography sx={{ ...dashboardSectionSubtitleSx, mb: 2 }}>
         Evolución de documentos registrados durante los últimos 12 meses.
       </Typography>
+      <Box
+        sx={{
+          borderRadius: 1.5,
+          bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.06 : 0.03),
+          px: { xs: 0.5, sm: 1 },
+          pt: 1,
+          pb: 0.5,
+        }}
+      >
       <Box
         role="img"
         aria-label="Gráfico de documentos registrados por mes"
@@ -114,6 +127,7 @@ export function DocumentosMonthlyChart({ items, loading }: Props) {
             </Tooltip>
           );
         })}
+      </Box>
       </Box>
     </Box>
   );

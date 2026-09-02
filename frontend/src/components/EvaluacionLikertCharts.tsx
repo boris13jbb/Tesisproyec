@@ -9,9 +9,16 @@ import { alpha, useTheme, type Theme } from '@mui/material/styles';
 import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
 import { useNavigate } from 'react-router-dom';
 import { SectionHeader } from './SectionHeader';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard/dashboard-surface';
 import { listSurfaceSx } from './listSurfaces';
 import { documentosPathForLikert } from '../nav/documentos-likert-navigation';
 import type { LikertNivelCodigoUi } from '../nav/documentos-likert-navigation';
+import LinearProgress from '@mui/material/LinearProgress';
 
 export type EvaluacionLikertNivel = {
   codigo: 'OPTIMO' | 'MODERADO' | 'CRITICO';
@@ -32,9 +39,18 @@ export type EvaluacionLikertData = {
   niveles: EvaluacionLikertNivel[];
 };
 
+export type ComplianceMetricUi = {
+  key: string;
+  title: string;
+  standard: string;
+  percent: number;
+};
+
 type Props = {
   data: EvaluacionLikertData | null | undefined;
   loading?: boolean;
+  variant?: 'full' | 'compact';
+  compliance?: ComplianceMetricUi[];
 };
 
 function toneColor(
@@ -111,7 +127,24 @@ function LikertDonut({
   );
 }
 
-export function EvaluacionLikertCharts({ data, loading }: Props) {
+function complianceColorForPercent(p: number): 'success' | 'warning' | 'primary' {
+  if (p >= 85) return 'success';
+  if (p >= 70) return 'primary';
+  return 'warning';
+}
+
+function likertShortLabel(codigo: EvaluacionLikertNivel['codigo']): string {
+  if (codigo === 'OPTIMO') return 'Óptimo';
+  if (codigo === 'MODERADO') return 'Moderado';
+  return 'Crítico';
+}
+
+export function EvaluacionLikertCharts({
+  data,
+  loading,
+  variant = 'full',
+  compliance = [],
+}: Props) {
   const theme = useTheme();
   const navigate = useNavigate();
   const niveles = data?.niveles ?? [];
@@ -120,6 +153,99 @@ export function EvaluacionLikertCharts({ data, loading }: Props) {
 
   function openNivel(codigo: EvaluacionLikertNivel['codigo']) {
     navigate(documentosPathForLikert(codigo as LikertNivelCodigoUi));
+  }
+
+  if (variant === 'compact') {
+    return (
+      <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding, height: '100%' }}>
+        <Typography component="h2" sx={dashboardSectionTitleSx}>
+          Auditoría y evaluación
+        </Typography>
+        <Typography sx={dashboardSectionSubtitleSx}>
+          Semáforo documental y cumplimiento operativo (últimos 30 días).
+        </Typography>
+
+        {loading ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Cargando evaluación…
+          </Typography>
+        ) : null}
+
+        {!loading && total === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            No hay documentos en el ámbito visible para evaluar.
+          </Typography>
+        ) : null}
+
+        {!loading && total > 0 ? (
+          <Grid container spacing={1.25} sx={{ mt: 1.5 }}>
+            {niveles.map((n) => {
+              const color = toneColor(theme, n.colorTone);
+              return (
+                <Grid key={n.codigo} size={{ xs: 4 }}>
+                  <ButtonBase
+                    onClick={() => openNivel(n.codigo)}
+                    focusRipple
+                    aria-label={`Ver documentos ${likertShortLabel(n.codigo)}`}
+                    sx={{
+                      width: '100%',
+                      textAlign: 'left',
+                      borderRadius: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      p: 1.25,
+                      display: 'block',
+                      transition: 'border-color 120ms ease, box-shadow 120ms ease',
+                      '&:hover': {
+                        borderColor: color,
+                        boxShadow: `0 0 0 1px ${alpha(color, 0.35)}`,
+                      },
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                      {likertShortLabel(n.codigo)}
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color, lineHeight: 1.1, mt: 0.25 }}>
+                      {n.count}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {n.percent}%
+                    </Typography>
+                  </ButtonBase>
+                </Grid>
+              );
+            })}
+          </Grid>
+        ) : null}
+
+        {!loading && compliance.length > 0 ? (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1.25 }}>
+              Indicadores operativos principales
+            </Typography>
+            {compliance.map((m) => (
+              <Box key={m.key} sx={{ mb: 1.5 }}>
+                <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.35 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                    {m.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                    {m.percent}%
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={m.percent}
+                  color={complianceColorForPercent(m.percent)}
+                  aria-label={`${m.title}: ${m.percent} por ciento`}
+                  sx={{ height: 6, borderRadius: 999, bgcolor: 'action.hover' }}
+                />
+              </Box>
+            ))}
+          </Box>
+        ) : null}
+      </Box>
+    );
   }
 
   return (

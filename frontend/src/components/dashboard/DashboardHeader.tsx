@@ -1,4 +1,20 @@
-import { Avatar, Box, Chip, Stack, Typography } from '@mui/material';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
+import {
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import {
   displayUserFirstName,
   formatLongDateEc,
@@ -7,7 +23,6 @@ import {
 } from './dashboard-utils';
 
 type Props = {
-  userName?: string | null;
   userNombres?: string | null;
   userApellidos?: string | null;
   userEmail?: string | null;
@@ -15,6 +30,8 @@ type Props = {
   dependenciaNombre?: string | null;
   generatedAt?: string | null;
   loading?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
 function initialsFromUser(
@@ -41,6 +58,8 @@ export function DashboardHeader({
   dependenciaNombre,
   generatedAt,
   loading,
+  refreshing,
+  onRefresh,
 }: Props) {
   const firstName = displayUserFirstName(userNombres, userApellidos, userEmail);
   const greeting = greetingForHour();
@@ -50,63 +69,105 @@ export function DashboardHeader({
   return (
     <Box
       sx={{
-        mb: 3,
-        p: { xs: 2, md: 2.5 },
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
-        boxShadow: (t) =>
-          t.palette.mode === 'dark'
-            ? '0 8px 24px rgba(0, 0, 0, 0.28)'
-            : '0 8px 24px rgba(15, 23, 42, 0.06)',
+        ...dashboardSurfaceSx,
+        p: dashboardCardPadding,
+        mb: 2.5,
+        borderLeft: '4px solid',
+        borderLeftColor: 'primary.main',
       }}
     >
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
+        direction={{ xs: 'column', lg: 'row' }}
         spacing={2}
-        sx={{ alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between' }}
+        sx={{ alignItems: { xs: 'stretch', lg: 'center' }, justifyContent: 'space-between' }}
       >
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', minWidth: 0 }}>
           <Avatar
             sx={{
-              width: 52,
-              height: 52,
-              bgcolor: 'secondary.main',
-              color: 'secondary.contrastText',
+              width: 48,
+              height: 48,
+              bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+              color: 'primary.main',
               fontWeight: 800,
+              fontSize: '0.9rem',
             }}
           >
             {userEmail ? initialsFromUser(userEmail, userNombres, userApellidos) : '—'}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ fontWeight: 700, letterSpacing: 0.6, fontSize: '0.65rem' }}
+            >
               SGD-GADPR-LM
             </Typography>
-            <Typography variant="h5" component="h1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ fontWeight: 800, lineHeight: 1.2, fontSize: { xs: '1.35rem', md: '1.5rem' } }}
+            >
               {loading ? 'Cargando…' : `${greeting}, ${firstName}`}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Aquí tienes el resumen de la gestión documental.
+            <Typography sx={dashboardSectionSubtitleSx}>
+              Resumen ejecutivo de la gestión documental
             </Typography>
           </Box>
         </Stack>
-        <Stack spacing={1} sx={{ alignItems: { xs: 'flex-start', md: 'flex-end' } }}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+
+        <Stack
+          spacing={1}
+          sx={{ alignItems: { xs: 'flex-start', lg: 'flex-end' }, flexShrink: 0 }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
             {fechaCapitalized}
           </Typography>
           <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-            <Chip size="small" label={roleLabel} color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
+            <Chip
+              size="small"
+              label={roleLabel}
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 700, height: 26 }}
+            />
             {dependenciaNombre ? (
-              <Chip size="small" label={dependenciaNombre} variant="outlined" sx={{ fontWeight: 600 }} />
-            ) : null}
-            {generatedAt ? (
               <Chip
                 size="small"
+                label={dependenciaNombre}
                 variant="outlined"
-                label={`Actualizado: ${formatTimeEc(generatedAt)}`}
-                sx={{ fontWeight: 600 }}
+                sx={{ fontWeight: 600, height: 26, maxWidth: 220 }}
               />
+            ) : null}
+          </Stack>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            {onRefresh ? (
+              <Tooltip title="Actualizar información del Dashboard">
+                <span>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    size="small"
+                    onClick={onRefresh}
+                    disabled={refreshing}
+                    aria-busy={refreshing}
+                    startIcon={
+                      refreshing ? (
+                        <CircularProgress aria-hidden size={14} thickness={5} />
+                      ) : (
+                        <RefreshOutlinedIcon fontSize="small" />
+                      )
+                    }
+                    sx={{ fontWeight: 700, whiteSpace: 'nowrap', height: 32 }}
+                  >
+                    {refreshing ? 'Actualizando…' : 'Actualizar ahora'}
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : null}
+            {generatedAt ? (
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Actualizado: {formatTimeEc(generatedAt)}
+              </Typography>
             ) : null}
           </Stack>
         </Stack>

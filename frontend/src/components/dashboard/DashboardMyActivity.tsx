@@ -1,5 +1,10 @@
 import { Box, Stack, Typography } from '@mui/material';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import {
   ACTIVIDAD_PERIODO_SUBTITLES,
   type ActividadDocumentalPeriodo,
@@ -36,7 +41,7 @@ export function DashboardMyActivity({
     data.totalRechazados === 0;
 
   return (
-    <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 } }}>
+    <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1}
@@ -46,7 +51,7 @@ export function DashboardMyActivity({
           mb: 0.5,
         }}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+        <Typography component="h2" sx={dashboardSectionTitleSx}>
           Mi actividad
         </Typography>
         <DashboardActividadPeriodoSelect
@@ -56,7 +61,7 @@ export function DashboardMyActivity({
         />
       </Stack>
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+      <Typography sx={{ ...dashboardSectionSubtitleSx, mb: 2 }}>
         {ACTIVIDAD_PERIODO_SUBTITLES[periodo]}
       </Typography>
 

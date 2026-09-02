@@ -1,5 +1,5 @@
 import { Avatar, Box, Chip, Stack, Tooltip, Typography } from '@mui/material';
-import { listSurfaceSx } from '../listSurfaces';
+import { dashboardInteractiveSurfaceSx, dashboardCardPadding } from './dashboard-surface';
 import type { DashboardActividadPorUsuarioItem } from './dashboard-types';
 import { DashboardUserEstadoMetrics } from './DashboardUserEstadoMetrics';
 import { DashboardUserTipoCompact } from './DashboardUserTipoCompact';
@@ -26,8 +26,8 @@ export function DashboardUserDocumentCard({ item }: Props) {
   return (
     <Box
       sx={{
-        ...listSurfaceSx,
-        p: { xs: 2, md: 2.25 },
+        ...dashboardInteractiveSurfaceSx,
+        p: dashboardCardPadding,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',

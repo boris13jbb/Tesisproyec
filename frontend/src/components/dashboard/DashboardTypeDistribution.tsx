@@ -1,6 +1,11 @@
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { listSurfaceSx } from '../listSurfaces';
+import {
+  dashboardCardPadding,
+  dashboardSectionSubtitleSx,
+  dashboardSectionTitleSx,
+  dashboardSurfaceSx,
+} from './dashboard-surface';
 import type { DashboardDistribucionPorTipoItem } from './dashboard-types';
 import { buildTipoColorMap } from './dashboard-tipo-chart-colors';
 import { formatDashboardNumber } from './dashboard-utils';
@@ -21,8 +26,8 @@ export function DashboardTypeDistribution({ items, totalDocumentos, loading }: P
 
   if (loading) {
     return (
-      <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%', minHeight: 280 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Distribución por tipo de documento</Typography>
+      <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding, height: '100%', minHeight: 260 }}>
+        <Typography component="h2" sx={dashboardSectionTitleSx}>Distribución por tipo de documento</Typography>
         <Box sx={{ height: 160, bgcolor: 'action.hover', borderRadius: 2 }} />
       </Box>
     );
@@ -30,11 +35,11 @@ export function DashboardTypeDistribution({ items, totalDocumentos, loading }: P
 
   if (items.length === 0 || total <= 0) {
     return (
-      <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+      <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding, height: '100%' }}>
+        <Typography component="h2" sx={dashboardSectionTitleSx}>
           Distribución por tipo de documento
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography sx={dashboardSectionSubtitleSx}>
           Composición de los documentos registrados según su tipo.
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
@@ -56,11 +61,11 @@ export function DashboardTypeDistribution({ items, totalDocumentos, loading }: P
   }
 
   return (
-    <Box sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+    <Box sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding, height: '100%' }}>
+      <Typography component="h2" sx={dashboardSectionTitleSx}>
         Distribución por tipo de documento
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography sx={dashboardSectionSubtitleSx}>
         Composición de los documentos registrados según su tipo.
       </Typography>
 

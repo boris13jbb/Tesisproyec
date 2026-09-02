@@ -99,7 +99,7 @@ function paletteFor(mode: PaletteMode): ThemeOptions['palette'] {
     info: { main: '#1D4ED8' },
     success: { main: '#0F766E' },
     background: {
-      default: '#F4F7FA',
+      default: '#F5F7FA',
       paper: '#FFFFFF',
     },
     text: {

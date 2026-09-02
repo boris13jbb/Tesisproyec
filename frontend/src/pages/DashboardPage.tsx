@@ -1,23 +1,15 @@
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import {
-  Alert,
   Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  CircularProgress,
   Grid,
   IconButton,
-  LinearProgress,
   Paper,
   Stack,
   Tooltip,
-  Typography,
 } from '@mui/material';
 import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import {
@@ -27,7 +19,7 @@ import {
 } from '../auth/role-utils';
 import { DocumentosMonthlyChart } from '../components/DocumentosMonthlyChart';
 import { DashboardAlerts } from '../components/dashboard/DashboardAlerts';
-import { DashboardAuditSummary } from '../components/dashboard/DashboardAuditSummary';
+import { DashboardAdminInsights } from '../components/dashboard/DashboardAdminInsights';
 import { DashboardDocumentStatus } from '../components/dashboard/DashboardDocumentStatus';
 import { DashboardErrorState } from '../components/dashboard/DashboardErrorState';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
@@ -40,7 +32,6 @@ import { buildQuickActions } from '../components/dashboard/dashboard-quick-actio
 import { DashboardRecentActivity } from '../components/dashboard/DashboardRecentActivity';
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton';
 import type { DashboardSummary } from '../components/dashboard/dashboard-types';
-import { formatTimeEc } from '../components/dashboard/dashboard-utils';
 import { DashboardTypeDistribution } from '../components/dashboard/DashboardTypeDistribution';
 import { DashboardTypesByMonth } from '../components/dashboard/DashboardTypesByMonth';
 import { DashboardUserActivity } from '../components/dashboard/DashboardUserActivity';
@@ -48,9 +39,10 @@ import {
   ACTIVIDAD_DOCUMENTAL_PERIODO_DEFAULT,
   type ActividadDocumentalPeriodo,
 } from '../components/dashboard/actividad-documental-periodo';
-import { DashboardUsersSummary } from '../components/dashboard/DashboardUsersSummary';
+import { DashboardServiceStatus } from '../components/dashboard/DashboardServiceStatus';
+import { DASHBOARD_SECTION_GAP } from '../components/dashboard/dashboard-surface';
+import { dashboardCardPadding, dashboardSurfaceSx } from '../components/dashboard/dashboard-surface';
 import { EvaluacionLikertCharts } from '../components/EvaluacionLikertCharts';
-import { listSurfaceSx } from '../components/listSurfaces';
 import {
   pickFirstDashboardAlertDestination,
   type DashboardAlertItemClient,
@@ -85,42 +77,6 @@ function formatUltimoRespaldoVerificado(iso: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(d);
-}
-
-function ComplianceBar({
-  title,
-  standard,
-  value,
-  color,
-}: {
-  title: string;
-  standard: string;
-  value: number;
-  color: 'primary' | 'success' | 'warning';
-}) {
-  return (
-    <Box sx={{ mb: 2 }}>
-      <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
-            {title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {standard}
-          </Typography>
-        </Box>
-        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary' }}>
-          {value}%
-        </Typography>
-      </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={value}
-        color={color}
-        sx={{ mt: 0.75, height: 8, borderRadius: 999, bgcolor: 'action.hover' }}
-      />
-    </Box>
-  );
 }
 
 export function DashboardPage() {
@@ -407,14 +363,9 @@ export function DashboardPage() {
     }
   };
 
-  const complianceColorForPercent = (p: number): 'success' | 'warning' | 'primary' => {
-    if (p >= 85) return 'success';
-    if (p >= 70) return 'primary';
-    return 'warning';
-  };
-
   const initialLoad = summaryLoading && !summary;
   const showPendingSection = isRevisorOrAdmin || canReview;
+  const sectionMb = { mb: DASHBOARD_SECTION_GAP };
 
   if (initialLoad) {
     return (
@@ -426,11 +377,7 @@ export function DashboardPage() {
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        sx={{ justifyContent: 'flex-end', mb: 1.5 }}
-      >
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', mb: 1 }}>
         <Tooltip
           title={
             isAdmin
@@ -445,32 +392,12 @@ export function DashboardPage() {
           <IconButton
             aria-label="Ver alertas o pendientes"
             onClick={handleBellClick}
-            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}
+            size="small"
+            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper' }}
           >
             <NotificationsOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Button
-          type="button"
-          variant="outlined"
-          size="small"
-          onClick={() => void handleManualDashboardRefresh()}
-          disabled={manualRefreshing}
-          aria-busy={manualRefreshing}
-          startIcon={
-            manualRefreshing ? (
-              <CircularProgress aria-hidden size={14} thickness={5} sx={{ color: 'primary.main' }} />
-            ) : undefined
-          }
-          sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}
-        >
-          {manualRefreshing ? 'Actualizando…' : 'Actualizar ahora'}
-        </Button>
-        {summary?.generatedAt ? (
-          <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', fontWeight: 700 }}>
-            Actualizado: {formatTimeEc(summary.generatedAt)}
-          </Typography>
-        ) : null}
       </Stack>
 
       <DashboardHeader
@@ -481,13 +408,15 @@ export function DashboardPage() {
         dependenciaNombre={summary?.viewer?.dependenciaNombre}
         generatedAt={summary?.generatedAt}
         loading={summaryLoading && !summary}
+        refreshing={manualRefreshing}
+        onRefresh={() => void handleManualDashboardRefresh()}
       />
 
       {summaryError ? (
         <DashboardErrorState onRetry={() => void handleManualDashboardRefresh()} retrying={manualRefreshing} />
       ) : null}
 
-      <Box sx={{ mb: 3 }}>
+      <Box sx={sectionMb}>
         <DashboardKpiGrid
           documentos={summary?.documentos}
           loading={summaryLoading}
@@ -495,11 +424,11 @@ export function DashboardPage() {
         />
       </Box>
 
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 12, lg: 7 }}>
+      <Grid container spacing={2} sx={{ ...sectionMb, alignItems: 'flex-start' }}>
+        <Grid size={{ xs: 12, lg: 6 }}>
           <DashboardDocumentStatus documentos={summary?.documentos} loading={summaryLoading} />
         </Grid>
-        <Grid size={{ xs: 12, lg: 5 }}>
+        <Grid size={{ xs: 12, lg: 6 }}>
           <DashboardTypeDistribution
             items={summary?.distribucionPorTipo ?? []}
             totalDocumentos={summary?.documentos?.total ?? 0}
@@ -508,13 +437,13 @@ export function DashboardPage() {
         </Grid>
       </Grid>
 
-      <Paper elevation={0} sx={{ ...listSurfaceSx, mb: 2.5, p: { xs: 2, md: 2.5 } }}>
+      <Paper elevation={0} sx={{ ...dashboardSurfaceSx, ...sectionMb, p: dashboardCardPadding }}>
         <DocumentosMonthlyChart items={summary?.documentosPorMes ?? []} loading={summaryLoading} />
       </Paper>
 
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+      <Grid container spacing={2} sx={{ ...sectionMb, alignItems: 'flex-start' }}>
         <Grid size={{ xs: 12, lg: 8 }}>
-          <Paper elevation={0} sx={{ ...listSurfaceSx, p: { xs: 2, md: 2.5 }, height: '100%' }}>
+          <Paper elevation={0} sx={{ ...dashboardSurfaceSx, p: dashboardCardPadding }}>
             <DashboardTypesByMonth
               series={summary?.tiposDocumentalesSeries ?? []}
               items={summary?.tiposPorMes ?? []}
@@ -528,7 +457,7 @@ export function DashboardPage() {
       </Grid>
 
       {!isAdmin ? (
-        <Box sx={{ mb: 2.5 }}>
+        <Box sx={sectionMb}>
           <DashboardMyActivity
             data={summary?.miActividadDocumental}
             periodo={actividadPeriodo}
@@ -538,8 +467,8 @@ export function DashboardPage() {
         </Box>
       ) : null}
 
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 1, md: 1 } }}>
+      <Grid container spacing={2} sx={{ ...sectionMb, alignItems: 'flex-start' }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <DashboardPendingReview
             items={summary?.documentosPendientes ?? []}
             totalPendientes={summary?.kpis.pendientesRevision ?? 0}
@@ -547,34 +476,35 @@ export function DashboardPage() {
             visible={showPendingSection}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 3, md: 2 } }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <DashboardQuickActions actions={quickActions} loading={summaryLoading && !summary} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 2, md: 3 } }}>
-          {!isAdmin ? (
-            <DashboardRecentActivity
-              items={summary?.actividadReciente ?? []}
-              loading={summaryLoading}
-              showViewAll={false}
-              viewAllTo="/perfil"
-            />
-          ) : null}
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 4, md: 4 } }}>
-          <DashboardAlerts
-            items={alertasItemsMerged}
-            loading={summaryLoading || (isAdmin && healthLoading)}
-            isAdmin={isAdmin}
-            serverItems={summary?.kpis.alertasItems ?? []}
-            ackInFlight={ackInFlight}
-            ackError={ackError}
-            onAcknowledge={isAdmin ? (c) => void acknowledgeServerAlert(c) : undefined}
-          />
         </Grid>
       </Grid>
 
+      <Grid container spacing={2} sx={{ ...sectionMb, alignItems: 'flex-start' }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <DashboardRecentActivity
+            items={summary?.actividadReciente ?? []}
+            loading={summaryLoading}
+            showViewAll={isAdmin}
+            viewAllTo={isAdmin ? '/admin/auditoria' : '/perfil'}
+            viewAllLabel={isAdmin ? 'Ver toda la actividad' : 'Ver toda la actividad'}
+          />
+        </Grid>
+        {isAdmin ? (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <EvaluacionLikertCharts
+              variant="compact"
+              data={summary?.evaluacionLikert}
+              loading={summaryLoading}
+              compliance={summary?.compliance ?? []}
+            />
+          </Grid>
+        ) : null}
+      </Grid>
+
       {isAdmin ? (
-        <Box sx={{ mb: 2.5 }}>
+        <Box sx={sectionMb}>
           <DashboardUserActivity
             items={summary?.actividadPorUsuario ?? []}
             meta={summary?.actividadPorUsuarioMeta}
@@ -587,153 +517,55 @@ export function DashboardPage() {
       ) : null}
 
       {isAdmin ? (
-        <>
-          <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <DashboardRecentActivity
-                items={summary?.actividadReciente ?? []}
-                loading={summaryLoading}
-                showViewAll={isAdmin}
-                viewAllTo="/admin/auditoria"
-              />
-            </Grid>
-          </Grid>
-          <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <DashboardUsersSummary
-                resumen={summary?.usuariosResumen}
-                loading={summaryLoading}
-                canManage={canManageUsers}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-            <DashboardAuditSummary
-              resumen={summary?.auditResumen}
-              loading={summaryLoading}
-              canView={canAudit}
+        <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <DashboardAlerts
+              items={alertasItemsMerged}
+              loading={summaryLoading || healthLoading}
+              isAdmin={isAdmin}
+              serverItems={summary?.kpis.alertasItems ?? []}
+              ackInFlight={ackInFlight}
+              ackError={ackError}
+              onAcknowledge={(c) => void acknowledgeServerAlert(c)}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Paper elevation={0} sx={{ ...listSurfaceSx, p: 2.5, height: '100%' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>
-                Señales recientes
-              </Typography>
-              <Stack spacing={1.25}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Último respaldo verificado
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {formatUltimoRespaldoVerificado(summary?.lastSignals.lastBackupVerifiedAt ?? null)}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Última línea auditada
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {summary?.lastSignals.lastAuditAt
-                      ? new Intl.DateTimeFormat('es-EC', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        }).format(new Date(summary.lastSignals.lastAuditAt))
-                      : '—'}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Paper>
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <DashboardAdminInsights
+              usuarios={summary?.usuariosResumen}
+              audit={summary?.auditResumen}
+              lastBackupAt={summary?.lastSignals.lastBackupVerifiedAt ?? null}
+              lastAuditAt={summary?.lastSignals.lastAuditAt ?? null}
+              loading={summaryLoading}
+              canManageUsers={canManageUsers}
+              canViewAudit={canAudit}
+              formatBackup={formatUltimoRespaldoVerificado}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <Box id="estado-servicio" sx={{ scrollMarginTop: { xs: 88, md: 96 } }}>
+              <DashboardServiceStatus
+                health={health}
+                healthLoading={healthLoading}
+                healthError={healthError}
+                adminOk={adminOk}
+                adminError={adminError}
+                adminLoading={adminOk === null && !adminError}
+              />
+            </Box>
           </Grid>
         </Grid>
-        </>
-      ) : null}
-
-      <EvaluacionLikertCharts data={summary?.evaluacionLikert} loading={summaryLoading} />
-
-      {isAdmin ? (
-        <Paper elevation={0} sx={{ ...listSurfaceSx, mb: 2.5, p: 2.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
-            Indicadores operativos
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-            Porcentajes desde auditoría y datos del sistema (últimos 30 días).
-          </Typography>
-          {summaryLoading ? (
-            <CircularProgress size={22} aria-label="Cargando indicadores" />
-          ) : (
-            summary?.compliance.map((m) => (
-              <ComplianceBar
-                key={m.key}
-                title={m.title}
-                standard={m.standard}
-                value={m.percent}
-                color={complianceColorForPercent(m.percent)}
-              />
-            ))
-          )}
-        </Paper>
-      ) : null}
-
-      {isAdmin ? (
-        <Card
-          id="estado-servicio"
-          variant="outlined"
-          sx={{ mb: 2, borderRadius: 3, scrollMarginTop: { xs: 88, md: 96 } }}
-        >
-          <CardContent>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 800 }}>
-              Estado del servicio
-            </Typography>
-            <Box sx={{ minHeight: 40, display: 'flex', alignItems: 'center' }}>
-              {healthLoading && <CircularProgress size={28} aria-label="Comprobando salud del API" />}
-              {!healthLoading && healthError && <Alert severity="warning">{healthError}</Alert>}
-              {!healthLoading && health && !healthError && (
-                <Alert severity={health.database === 'down' ? 'warning' : 'success'}>
-                  API en línea: {health.service} — estado {health.status}
-                  {health.database !== undefined &&
-                    ` — base de datos: ${health.database === 'up' ? 'conectada' : 'sin conexión'}`}
-                </Alert>
-              )}
-            </Box>
-          </CardContent>
-          <CardActions sx={{ pt: 0, pb: 2, px: 2 }}>
-            <Button component={RouterLink} to="/documentos" size="small">
-              Ir a documentos
-            </Button>
-          </CardActions>
-        </Card>
-      ) : null}
-
-      {isAdmin ? (
-        <Card
-          id="comprobacion-administrador"
-          variant="outlined"
-          sx={{ borderRadius: 3, scrollMarginTop: { xs: 88, md: 96 } }}
-        >
-          <CardContent>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 800 }}>
-              Comprobación de rol administrador
-            </Typography>
-            {adminOk === null && !adminError && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <CircularProgress size={22} />
-                <Typography variant="body2" color="text.secondary">
-                  Verificando permisos…
-                </Typography>
-              </Box>
-            )}
-            {adminOk === true && (
-              <Alert severity="success" sx={{ mt: 1 }}>
-                Acceso administrador confirmado.
-              </Alert>
-            )}
-            {adminError && (
-              <Alert severity="error" sx={{ mt: 1 }}>
-                No se pudo verificar el ámbito administrador (token o red).
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
+      ) : (
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <DashboardAlerts
+              items={alertasItemsMerged}
+              loading={summaryLoading}
+              isAdmin={false}
+              serverItems={summary?.kpis.alertasItems ?? []}
+            />
+          </Grid>
+        </Grid>
+      )}
     </Box>
   );
 }
