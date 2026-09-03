@@ -904,7 +904,7 @@ export class AuthService {
           },
           meta: { reason: 'SMTP_ERROR' },
         });
-        if (this.config.get('NODE_ENV') !== 'production') {
+        if (this.shouldExposePasswordResetDebugToken()) {
           ok.debugToken = rawToken;
         }
       }
@@ -922,18 +922,27 @@ export class AuthService {
           },
           meta: { reason: 'SMTP_NOT_CONFIGURED' },
         });
-      } else {
-        const debugOff =
-          String(
-            this.config.get<string>('PASSWORD_RESET_DEBUG_TOKEN') ?? 'true',
-          ).toLowerCase() === 'false';
-        if (!debugOff) {
-          ok.debugToken = rawToken;
-        }
+      } else if (this.shouldExposePasswordResetDebugToken()) {
+        ok.debugToken = rawToken;
       }
     }
 
     return ok;
+  }
+
+  /**
+   * Solo en no-producción y con opt-in explícito (`PASSWORD_RESET_DEBUG_TOKEN=true`).
+   * Por defecto no se expone el token en la respuesta JSON (anti-filtración).
+   */
+  private shouldExposePasswordResetDebugToken(): boolean {
+    if (this.config.get('NODE_ENV') === 'production') {
+      return false;
+    }
+    return (
+      String(
+        this.config.get<string>('PASSWORD_RESET_DEBUG_TOKEN') ?? '',
+      ).toLowerCase() === 'true'
+    );
   }
 
   async confirmPasswordReset(input: {

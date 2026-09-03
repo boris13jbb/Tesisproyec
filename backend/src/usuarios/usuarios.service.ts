@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,12 +13,13 @@ import { AuditService } from '../auditoria/audit.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ROLE_ADMIN } from '../auth/role-constants';
-import { ALL_PERMISSION_CODES } from '../auth/permission-codes';
+import { ALL_PERMISSION_CODES, PERM } from '../auth/permission-codes';
 import {
   assertDirectPermissionsAssignableByActor,
   assertSuperadminUserMutationAllowed,
 } from '../auth/rbac-policy.util';
 import { PasswordPolicyService } from '../auth/password-policy.service';
+import { PermissionsService } from '../auth/permissions.service';
 import { normalizeAdministrativeText } from '../common/text-normalize.util';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -60,7 +62,25 @@ export class UsuariosService {
     private readonly audit: AuditService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly permissions: PermissionsService,
   ) {}
+
+  /** Cambiar `activo` exige USERS_DISABLE además de USERS_UPDATE del endpoint. */
+  private async assertCanToggleActivo(
+    actorUserId: string | null | undefined,
+  ): Promise<void> {
+    if (!actorUserId) {
+      throw new ForbiddenException(
+        'No autorizado para activar o desactivar usuarios',
+      );
+    }
+    const codes = await this.permissions.getCodesForUserId(actorUserId);
+    if (!codes.has(PERM.USERS_DISABLE)) {
+      throw new ForbiddenException(
+        'Se requiere el permiso USERS_DISABLE para activar o desactivar cuentas',
+      );
+    }
+  }
 
   /** Resuelve IDs de `permissions` para códigos directos; valida catálogo, política y filas en BD. */
   private async resolveDirectPermissionIds(
@@ -314,6 +334,10 @@ export class UsuariosService {
       nextActivo: activo,
     });
 
+    if (dto.activo === false) {
+      await this.assertCanToggleActivo(ctx?.actorUserId);
+    }
+
     const roles = await this.prisma.role.findMany({
       where: { codigo: { in: uniqueRoleCodes } },
       select: { id: true, codigo: true },
@@ -564,6 +588,12 @@ export class UsuariosService {
       nextActivo: dto.activo,
     });
 
+    const togglingActivo =
+      dto.activo !== undefined && dto.activo !== existing.activo;
+    if (togglingActivo) {
+      await this.assertCanToggleActivo(ctx?.actorUserId);
+    }
+
     let roleRows: { id: string; codigo: string }[] | null = null;
     if (rolesToSet) {
       const unique = Array.from(new Set(rolesToSet));
@@ -709,6 +739,15 @@ export class UsuariosService {
             despues,
           },
         });
+        await this.revokeUserRefreshTokens(id);
+      }
+
+      // Desactivación: invalidar refresh de inmediato (access JWT muere en JwtStrategy).
+      if (togglingActivo && dto.activo === false) {
+        await this.revokeUserRefreshTokens(id);
+      }
+
+      if (dto.password) {
         await this.revokeUserRefreshTokens(id);
       }
 

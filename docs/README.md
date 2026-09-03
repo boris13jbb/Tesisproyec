@@ -63,6 +63,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [46-cuadro-clasificacion-documental.md](./46-cuadro-clasificacion-documental.md) | **Histórico** — cuadro `/clasificacion` (retirado) |
 | [12-modulo-documentos.md](./12-modulo-documentos.md) | Registro documental |
 | [MATRIZ_VISIBILIDAD_DOCUMENTOS_ROLES.md](./MATRIZ_VISIBILIDAD_DOCUMENTOS_ROLES.md) | **Matriz de visibilidad Documentos × rol** (auditoría ASVS) |
+| [MATRIZ_VISIBILIDAD_USUARIOS_RBAC.md](./MATRIZ_VISIBILIDAD_USUARIOS_RBAC.md) | **Matriz Usuarios / Roles / Permisos** (IAM, SUPERADMIN, MFA) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |

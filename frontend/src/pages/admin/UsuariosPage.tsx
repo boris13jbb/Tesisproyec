@@ -218,6 +218,11 @@ export function UsuariosPage() {
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
   const isSuperAdmin = userIsSuperAdmin(user?.roles);
+  const [myPerms, setMyPerms] = useState<string[]>([]);
+  const canUsersCreate = isAdmin && myPerms.includes('USERS_CREATE');
+  const canUsersUpdate = isAdmin && myPerms.includes('USERS_UPDATE');
+  const canUsersDisable = isAdmin && myPerms.includes('USERS_DISABLE');
+  const canUsersResetPassword = isAdmin && myPerms.includes('USERS_RESET_PASSWORD');
   const [items, setItems] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -308,6 +313,26 @@ export function UsuariosPage() {
       setLoading(false);
     }
   }, [isAdmin]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!user?.id) {
+          if (!cancelled) setMyPerms([]);
+          return;
+        }
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (cancelled) return;
+        setMyPerms(Array.isArray(res.data?.codigos) ? res.data.codigos : []);
+      } catch {
+        if (!cancelled) setMyPerms([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza tabla con API
@@ -530,7 +555,7 @@ export function UsuariosPage() {
   const selectedIsSuperAdmin = selected ? userIsSuperAdminAccount(selected.roles) : false;
   const actionsTargetIsSuper = actionsUsuario ? userIsSuperAdminAccount(actionsUsuario.roles) : false;
   const canMutateTarget =
-    isAdmin && actionsUsuario && (!actionsTargetIsSuper || isSuperAdmin);
+    canUsersUpdate && actionsUsuario && (!actionsTargetIsSuper || isSuperAdmin);
 
   const handleMainTabChange = (_: SyntheticEvent, next: number) => {
     setMainTab(next);
@@ -612,7 +637,7 @@ export function UsuariosPage() {
                 />
               </Box>
             </Box>
-            {isAdmin ? (
+            {canUsersCreate ? (
               <Button
                 variant="contained"
                 color="primary"
@@ -678,7 +703,7 @@ export function UsuariosPage() {
               emptyTotal={items.length}
               onClearFilters={clearFilters}
               onCreateFirst={openCreateDialog}
-              canCreate={isAdmin}
+              canCreate={canUsersCreate}
             />
           ) : (
             <UsersTable
@@ -695,7 +720,7 @@ export function UsuariosPage() {
               emptyTotal={items.length}
               onClearFilters={clearFilters}
               onCreateFirst={openCreateDialog}
-              canCreate={isAdmin}
+              canCreate={canUsersCreate}
             />
           )}
         </Paper>
@@ -789,18 +814,20 @@ export function UsuariosPage() {
             >
               <ListItemText primary="Editar datos" secondary="Correo, nombres, dependencia y cargo" />
             </MenuItem>
-            <MenuItem
-              dense
-              onClick={() => {
-                if (!actionsUsuario) return;
-                const u = actionsUsuario;
-                closeActionsMenu();
-                openReset(u);
-              }}
-            >
-              <ListItemText primary="Restablecer contraseña" />
-            </MenuItem>
-            {!actionsTargetIsSuper || isSuperAdmin ? (
+            {canUsersResetPassword ? (
+              <MenuItem
+                dense
+                onClick={() => {
+                  if (!actionsUsuario) return;
+                  const u = actionsUsuario;
+                  closeActionsMenu();
+                  openReset(u);
+                }}
+              >
+                <ListItemText primary="Restablecer contraseña" />
+              </MenuItem>
+            ) : null}
+            {canUsersDisable && (!actionsTargetIsSuper || isSuperAdmin) ? (
               <MenuItem
                 dense
                 sx={{ borderTop: '1px solid', borderColor: 'divider', mt: 0.5 }}

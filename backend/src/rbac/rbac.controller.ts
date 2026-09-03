@@ -38,8 +38,13 @@ export class RbacController {
     return this.rbac.listRoles(req.user);
   }
 
+  /**
+   * Permisos efectivos del actor (roles + directos).
+   * Incluye EDITOR_DOC: la UI documental (MainLayout, PermissionRoute, listados)
+   * necesita `DOC_*` propios para botones/rutas; no expone matriz global.
+   */
   @Get('me/permissions')
-  @Roles('ADMIN', 'USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA')
+  @Roles('ADMIN', 'USUARIO', 'REVISOR', 'AUDITOR', 'CONSULTA', 'EDITOR_DOC')
   myPermissions(@Req() req: Request & { user: JwtRequestUser }) {
     return this.rbac.myPermissionCodes(req.user);
   }

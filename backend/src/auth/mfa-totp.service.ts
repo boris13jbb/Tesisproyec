@@ -64,8 +64,14 @@ export class MfaTotpService {
     return !!row?.desiredAdminStepUpAuth;
   }
 
+  /**
+   * Cuentas con privilegio administrativo elevado: ADMIN o SUPERADMIN.
+   * La política `desiredAdminStepUpAuth` exige MFA a ambos (no solo ADMIN).
+   */
   userIsAdmin(user: { roles: { role: { codigo: string } }[] }): boolean {
-    return user.roles.some((r) => r.role.codigo === 'ADMIN');
+    return user.roles.some(
+      (r) => r.role.codigo === 'ADMIN' || r.role.codigo === 'SUPERADMIN',
+    );
   }
 
   async getTotpState(userId: string): Promise<{

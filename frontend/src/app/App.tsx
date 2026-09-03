@@ -102,7 +102,9 @@ export function App() {
                 <Route path="/admin/auditoria" element={<AuditoriaPage />} />
                 <Route path="/admin/respaldos" element={<RespaldosSeguridadPage />} />
                 <Route path="/admin/configuracion" element={<ConfiguracionSeguridadPage />} />
-                <Route path="/admin/usuarios" element={<UsuariosPage />} />
+                <Route element={<PermissionRoute permissions={['USERS_READ']} />}>
+                  <Route path="/admin/usuarios" element={<UsuariosPage />} />
+                </Route>
                 <Route
                   path="/catalogos/dependencias"
                   element={<DependenciasPage />}
