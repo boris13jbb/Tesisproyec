@@ -245,7 +245,7 @@ Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md). Matriz de seg
 
 ### 6.3 Tipos documentales
 
-Guía detallada: [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documentales.md).
+Guía detallada: [49-catalogo-tipos-documentales.md](./49-catalogo-tipos-documentales.md). Matriz de seguridad: [MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md](./MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md).
 
 1. Menú → **Catálogos → Tipos documentales**
 2. Opcional: en **Filtros**, **Incluir inactivos** para ver tipos desactivados.

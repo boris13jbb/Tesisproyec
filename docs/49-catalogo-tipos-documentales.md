@@ -29,10 +29,11 @@ Sin tipos activos, el formulario de registro documental puede quedar sin opcione
 |--------|---------------|--------|
 | Ver menú **Catálogos → Tipos documentales** | **ADMIN** | Menú lateral |
 | Abrir `/catalogos/tipos-documentales` | **ADMIN** | Ruta protegida en frontend |
-| Listar tipos (API) | Usuario **autenticado** | `GET /api/v1/tipos-documentales` (formularios y filtros en otras pantallas) |
-| **Nuevo tipo** / **Editar** | **ADMIN** + permiso `TIPOS_DOCUMENTALES_WRITE` | Esta pantalla; `POST` / `PATCH` |
+| Listar tipos activos (API) | Usuario **autenticado** | `GET /api/v1/tipos-documentales` (selectores / filtros) |
+| Incluir inactivos | **ADMIN** / **SUPERADMIN** | Query `incluirInactivos=true` (403 para el resto) |
+| **Nuevo tipo** / **Editar** / activar-desactivar | **ADMIN** + `TIPOS_DOCUMENTALES_WRITE` | Esta pantalla; `POST` / `PATCH` |
 
-Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403**).
+Usuarios sin **ADMIN** no acceden a esta pantalla por URL (redirección o **403**). Matriz de seguridad: [MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md](./MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md).
 
 ---
 

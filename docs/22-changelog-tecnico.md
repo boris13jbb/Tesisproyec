@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Hardening Tipos documentales (RBAC, asignación, histórico)
+
+- **API:** `incluirInactivos` solo ADMIN/SUPERADMIN; detalle inactivo → 404 no-admin; auditoría `TIPO_DOCUMENTAL_*`; `assertAssignable` en create/cambio de tipo en documentos (histórico mismo id no revalida `activo`).
+- **UI:** botones de catálogo con `TIPOS_DOCUMENTALES_WRITE`; selector de edición documental conserva tipo histórico inactivo.
+- Matriz: `MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md`.
+
 ### 2026-08-30 — Gestión visual de roles y permisos (SUPERADMIN / ADMIN)
 
 - **Backend:** `ADMIN` retirado de `ROLES_ASSIGNABLE_BY_ADMIN`; solo SUPERADMIN puede asignar o revocar rol Administrador. Auditoría `ROLE_ASSIGNED` / `ROLE_REVOKED` al cambiar roles; revocación de refresh tokens en cambios sensibles (ADMIN, REVISOR) y permisos directos.

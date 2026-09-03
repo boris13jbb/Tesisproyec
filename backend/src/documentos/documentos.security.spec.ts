@@ -4,6 +4,7 @@ import { AuditService } from '../auditoria/audit.service';
 import type { JwtRequestUser } from '../auth/request-user';
 import { NotificationService } from '../notifications/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TiposDocumentalesService } from '../tipos-documentales/tipos-documentales.service';
 import { DocumentosService } from './documentos.service';
 
 /**
@@ -63,6 +64,12 @@ describe('DocumentosService — seguridad (alcance / IDOR)', () => {
           useValue: {
             notifyRevisionSubmitted: jest.fn(),
             notifyRevisionResolved: jest.fn(),
+          },
+        },
+        {
+          provide: TiposDocumentalesService,
+          useValue: {
+            assertAssignable: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

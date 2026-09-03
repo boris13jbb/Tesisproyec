@@ -10,7 +10,7 @@ CRUD; vínculo con series/subseries y reglas de indexación.
 
 ## Estado actual
 
-**Parcial (prototipo).** Tabla `tipos_documentales`; API `GET /api/v1/tipos-documentales` (JWT), `POST` y `PATCH /api/v1/tipos-documentales/:id` (ADMIN). Pantalla `/catalogos/tipos-documentales`. Seed: `MEMO`, `OFICIO`.
+**Operativo endurecido.** Tabla `tipos_documentales`; API JWT + mutaciones `ADMIN` + `TIPOS_DOCUMENTALES_WRITE`; catálogo operativo solo activos; asignación documental exige tipo activo (histórico conservado). Matriz: `MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md`. Seed: `MEMO`, `OFICIO`.
 
 **Snapshot:** alineado a **`docs/README.md` (2026-05-06)** — retención por tipo (**R‑32–35**) sigue backlog.
 

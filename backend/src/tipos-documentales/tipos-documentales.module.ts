@@ -7,5 +7,6 @@ import { TiposDocumentalesService } from './tipos-documentales.service';
   imports: [AuthModule],
   controllers: [TiposDocumentalesController],
   providers: [TiposDocumentalesService],
+  exports: [TiposDocumentalesService],
 })
 export class TiposDocumentalesModule {}

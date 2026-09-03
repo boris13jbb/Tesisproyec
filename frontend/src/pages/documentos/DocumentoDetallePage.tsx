@@ -382,6 +382,20 @@ export function DocumentoDetallePage() {
   const [contrapartes, setContrapartes] = useState<PartyCatalogRow[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<PartyCatalogRow[]>([]);
 
+  /** Activos del catálogo + tipo histórico del documento si ya no está en la lista (p. ej. inactivo). */
+  const tiposParaEdicion = useMemo(() => {
+    if (!doc?.tipoDocumental) return tipos;
+    if (tipos.some((t) => t.id === doc.tipoDocumental.id)) return tipos;
+    return [
+      {
+        id: doc.tipoDocumental.id,
+        codigo: doc.tipoDocumental.codigo,
+        nombre: `${doc.tipoDocumental.nombre} (histórico)`,
+      },
+      ...tipos,
+    ];
+  }, [tipos, doc]);
+
   const [eventos, setEventos] = useState<DocumentoEventoRow[]>([]);
   const [archivos, setArchivos] = useState<DocumentoArchivoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2058,7 +2072,7 @@ export function DocumentoDetallePage() {
                     onChange={field.onChange}
                     error={!!editForm.formState.errors.tipoDocumentalId}
                   >
-                    {tipos.map((t) => (
+                    {tiposParaEdicion.map((t) => (
                       <MenuItem key={t.id} value={t.id}>
                         {t.codigo} — {t.nombre}
                       </MenuItem>

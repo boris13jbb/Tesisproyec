@@ -4,6 +4,7 @@ import { AuditService } from '../auditoria/audit.service';
 import type { JwtRequestUser } from '../auth/request-user';
 import { NotificationService } from '../notifications/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TiposDocumentalesService } from '../tipos-documentales/tipos-documentales.service';
 import { DocumentosService } from './documentos.service';
 
 const DEP_OWN = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -88,6 +89,12 @@ describe('DocumentosService.create — dependenciaId', () => {
           useValue: {
             notifyRevisionSubmitted: jest.fn(),
             notifyRevisionResolved: jest.fn(),
+          },
+        },
+        {
+          provide: TiposDocumentalesService,
+          useValue: {
+            assertAssignable: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

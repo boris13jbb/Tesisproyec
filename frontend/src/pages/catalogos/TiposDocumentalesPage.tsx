@@ -68,6 +68,8 @@ type EditForm = z.infer<typeof editSchema>;
 export function TiposDocumentalesPage() {
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
+  const [myPerms, setMyPerms] = useState<string[]>([]);
+  const canWriteCatalog = isAdmin && myPerms.includes('TIPOS_DOCUMENTALES_WRITE');
 
   const [rows, setRows] = useState<TipoDocumentalRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +78,23 @@ export function TiposDocumentalesPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TipoDocumentalRow | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (!cancelled) {
+          setMyPerms(Array.isArray(res.data.codigos) ? res.data.codigos : []);
+        }
+      } catch {
+        if (!cancelled) setMyPerms([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setError(null);
@@ -159,6 +178,8 @@ export function TiposDocumentalesPage() {
     }
   });
 
+  const colCount = canWriteCatalog ? 5 : 4;
+
   return (
     <>
       <Box sx={{ width: '100%', pb: { xs: 4, md: 5 } }}>
@@ -166,7 +187,8 @@ export function TiposDocumentalesPage() {
           title="Tipos documentales"
           description={
             <>
-              Catálogo de tipologías documentales. Alta y edición requieren rol <strong>ADMIN</strong>.
+              Catálogo de tipologías documentales. Alta y edición requieren rol{' '}
+              <strong>ADMIN</strong> y permiso <strong>TIPOS_DOCUMENTALES_WRITE</strong>.
               Relacionado:{' '}
               <Link component={RouterLink} to="/documentos" underline="hover">
                 Documentos
@@ -175,7 +197,7 @@ export function TiposDocumentalesPage() {
             </>
           }
           actions={
-            isAdmin ? (
+            canWriteCatalog ? (
               <Button variant="contained" color="secondary" onClick={() => setCreateOpen(true)}>
                 Nuevo tipo
               </Button>
@@ -196,6 +218,7 @@ export function TiposDocumentalesPage() {
                 checked={incluirInactivos}
                 onChange={(_, c) => setIncluirInactivos(c)}
                 size="small"
+                disabled={!isAdmin}
               />
             }
             label="Incluir inactivos"
@@ -218,7 +241,7 @@ export function TiposDocumentalesPage() {
                     Descripción
                   </TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
-                  {isAdmin && (
+                  {canWriteCatalog && (
                     <TableCell align="right" sx={{ fontWeight: 800 }}>
                       Acciones
                     </TableCell>
@@ -228,7 +251,7 @@ export function TiposDocumentalesPage() {
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 5 : 4}>Cargando…</TableCell>
+                    <TableCell colSpan={colCount}>Cargando…</TableCell>
                   </TableRow>
                 )}
                 {!loading &&
@@ -249,7 +272,7 @@ export function TiposDocumentalesPage() {
                       <TableCell>
                         <ActivoChip activo={row.activo} />
                       </TableCell>
-                      {isAdmin && (
+                      {canWriteCatalog && (
                         <TableCell align="right">
                           <Button size="small" variant="outlined" color="secondary" onClick={() => openEdit(row)}>
                             Editar
@@ -260,7 +283,7 @@ export function TiposDocumentalesPage() {
                   ))}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
+                    <TableCell colSpan={colCount} sx={{ py: 0 }}>
                       <EmptyState dense title="No hay tipos documentales en este listado." />
                     </TableCell>
                   </TableRow>

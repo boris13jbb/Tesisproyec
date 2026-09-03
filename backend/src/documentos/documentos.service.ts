@@ -19,6 +19,7 @@ import {
 import { normalizeAdministrativeText } from '../common/text-normalize.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notifications/notification.service';
+import { TiposDocumentalesService } from '../tipos-documentales/tipos-documentales.service';
 import {
   JwtRequestUser,
   jwtUserIsAdmin,
@@ -137,6 +138,7 @@ export class DocumentosService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationService,
+    private readonly tiposDocumentales: TiposDocumentalesService,
   ) {}
 
   private enrichSlaFields<
@@ -606,13 +608,6 @@ export class DocumentosService {
     return this.loadDocumentoVisibleById(id, viewer);
   }
 
-  private async assertTipoDocumentalExists(id: string) {
-    const t = await this.prisma.tipoDocumental.findUnique({ where: { id } });
-    if (!t) {
-      throw new BadRequestException('Tipo documental no encontrado');
-    }
-  }
-
   private async assertDependenciaExists(id: string) {
     const d = await this.prisma.dependencia.findUnique({ where: { id } });
     if (!d) {
@@ -669,7 +664,7 @@ export class DocumentosService {
     ctx?: AuditContext,
   ) {
     const createdById = viewer.id;
-    await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
+    await this.tiposDocumentales.assertAssignable(dto.tipoDocumentalId);
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
       select: { dependenciaId: true },
@@ -1486,8 +1481,12 @@ export class DocumentosService {
       assertTransicionEstado(beforeFull.estado, estadoDestino);
       assertEstadoNoResuelveRevisionViaPatch(beforeFull.estado, estadoDestino);
     }
-    if (dto.tipoDocumentalId !== undefined) {
-      await this.assertTipoDocumentalExists(dto.tipoDocumentalId);
+    // Nueva asignación: tipo activo. Mismo id histórico (p. ej. luego inactivo): no revalidar activo.
+    if (
+      dto.tipoDocumentalId !== undefined &&
+      dto.tipoDocumentalId !== beforeFull.tipoDocumentalId
+    ) {
+      await this.tiposDocumentales.assertAssignable(dto.tipoDocumentalId);
     }
     if (dto.dependenciaId !== undefined) {
       if (dto.dependenciaId === null) {
