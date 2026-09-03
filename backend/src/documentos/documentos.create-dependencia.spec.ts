@@ -258,4 +258,16 @@ describe('DocumentosService.create — dependenciaId', () => {
     expect(lastCreatedById).toBe(userViewer.id);
     expect(lastCreatedDependenciaId).toBe(DEP_OWN);
   });
+
+  it('ADMIN no puede asignar dependencia inactiva al crear documento', async () => {
+    prisma.user.findUnique.mockResolvedValue({ dependenciaId: DEP_OWN });
+    prisma.dependencia.findUnique.mockResolvedValue({
+      id: DEP_ALIEN,
+      activo: false,
+    });
+
+    await expect(
+      service.create({ ...baseDto, dependenciaId: DEP_ALIEN }, adminViewer),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

@@ -67,7 +67,10 @@ type EditForm = z.infer<typeof editSchema>;
 
 export function DependenciasPage() {
   const { user } = useAuth();
-  const isAdmin = userHasAdminAccess(user?.roles);
+  const isAdmin = userHasAdminAccess(user?.roles ?? undefined);
+  const [myPerms, setMyPerms] = useState<string[]>([]);
+  const canWriteCatalog =
+    isAdmin && myPerms.includes('DEPENDENCIAS_WRITE');
 
   const [rows, setRows] = useState<DependenciaRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +99,23 @@ export function DependenciasPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sincroniza lista con incluirInactivos
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (!cancelled) {
+          setMyPerms(Array.isArray(res.data.codigos) ? res.data.codigos : []);
+        }
+      } catch {
+        if (!cancelled) setMyPerms([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -165,8 +185,8 @@ export function DependenciasPage() {
           title="Dependencias"
           description={
             <>
-              Catálogo de unidades organizativas. La edición y el alta requieren rol{' '}
-              <strong>ADMIN</strong>. Relacionado:{' '}
+              Catálogo de unidades organizativas. Alta y edición requieren rol{' '}
+              <strong>ADMIN</strong> y permiso <strong>DEPENDENCIAS_WRITE</strong>. Relacionado:{' '}
               <Link component={RouterLink} to="/catalogos/cargos" underline="hover">
                 Cargos
               </Link>
@@ -174,7 +194,7 @@ export function DependenciasPage() {
             </>
           }
           actions={
-            isAdmin ? (
+            canWriteCatalog ? (
               <Button variant="contained" color="secondary" onClick={() => setCreateOpen(true)}>
                 Nueva dependencia
               </Button>
@@ -217,7 +237,7 @@ export function DependenciasPage() {
                     Descripción
                   </TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
-                  {isAdmin && (
+                  {canWriteCatalog && (
                     <TableCell align="right" sx={{ fontWeight: 800 }}>
                       Acciones
                     </TableCell>
@@ -227,7 +247,7 @@ export function DependenciasPage() {
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 5 : 4}>Cargando…</TableCell>
+                    <TableCell colSpan={canWriteCatalog ? 5 : 4}>Cargando…</TableCell>
                   </TableRow>
                 )}
                 {!loading &&
@@ -248,7 +268,7 @@ export function DependenciasPage() {
                       <TableCell>
                         <ActivoChip activo={row.activo} />
                       </TableCell>
-                      {isAdmin && (
+                      {canWriteCatalog && (
                         <TableCell align="right">
                           <Button size="small" variant="outlined" color="secondary" onClick={() => openEdit(row)}>
                             Editar
@@ -259,7 +279,7 @@ export function DependenciasPage() {
                   ))}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 5 : 4} sx={{ py: 0 }}>
+                    <TableCell colSpan={canWriteCatalog ? 5 : 4} sx={{ py: 0 }}>
                       <EmptyState dense title="No hay dependencias en este listado." />
                     </TableCell>
                   </TableRow>

@@ -223,13 +223,14 @@ Los catálogos son requisitos para registrar documentos correctamente. En todas 
 
 ### 6.1 Dependencias
 
-Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md).
+Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md). Matriz de seguridad: [MATRIZ_VISIBILIDAD_DEPENDENCIAS_ORGANIZACION.md](./MATRIZ_VISIBILIDAD_DEPENDENCIAS_ORGANIZACION.md).
 
-1. Menú → **Catálogos → Dependencias**
-2. Opcional: en **Filtros**, marque **Incluir inactivas** para ver dependencias dadas de baja lógica.
-3. El listado muestra el mismo icono del menú, **código** en chip y estado **Activo/Inactivo**. Enlace a **Cargos**.
-4. En la cabecera, **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
-5. **Editar:** cambie nombre, descripción o desmarque **Activa** para desactivar (el código no se modifica).
+1. Menú → **Catálogos → Dependencias** (solo **ADMIN** / **SUPERADMIN**).
+2. Alta y edición requieren además el permiso **`DEPENDENCIAS_WRITE`**.
+3. Opcional: en **Filtros**, marque **Incluir inactivas** (solo administración) para ver dependencias dadas de baja lógica. Los selectores de asignación (usuarios/documentos nuevos) siguen mostrando solo **activas**.
+4. El listado muestra el mismo icono del menú, **código** en chip y estado **Activo/Inactivo**. Enlace a **Cargos**.
+5. En la cabecera, **Nueva dependencia:** código (único, 2–32 caracteres), nombre y descripción opcional → **Guardar**.
+6. **Editar:** cambie nombre, descripción o desmarque **Activa** para desactivar (el código no se modifica). Desactivar **no** borra usuarios ni documentos históricos asociados.
 
 ### 6.2 Cargos
 

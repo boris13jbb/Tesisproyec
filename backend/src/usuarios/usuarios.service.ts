@@ -82,6 +82,28 @@ export class UsuariosService {
     }
   }
 
+  /**
+   * Nueva asignación de dependencia: debe existir y estar activa.
+   * `null` limpia la asignación; `undefined` no cambia.
+   */
+  private async assertDependenciaAssignable(
+    dependenciaId: string | null | undefined,
+  ): Promise<void> {
+    if (dependenciaId === undefined || dependenciaId === null) {
+      return;
+    }
+    const d = await this.prisma.dependencia.findUnique({
+      where: { id: dependenciaId },
+      select: { id: true, activo: true },
+    });
+    if (!d) {
+      throw new BadRequestException('Dependencia no encontrada');
+    }
+    if (!d.activo) {
+      throw new BadRequestException('Dependencia inactiva');
+    }
+  }
+
   /** Resuelve IDs de `permissions` para códigos directos; valida catálogo, política y filas en BD. */
   private async resolveDirectPermissionIds(
     codesInput: string[],
@@ -338,6 +360,8 @@ export class UsuariosService {
       await this.assertCanToggleActivo(ctx?.actorUserId);
     }
 
+    await this.assertDependenciaAssignable(dto.dependenciaId ?? null);
+
     const roles = await this.prisma.role.findMany({
       where: { codigo: { in: uniqueRoleCodes } },
       select: { id: true, codigo: true },
@@ -593,6 +617,8 @@ export class UsuariosService {
     if (togglingActivo) {
       await this.assertCanToggleActivo(ctx?.actorUserId);
     }
+
+    await this.assertDependenciaAssignable(dto.dependenciaId);
 
     let roleRows: { id: string; codigo: string }[] | null = null;
     if (rolesToSet) {

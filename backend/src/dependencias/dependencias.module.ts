@@ -7,5 +7,6 @@ import { DependenciasService } from './dependencias.service';
   imports: [AuthModule],
   controllers: [DependenciasController],
   providers: [DependenciasService],
+  exports: [DependenciasService],
 })
 export class DependenciasModule {}
