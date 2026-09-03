@@ -122,11 +122,13 @@ Leyenda: **G** = global · **S** = scope · **Prop** = creador · **NO** = deneg
 | `REGISTRADO` | `EN_REVISION` | `POST .../enviar-revision` | `DOC_REVISION_SEND` + (creador\|admin) |
 | `EN_REVISION` | `APROBADO` | `POST .../resolver-revision` | `DOC_REVISION_RESOLVE` + ADMIN\|REVISOR |
 | `EN_REVISION` | `RECHAZADO` | `POST .../resolver-revision` | Idem + motivo ≥3 |
-| `RECHAZADO` | `EN_REVISION` \| `ARCHIVADO` | PATCH / flujo | ADMIN (PATCH) |
+| `RECHAZADO` | `EN_REVISION` | `POST .../enviar-revision` | Reenvío formal (mismo permiso send) |
+| `RECHAZADO` | `ARCHIVADO` | PATCH | ADMIN + `DOC_UPDATE` |
 | `APROBADO` | `ARCHIVADO` | PATCH | ADMIN |
 | `ARCHIVADO` | — | — | Terminal |
 
-**Prohibido:** llegar a `APROBADO`/`RECHAZADO` vía PATCH genérico (`assertEstadoNoResuelveRevisionViaPatch`).
+**Prohibido vía PATCH genérico:** destinos `EN_REVISION`, `APROBADO`, `RECHAZADO` (`assertEstadoNoResuelveRevisionViaPatch`).  
+Matriz ampliada: [MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md](./MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md).
 
 ---
 

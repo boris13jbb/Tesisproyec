@@ -24,6 +24,11 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Hardening workflow estados documentales
+
+- **API:** PATCH no puede fijar `EN_REVISION`/`APROBADO`/`RECHAZADO`; reenvío `RECHAZADO`→`EN_REVISION` vía `POST .../enviar-revision`; resolución/envío con `updateMany` condicionado (anti doble resolución).
+- Matriz: `MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md`. Residual: mutabilidad post-aprobación (decisión funcional).
+
 ### 2026-09-03 — Hardening Tipos documentales (RBAC, asignación, histórico)
 
 - **API:** `incluirInactivos` solo ADMIN/SUPERADMIN; detalle inactivo → 404 no-admin; auditoría `TIPO_DOCUMENTAL_*`; `assertAssignable` en create/cambio de tipo en documentos (histórico mismo id no revalida `activo`).

@@ -509,7 +509,7 @@ export function DocumentoDetallePage() {
   const esRevisorOAdmin = userIsRevisorOrAdmin(user?.roles);
   const puedeEnviarRevision = Boolean(
     doc &&
-      doc.estado === 'REGISTRADO' &&
+      (doc.estado === 'REGISTRADO' || doc.estado === 'RECHAZADO') &&
       (isAdmin || user?.id === doc.createdBy.id) &&
       (myPermissionCodes?.includes('DOC_REVISION_SEND') ?? false),
   );
@@ -517,8 +517,7 @@ export function DocumentoDetallePage() {
     doc &&
       doc.estado === 'EN_REVISION' &&
       esRevisorOAdmin &&
-      (isAdmin ||
-        (myPermissionCodes?.includes('DOC_REVISION_RESOLVE') ?? false)),
+      (myPermissionCodes?.includes('DOC_REVISION_RESOLVE') ?? false),
   );
 
   useEffect(() => {
@@ -1174,7 +1173,9 @@ export function DocumentoDetallePage() {
                       onClick={() => void onEnviarRevision()}
                       sx={{ textTransform: 'none' }}
                     >
-                      Enviar a revisión
+                      {doc?.estado === 'RECHAZADO'
+                        ? 'Reenviar a revisión'
+                        : 'Enviar a revisión'}
                     </Button>
                   )}
                   {puedeResolverRevision && (
@@ -2038,7 +2039,9 @@ export function DocumentoDetallePage() {
                   >
                     {DOCUMENTO_ESTADOS.filter(
                       (cod) =>
-                        (cod !== 'APROBADO' && cod !== 'RECHAZADO') ||
+                        (cod !== 'APROBADO' &&
+                          cod !== 'RECHAZADO' &&
+                          cod !== 'EN_REVISION') ||
                         cod === field.value,
                     ).map((cod) => (
                       <MenuItem key={cod} value={cod}>
@@ -2052,7 +2055,8 @@ export function DocumentoDetallePage() {
                     </Typography>
                   ) : (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>
-                      Aprobar o rechazar se hace con los botones de revisión, no desde este formulario.
+                      Enviar a revisión, aprobar o rechazar se hace con los botones de workflow, no
+                      desde este formulario.
                     </Typography>
                   )}
                 </FormControl>

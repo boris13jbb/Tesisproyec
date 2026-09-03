@@ -1152,12 +1152,23 @@ export class DocumentosService {
     workflowAudit?: { action: string; extraMeta?: Record<string, unknown> },
   ) {
     const id = beforeFull.id;
+    const desde = normalizeDocumentoEstado(beforeFull.estado);
     assertTransicionEstado(beforeFull.estado, nuevoEstado);
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const documento = await tx.documento.update({
-        where: { id },
+      // Condición de estado origen: bloquea doble resolución / envío concurrente.
+      const changed = await tx.documento.updateMany({
+        where: { id, estado: desde },
         data: { estado: nuevoEstado },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictException(
+          'El estado del documento cambió; refresque e intente de nuevo',
+        );
+      }
+
+      const documento = await tx.documento.findUniqueOrThrow({
+        where: { id },
         include: includeCatalogos,
       });
 
@@ -1177,7 +1188,6 @@ export class DocumentosService {
       return documento;
     });
 
-    const desde = normalizeDocumentoEstado(beforeFull.estado);
     await this.audit.log({
       action: 'DOC_STATE_CHANGED',
       result: 'OK',
@@ -1216,7 +1226,10 @@ export class DocumentosService {
     return updated;
   }
 
-  /** R-28: REGISTRADO → EN_REVISION (creador o ADMIN, con visibilidad). */
+  /**
+   * R-28: REGISTRADO|RECHAZADO → EN_REVISION (creador o ADMIN, con visibilidad).
+   * RECHAZADO permite reenvío formal (misma auditoría SLA que el primer envío).
+   */
   async enviarRevision(id: string, viewer: JwtRequestUser, ctx?: AuditContext) {
     const doc = await this.loadDocumentoVisibleById(id, viewer);
 
@@ -1227,9 +1240,10 @@ export class DocumentosService {
       );
     }
 
-    if (normalizeDocumentoEstado(doc.estado) !== 'REGISTRADO') {
+    const estadoActual = normalizeDocumentoEstado(doc.estado);
+    if (estadoActual !== 'REGISTRADO' && estadoActual !== 'RECHAZADO') {
       throw new BadRequestException(
-        'Solo documentos en estado REGISTRADO pueden enviarse a revisión',
+        'Solo documentos en estado REGISTRADO o RECHAZADO pueden enviarse a revisión',
       );
     }
 

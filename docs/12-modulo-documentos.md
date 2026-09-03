@@ -54,6 +54,8 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 **Implementado:**
 - Alta: **BORRADOR** o **REGISTRADO**.
 - Ciclo ejemplo: `BORRADOR → REGISTRADO | ARCHIVADO`, `REGISTRADO → EN_REVISION | ARCHIVADO`, `EN_REVISION → APROBADO | RECHAZADO`, `RECHAZADO → EN_REVISION | ARCHIVADO`, `APROBADO → ARCHIVADO`, **`ARCHIVADO` terminal**.
+- **PATCH genérico** no puede fijar `EN_REVISION` / `APROBADO` / `RECHAZADO` (endpoints formales). Reenvío tras rechazo: `POST .../enviar-revision`.
+- Matriz: `docs/MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md`.
 - **`ARCHIVADO`:** no permite subir/eliminar adjuntos ni cambiar metadatos salvo campo **activo** en BD.
 
 **Pendiente institucional:**

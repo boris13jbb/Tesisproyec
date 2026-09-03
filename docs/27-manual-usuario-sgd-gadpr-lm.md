@@ -419,13 +419,13 @@ En el mismo detalle puedes revisar **dependencia propietaria** y **nivel de conf
 
 ### 8.1.1 Envío y resolución de revisión (flujo MVP)
 
-Cuando el documento está en estado **Registrado**:
+Cuando el documento está en estado **Registrado** (o **Rechazado**, para reenviar):
 
-1. Quien lo **registró** o un usuario con acceso administrativo (**ADMIN** / **SUPERADMIN**) puede pulsar **Enviar a revisión** si además tiene el permiso **`DOC_REVISION_SEND`**. El estado pasa a **En revisión**.
+1. Quien lo **registró** o un usuario con acceso administrativo (**ADMIN** / **SUPERADMIN**) puede pulsar **Enviar a revisión** / **Reenviar a revisión** si además tiene el permiso **`DOC_REVISION_SEND`**. El estado pasa a **En revisión**. Detalle técnico: [MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md](./MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md).
 
 Cuando está **En revisión**:
 
-1. Un usuario con rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`** puede pulsar **Aprobar** o **Rechazar**. No se puede cambiar a esos estados editando el documento (PATCH).
+1. Un usuario con rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`** puede pulsar **Aprobar** o **Rechazar**. No se puede cambiar a esos estados (ni a **En revisión**) editando el documento (PATCH).
 2. Si pulsas **Rechazar**, se abre un diálogo donde debes escribir el **motivo del rechazo** (obligatorio, mínimo 3 caracteres, máximo 2000); el texto queda registrado en **Auditoría** junto con la decisión.
 
 **Consulta rápida de pendientes**

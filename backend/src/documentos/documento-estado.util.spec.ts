@@ -40,12 +40,30 @@ describe('documento-estado.util', () => {
     ).not.toThrow();
   });
 
+  it('bloquea PATCH REGISTRADO → EN_REVISION (bypass de envío formal)', () => {
+    expect(() =>
+      assertEstadoNoResuelveRevisionViaPatch('REGISTRADO', 'EN_REVISION'),
+    ).toThrow(BadRequestException);
+  });
+
+  it('bloquea PATCH RECHAZADO → EN_REVISION (debe usar enviar-revision)', () => {
+    expect(() =>
+      assertEstadoNoResuelveRevisionViaPatch('RECHAZADO', 'EN_REVISION'),
+    ).toThrow(BadRequestException);
+  });
+
   it('permite PATCH REGISTRADO → ARCHIVADO', () => {
     expect(() =>
       assertEstadoNoResuelveRevisionViaPatch('REGISTRADO', 'ARCHIVADO'),
     ).not.toThrow();
     expect(() =>
       assertTransicionEstado('REGISTRADO', 'ARCHIVADO'),
+    ).not.toThrow();
+  });
+
+  it('permite PATCH BORRADOR → REGISTRADO', () => {
+    expect(() =>
+      assertEstadoNoResuelveRevisionViaPatch('BORRADOR', 'REGISTRADO'),
     ).not.toThrow();
   });
 });

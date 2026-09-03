@@ -23,4 +23,13 @@ describe('ResolverRevisionDto', () => {
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
+
+  it('rechaza RECHAZADO con motivo solo espacios', async () => {
+    const dto = plainToInstance(ResolverRevisionDto, {
+      decision: 'RECHAZADO',
+      motivo: '   ',
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'motivo')).toBe(true);
+  });
 });

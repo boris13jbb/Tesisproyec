@@ -12,7 +12,7 @@ export const ESTADOS_DOCUMENTO = [
 
 export type DocumentoEstado = (typeof ESTADOS_DOCUMENTO)[number];
 
-/** Transiciones permitidas (solo validación servidor; ADMIN aplica cambios hasta R-28). */
+/** Transiciones permitidas (solo validación servidor). */
 const TRANSICIONES: Record<DocumentoEstado, DocumentoEstado[]> = {
   BORRADOR: ['REGISTRADO', 'ARCHIVADO'],
   REGISTRADO: ['EN_REVISION', 'ARCHIVADO'],
@@ -62,8 +62,11 @@ export function assertTransicionEstado(
 }
 
 /**
- * APROBADO y RECHAZADO solo vía `POST .../resolver-revision` (motivo de rechazo incluido).
- * El PATCH genérico no puede resolver una revisión.
+ * Destinos de workflow formal no permitidos en PATCH genérico:
+ * - EN_REVISION → `POST .../enviar-revision` (SLA + auditoría DOC_SUBMITTED_FOR_REVIEW)
+ * - APROBADO / RECHAZADO → `POST .../resolver-revision` (motivo de rechazo incluido)
+ *
+ * ARCHIVADO y BORRADOR→REGISTRADO siguen vía PATCH (sin endpoint especializado).
  */
 export function assertEstadoNoResuelveRevisionViaPatch(
   estadoActualRaw: string,
@@ -76,6 +79,11 @@ export function assertEstadoNoResuelveRevisionViaPatch(
   if (estadoNuevo === 'APROBADO' || estadoNuevo === 'RECHAZADO') {
     throw new BadRequestException(
       'Aprobar o rechazar un documento solo es posible mediante la operación formal de resolución de revisión',
+    );
+  }
+  if (estadoNuevo === 'EN_REVISION') {
+    throw new BadRequestException(
+      'Enviar a revisión solo es posible mediante la operación formal de envío a revisión',
     );
   }
 }
