@@ -234,13 +234,14 @@ Guía detallada: [47-catalogo-dependencias.md](./47-catalogo-dependencias.md). M
 
 ### 6.2 Cargos
 
-Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md).
+Guía detallada: [48-catalogo-cargos.md](./48-catalogo-cargos.md). Matriz de seguridad: [MATRIZ_VISIBILIDAD_CARGOS_ORGANIZACION.md](./MATRIZ_VISIBILIDAD_CARGOS_ORGANIZACION.md).
 
-1. Menú → **Catálogos → Cargos**
-2. Opcional: en **Filtros**, **Incluir inactivos** para ver cargos desactivados.
+1. Menú → **Catálogos → Cargos** (administración: permiso `CARGOS_WRITE`; típicamente `ADMIN` / `SUPERADMIN`).
+2. Opcional: en **Filtros**, **Incluir inactivos** para ver cargos desactivados (requiere permiso de escritura del catálogo).
 3. El listado muestra icono de cargo, código en chip, **dependencia** asociada y estado. Enlace a **Dependencias**.
-4. En la cabecera, **Nuevo cargo:** código (único), nombre, **dependencia opcional** (*Sin asignar* si no aplica), descripción → **Guardar**.
-5. **Editar:** nombre, dependencia, descripción y **Activo** (el código no se modifica).
+4. En la cabecera, **Nuevo cargo** (solo quien tenga `CARGOS_WRITE`): código (único), nombre, **dependencia opcional y activa** (*Sin asignar* si no aplica), descripción → **Guardar**. No se puede crear un cargo bajo una dependencia inactiva.
+5. **Editar:** nombre, dependencia (si ningún usuario lo tiene asignado), descripción y **Activo** (el código no se modifica). Desactivar un cargo no borra usuarios ni quita el cargo histórico; solo bloquea nuevas asignaciones.
+6. Al crear/editar **usuarios**, el selector de cargo solo ofrece cargos **asignables** (activo y, si tiene dependencia, esa dependencia activa y coherente con la dependencia del usuario).
 
 ### 6.3 Tipos documentales
 

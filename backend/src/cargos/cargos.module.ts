@@ -7,5 +7,6 @@ import { CargosService } from './cargos.service';
   imports: [AuthModule],
   controllers: [CargosController],
   providers: [CargosService],
+  exports: [CargosService],
 })
 export class CargosModule {}

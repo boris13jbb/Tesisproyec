@@ -47,6 +47,7 @@ type DepOption = {
   id: string;
   codigo: string;
   nombre: string;
+  activo?: boolean;
 };
 
 export type CargoRow = {
@@ -82,6 +83,8 @@ type EditForm = z.infer<typeof editSchema>;
 export function CargosPage() {
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
+  const [myPerms, setMyPerms] = useState<string[]>([]);
+  const canWriteCatalog = isAdmin && myPerms.includes('CARGOS_WRITE');
 
   const [rows, setRows] = useState<CargoRow[]>([]);
   const [deps, setDeps] = useState<DepOption[]>([]);
@@ -94,11 +97,28 @@ export function CargosPage() {
 
   useEffect(() => {
     let cancelled = false;
+    void (async () => {
+      try {
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (!cancelled) {
+          setMyPerms(Array.isArray(res.data.codigos) ? res.data.codigos : []);
+        }
+      } catch {
+        if (!cancelled) setMyPerms([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     apiClient
       .get<DepOption[]>('/dependencias')
       .then((res) => {
         if (!cancelled) {
-          setDeps(res.data);
+          setDeps(res.data.filter((d) => d.activo));
         }
       })
       .catch(() => {
@@ -204,7 +224,7 @@ export function CargosPage() {
     }
   });
 
-  const colCount = isAdmin ? 6 : 5;
+  const colCount = canWriteCatalog ? 6 : 5;
 
   return (
     <>
@@ -213,8 +233,8 @@ export function CargosPage() {
           title="Cargos"
           description={
             <>
-              Puestos o cargos; opcionalmente asociados a una dependencia. Alta y edición con rol{' '}
-              <strong>ADMIN</strong>. Relacionado:{' '}
+              Puestos o cargos; opcionalmente asociados a una dependencia. Alta y edición requieren rol{' '}
+              <strong>ADMIN</strong> y permiso <strong>CARGOS_WRITE</strong>. Relacionado:{' '}
               <Link component={RouterLink} to="/catalogos/dependencias" underline="hover">
                 Dependencias
               </Link>
@@ -222,7 +242,7 @@ export function CargosPage() {
             </>
           }
           actions={
-            isAdmin ? (
+            canWriteCatalog ? (
               <Button variant="contained" color="secondary" onClick={() => setCreateOpen(true)}>
                 Nuevo cargo
               </Button>
@@ -268,7 +288,7 @@ export function CargosPage() {
                     Descripción
                   </TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
-                  {isAdmin && (
+                  {canWriteCatalog && (
                     <TableCell align="right" sx={{ fontWeight: 800 }}>
                       Acciones
                     </TableCell>
@@ -304,7 +324,7 @@ export function CargosPage() {
                       <TableCell>
                         <ActivoChip activo={row.activo} />
                       </TableCell>
-                      {isAdmin && (
+                      {canWriteCatalog && (
                         <TableCell align="right">
                           <Button size="small" variant="outlined" color="secondary" onClick={() => openEdit(row)}>
                             Editar

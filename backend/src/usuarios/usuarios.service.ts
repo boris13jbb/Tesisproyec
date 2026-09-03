@@ -10,6 +10,7 @@ import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import type { AuditContext } from '../auditoria/audit.types';
 import { AuditService } from '../auditoria/audit.service';
+import { CargosService } from '../cargos/cargos.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ROLE_ADMIN } from '../auth/role-constants';
@@ -63,6 +64,7 @@ export class UsuariosService {
     private readonly config: ConfigService,
     private readonly mail: MailService,
     private readonly permissions: PermissionsService,
+    private readonly cargos: CargosService,
   ) {}
 
   /** Cambiar `activo` exige USERS_DISABLE además de USERS_UPDATE del endpoint. */
@@ -361,6 +363,10 @@ export class UsuariosService {
     }
 
     await this.assertDependenciaAssignable(dto.dependenciaId ?? null);
+    await this.cargos.assertAssignable(
+      dto.cargoId ?? null,
+      dto.dependenciaId ?? null,
+    );
 
     const roles = await this.prisma.role.findMany({
       where: { codigo: { in: uniqueRoleCodes } },
@@ -619,6 +625,23 @@ export class UsuariosService {
     }
 
     await this.assertDependenciaAssignable(dto.dependenciaId);
+
+    const nextDependenciaId =
+      dto.dependenciaId !== undefined
+        ? dto.dependenciaId
+        : existing.dependenciaId;
+    const nextCargoId =
+      dto.cargoId !== undefined ? dto.cargoId : existing.cargoId;
+    const cargoChanged =
+      dto.cargoId !== undefined && dto.cargoId !== existing.cargoId;
+    const dependenciaChanged =
+      dto.dependenciaId !== undefined &&
+      dto.dependenciaId !== existing.dependenciaId;
+    // Histórico: no revalidar el mismo cargo. Nueva asignación o cambio de
+    // dependencia con cargo vigente sí exige cargo asignable y coherente.
+    if (cargoChanged || (dependenciaChanged && nextCargoId)) {
+      await this.cargos.assertAssignable(nextCargoId, nextDependenciaId);
+    }
 
     let roleRows: { id: string; codigo: string }[] | null = null;
     if (rolesToSet) {

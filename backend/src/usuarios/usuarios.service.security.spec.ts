@@ -6,6 +6,7 @@ import { PERM } from '../auth/permission-codes';
 import { PasswordPolicyService } from '../auth/password-policy.service';
 import { PermissionsService } from '../auth/permissions.service';
 import { MailService } from '../mail/mail.service';
+import { CargosService } from '../cargos/cargos.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsuariosService } from './usuarios.service';
 
@@ -40,6 +41,7 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
   };
   let permissions: { getCodesForUserId: jest.Mock };
   let audit: { log: jest.Mock };
+  let cargos: { assertAssignable: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -75,6 +77,7 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
         ),
     };
     audit = { log: jest.fn().mockResolvedValue(undefined) };
+    cargos = { assertAssignable: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -98,6 +101,7 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
           useValue: { isConfigured: () => false, sendPasswordReset: jest.fn() },
         },
         { provide: PermissionsService, useValue: permissions },
+        { provide: CargosService, useValue: cargos },
       ],
     }).compile();
 
@@ -113,6 +117,8 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
     roles: string[];
     activo?: boolean;
     email?: string;
+    cargoId?: string | null;
+    dependenciaId?: string | null;
   }) {
     prisma.user.findUnique.mockResolvedValue({
       id: opts.id,
@@ -120,8 +126,8 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
       passwordHash: 'hash',
       nombres: 'T',
       apellidos: 'U',
-      dependenciaId: null,
-      cargoId: null,
+      dependenciaId: opts.dependenciaId ?? null,
+      cargoId: opts.cargoId ?? null,
       activo: opts.activo ?? true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -284,5 +290,39 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
         { actorUserId: adminActorId, actorEmail: 'admin@local.test' },
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('no revalida cargo histórico si PATCH envía el mismo cargoId', async () => {
+    mockAdminActorRoles();
+    mockExistingUser({
+      id: targetId,
+      roles: ['USUARIO'],
+      cargoId: 'cargo-hist',
+    });
+    await service
+      .update(
+        targetId,
+        { cargoId: 'cargo-hist' },
+        { actorUserId: adminActorId, actorEmail: 'admin@local.test' },
+      )
+      .catch(() => undefined);
+    expect(cargos.assertAssignable).not.toHaveBeenCalled();
+  });
+
+  it('valida cargo al asignar uno nuevo en edición', async () => {
+    mockAdminActorRoles();
+    mockExistingUser({
+      id: targetId,
+      roles: ['USUARIO'],
+      cargoId: null,
+    });
+    await service
+      .update(
+        targetId,
+        { cargoId: 'cargo-nuevo' },
+        { actorUserId: adminActorId, actorEmail: 'admin@local.test' },
+      )
+      .catch(() => undefined);
+    expect(cargos.assertAssignable).toHaveBeenCalledWith('cargo-nuevo', null);
   });
 });

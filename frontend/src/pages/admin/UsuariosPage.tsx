@@ -87,7 +87,20 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 type Dependencia = { id: string; codigo: string; nombre: string; activo: boolean };
-type Cargo = { id: string; codigo: string; nombre: string; activo: boolean; dependenciaId: string | null };
+type Cargo = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  dependenciaId: string | null;
+  dependencia?: { id: string; activo: boolean } | null;
+};
+
+function cargoEsAsignable(c: Cargo): boolean {
+  if (!c.activo) return false;
+  if (c.dependenciaId && c.dependencia && !c.dependencia.activo) return false;
+  return true;
+}
 
 type Usuario = {
   id: string;
@@ -284,7 +297,9 @@ export function UsuariosPage() {
       const [usersRes, depsRes, cargosRes, rbacPermRes, rbacRolesRes] = await Promise.all([
         apiClient.get<Usuario[]>('/usuarios'),
         apiClient.get<Dependencia[]>('/dependencias'),
-        apiClient.get<Cargo[]>('/cargos'),
+        apiClient.get<Cargo[]>('/cargos', { params: { incluirInactivos: true } }).catch(() =>
+          apiClient.get<Cargo[]>('/cargos'),
+        ),
         isAdmin
           ? apiClient.get<RbacPermRow[]>('/rbac/permissions').catch(() => ({ data: [] as RbacPermRow[] }))
           : Promise.resolve({ data: [] as RbacPermRow[] }),
@@ -294,7 +309,7 @@ export function UsuariosPage() {
       ]);
       setItems(usersRes.data);
       setDependencias(depsRes.data.filter((d) => d.activo));
-      setCargos(cargosRes.data.filter((c) => c.activo));
+      setCargos(Array.isArray(cargosRes.data) ? cargosRes.data : []);
       setRbacPermissionCatalog(Array.isArray(rbacPermRes.data) ? rbacPermRes.data : []);
       setRbacRolesCatalog(Array.isArray(rbacRolesRes.data) ? rbacRolesRes.data : []);
 
@@ -479,10 +494,20 @@ export function UsuariosPage() {
     }
   };
 
+  const cargosAsignables = useMemo(() => cargos.filter(cargoEsAsignable), [cargos]);
+
   const cargosFiltrados = useMemo(() => {
-    if (!dependenciaId) return cargos;
-    return cargos.filter((c) => c.dependenciaId === dependenciaId || c.dependenciaId === null);
-  }, [cargos, dependenciaId]);
+    if (!dependenciaId) return cargosAsignables;
+    return cargosAsignables.filter(
+      (c) => c.dependenciaId === dependenciaId || c.dependenciaId === null,
+    );
+  }, [cargosAsignables, dependenciaId]);
+
+  const cargoHistorico = useMemo(() => {
+    if (!cargoId || !editOpen) return null;
+    if (cargosFiltrados.some((c) => c.id === cargoId)) return null;
+    return cargos.find((c) => c.id === cargoId) ?? null;
+  }, [cargoId, cargos, cargosFiltrados, editOpen]);
 
   const departamentoPorId = useMemo(
     () => new Map(dependencias.map((d) => [d.id, d.nombre])),
@@ -1107,6 +1132,14 @@ export function UsuariosPage() {
               <MenuItem value="">
                 <em>—</em>
               </MenuItem>
+              {cargoHistorico && (
+                <MenuItem value={cargoHistorico.id}>
+                  {cargoHistorico.codigo} — {cargoHistorico.nombre}
+                  {!cargoHistorico.activo
+                    ? ' (inactivo)'
+                    : ' (histórico / no asignable)'}
+                </MenuItem>
+              )}
               {cargosFiltrados.map((c) => (
                 <MenuItem key={c.id} value={c.id}>
                   {c.codigo} — {c.nombre}

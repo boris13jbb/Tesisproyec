@@ -66,6 +66,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [MATRIZ_VISIBILIDAD_USUARIOS_RBAC.md](./MATRIZ_VISIBILIDAD_USUARIOS_RBAC.md) | **Matriz Usuarios / Roles / Permisos** (IAM, SUPERADMIN, MFA) |
 | [MATRIZ_VISIBILIDAD_AUDITORIA_TRAZABILIDAD.md](./MATRIZ_VISIBILIDAD_AUDITORIA_TRAZABILIDAD.md) | **Matriz Auditoría / historial / trazabilidad** (alcance, meta, IDOR) |
 | [MATRIZ_VISIBILIDAD_DEPENDENCIAS_ORGANIZACION.md](./MATRIZ_VISIBILIDAD_DEPENDENCIAS_ORGANIZACION.md) | **Matriz Dependencias / organización** (catálogo, inactivas, alcance) |
+| [MATRIZ_VISIBILIDAD_CARGOS_ORGANIZACION.md](./MATRIZ_VISIBILIDAD_CARGOS_ORGANIZACION.md) | **Matriz Cargos / organización** (asignación, dependencia inactiva, RBAC) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |
