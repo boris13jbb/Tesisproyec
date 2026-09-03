@@ -89,6 +89,30 @@ describe('DocumentosService — seguridad (alcance / IDOR)', () => {
     );
   });
 
+  it('findArchivoEventos — documento ajeno → 404 (no lista eventos de archivo)', async () => {
+    prisma.documento.findFirst.mockResolvedValue(null);
+    await expect(
+      service.findArchivoEventos(
+        docAlienId,
+        'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        userA,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.documentoArchivo.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('findArchivoEventos — archivo que no pertenece al documento → 404', async () => {
+    prisma.documento.findFirst.mockResolvedValue({ id: docOwnId });
+    prisma.documentoArchivo.findFirst.mockResolvedValue(null);
+    await expect(
+      service.findArchivoEventos(
+        docOwnId,
+        'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        userA,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('uploadArchivo — documento ajeno → 404 (IDOR cerrado)', async () => {
     prisma.documento.findFirst.mockResolvedValue(null);
     const fakeFile = {

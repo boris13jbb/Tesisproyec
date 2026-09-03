@@ -99,7 +99,9 @@ export function App() {
               <Route element={<RoleRoute roles={['ADMIN', 'SUPERADMIN']} />}>
                 <Route path="/reportes" element={<ReportesInstitucionalesPage />} />
                 <Route path="/admin/reportes" element={<ReportesInstitucionalesPage />} />
-                <Route path="/admin/auditoria" element={<AuditoriaPage />} />
+                <Route element={<PermissionRoute permissions={['AUDIT_READ']} />}>
+                  <Route path="/admin/auditoria" element={<AuditoriaPage />} />
+                </Route>
                 <Route path="/admin/respaldos" element={<RespaldosSeguridadPage />} />
                 <Route path="/admin/configuracion" element={<ConfiguracionSeguridadPage />} />
                 <Route element={<PermissionRoute permissions={['USERS_READ']} />}>

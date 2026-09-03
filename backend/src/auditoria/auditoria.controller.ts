@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import type { AuditLog } from '@prisma/client';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -6,12 +14,23 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PERM } from '../auth/permission-codes';
 import { PrismaService } from '../prisma/prisma.service';
+import { redactAuditMetaJsonForRead } from './audit-export-meta.util';
 import {
   buildAuditWhere,
   enrichAuditLogsWithDocumentoCodigo,
 } from './audit-list.util';
 import { AuditoriaService } from './auditoria.service';
 import { AuditQueryDto } from './dto/audit-query.dto';
+
+type AuditLogApiRow = AuditLog & { resourceCodigo?: string | null };
+
+function withRedactedMeta(row: AuditLogApiRow): AuditLogApiRow {
+  const redacted = redactAuditMetaJsonForRead(row.metaJson);
+  return {
+    ...row,
+    metaJson: redacted.length > 0 ? redacted : null,
+  };
+}
 
 @Controller('auditoria')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
@@ -53,12 +72,17 @@ export class AuditoriaController {
       }),
     ]);
 
-    const items = await enrichAuditLogsWithDocumentoCodigo(
+    const enriched = await enrichAuditLogsWithDocumentoCodigo(
       this.prisma,
       rawItems,
     );
 
-    return { page, pageSize, total, items };
+    return {
+      page,
+      pageSize,
+      total,
+      items: enriched.map(withRedactedMeta),
+    };
   }
 
   @Get('stats')
@@ -82,11 +106,11 @@ export class AuditoriaController {
   async findOne(@Param('id') id: string) {
     const row = await this.prisma.auditLog.findUnique({ where: { id } });
     if (!row) {
-      return null;
+      throw new NotFoundException('Registro de auditoría no encontrado');
     }
     const [enriched] = await enrichAuditLogsWithDocumentoCodigo(this.prisma, [
       row,
     ]);
-    return enriched;
+    return withRedactedMeta(enriched);
   }
 }

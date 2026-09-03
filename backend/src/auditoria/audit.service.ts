@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { serializeAuditMetaForPersist } from './audit-export-meta.util';
 import type { AuditContext, AuditResource, AuditResult } from './audit.types';
 
+/**
+ * Escritura única de `audit_logs`. Actor/acción/meta los define el servidor;
+ * meta se redacta antes de persistir (defensa en profundidad ASVS V7/V8).
+ */
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
@@ -25,7 +30,7 @@ export class AuditService {
         ip: context?.ip ?? null,
         userAgent: context?.userAgent ?? null,
         correlationId: context?.correlationId ?? null,
-        metaJson: meta ? JSON.stringify(meta) : null,
+        metaJson: serializeAuditMetaForPersist(meta ?? null),
       },
     });
   }

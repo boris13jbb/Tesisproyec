@@ -30,6 +30,8 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
+import { useAuth } from '../../auth/useAuth';
+import { userHasAdminAccess } from '../../auth/role-utils';
 import { FilterPanel } from '../../components/FilterPanel';
 import { ListPanel } from '../../components/ListPanel';
 import { listTableContainerSx } from '../../components/listSurfaces';
@@ -197,6 +199,10 @@ function AuditResultChip({ row }: { row: AuditRow }) {
 
 export function AuditoriaPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const isAdmin = userHasAdminAccess(user?.roles ?? undefined);
+  const [myPerms, setMyPerms] = useState<string[]>([]);
+  const canAuditExport = isAdmin && myPerms.includes('AUDIT_EXPORT');
   const [usuarios, setUsuarios] = useState<UsuarioListItem[]>([]);
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -305,6 +311,21 @@ export function AuditoriaPage() {
     return {
       text: looksDoc ? short : '—',
       title: looksDoc ? titleParts.join(' · ') : [typeRaw || 'recurso', id].join(' · '),
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.get<{ codigos: string[] }>('/rbac/me/permissions');
+        if (!cancelled) setMyPerms(Array.isArray(res.data.codigos) ? res.data.codigos : []);
+      } catch {
+        if (!cancelled) setMyPerms([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -593,12 +614,16 @@ export function AuditoriaPage() {
             <Button variant="contained" color="secondary" onClick={handleConsultar}>
               Consultar
             </Button>
-            <Button variant="outlined" size="small" onClick={() => void onExportExcel()}>
-              Exportar Excel
-            </Button>
-            <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
-              Exportar PDF
-            </Button>
+            {canAuditExport ? (
+              <>
+                <Button variant="outlined" size="small" onClick={() => void onExportExcel()}>
+                  Exportar Excel
+                </Button>
+                <Button variant="outlined" size="small" onClick={() => void onExportPdf()}>
+                  Exportar PDF
+                </Button>
+              </>
+            ) : null}
           </Stack>
         }
       >
