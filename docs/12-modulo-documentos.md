@@ -55,11 +55,11 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 - Alta: **BORRADOR** o **REGISTRADO**.
 - Ciclo ejemplo: `BORRADOR → REGISTRADO | ARCHIVADO`, `REGISTRADO → EN_REVISION | ARCHIVADO`, `EN_REVISION → APROBADO | RECHAZADO`, `RECHAZADO → EN_REVISION | ARCHIVADO`, `APROBADO → ARCHIVADO`, **`ARCHIVADO` terminal**.
 - **PATCH genérico** no puede fijar `EN_REVISION` / `APROBADO` / `RECHAZADO` (endpoints formales). Reenvío tras rechazo: `POST .../enviar-revision`.
-- Matriz: `docs/MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md`.
-- **`ARCHIVADO`:** no permite subir/eliminar adjuntos ni cambiar metadatos salvo campo **activo** en BD.
+- **Inmutabilidad / desbloqueo:** `EN_REVISION`/`APROBADO`/`ARCHIVADO` congelan metadata y archivos; `POST .../desbloquear` + `DOC_UNLOCK` → `REGISTRADO`. Excepción: `APROBADO` → `ARCHIVADO` state-only con `DOC_UPDATE` (no unlock). Matriz: `docs/MATRIZ_DESBLOQUEO_DOCUMENTAL.md`.
+- Matriz workflow: `docs/MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md`.
+- **`ARCHIVADO`:** no permite subir/eliminar adjuntos ni cambiar metadatos salvo campo **activo** en BD (o desbloqueo formal).
 
 **Pendiente institucional:**
-- Opcional: prohibir que **ADMIN** cambie `estado` vía **PATCH** y forzar solo workflow.
 - Notificaciones y bandeja dedicada (ver §3).
 
 ### 3) Flujo de aprobación (bandeja de trabajo)
@@ -69,7 +69,8 @@ CRUD acotado por permisos; trazabilidad de cambios relevantes.
 - **API**
   - `POST /api/v1/documentos/:id/enviar-revision` — **REGISTRADO** → **EN_REVISION**; actor: **creador del documento** o **ADMIN**; requiere visibilidad del documento (misma regla que lectura).
   - `POST /api/v1/documentos/:id/resolver-revision` — cuerpo `{ "decision": "APROBADO" | "RECHAZADO", "motivo"?: string }`; si **RECHAZADO**, **`motivo` obligatorio** (3–2000 caracteres, `trim`), almacenado en auditoría como `meta.motivoRechazo`; actor: **ADMIN** o **REVISOR**; solo si **EN_REVISION**.
-- **Auditoría:** `DOC_SUBMITTED_FOR_REVIEW`, `DOC_REVIEW_RESOLVED` (además de `DOC_STATE_CHANGED`).
+  - `POST /api/v1/documentos/:id/desbloquear` — `EN_REVISION`|`APROBADO`|`ARCHIVADO` → `REGISTRADO`; permiso **`DOC_UNLOCK`**; motivo obligatorio.
+- **Auditoría:** `DOC_SUBMITTED_FOR_REVIEW`, `DOC_REVIEW_RESOLVED`, `DOC_UNLOCKED` (además de `DOC_STATE_CHANGED`).
 - **UI:** botones en detalle; “bandeja” mínima = filtro de listado **Estado → En revisión** (texto guía para rol **REVISOR**).
 - **Reportes:** `GET /api/v1/reportes/pendientes-revision.{xlsx,pdf}` (ADMIN/REVISOR) para export rápido de lo que está en **EN_REVISION**.
 

@@ -57,7 +57,7 @@ describe('UsuariosService — seguridad (RBAC / SUPERADMIN)', () => {
         createMany: jest.fn(),
       },
       userPermission: {
-        findMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
       },

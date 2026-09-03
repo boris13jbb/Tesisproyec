@@ -105,6 +105,10 @@ export function profileActivityLabel(
       return codigo
         ? `Resolvió la revisión del documento ${codigo}`
         : 'Resolvió una revisión documental';
+    case 'DOC_UNLOCKED':
+      return codigo
+        ? `Desbloqueó el documento ${codigo} para corrección`
+        : 'Desbloqueó un documento protegido para corrección';
     case 'REPORT_EXPORTED':
       return `Exportó un informe (${profileReportKindLabel(meta.kind)})`;
     case 'USER_UPDATED':

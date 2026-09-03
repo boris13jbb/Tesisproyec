@@ -110,6 +110,10 @@ export class UsuariosService {
   private async resolveDirectPermissionIds(
     codesInput: string[],
     actorRoleCodes: string[],
+    opts?: {
+      previousCodes?: string[];
+      targetRoleCodes?: string[];
+    },
   ): Promise<string[]> {
     const unique = Array.from(
       new Set(codesInput.map((c) => c.trim()).filter(Boolean)),
@@ -117,6 +121,8 @@ export class UsuariosService {
     assertDirectPermissionsAssignableByActor({
       actorRoleCodes,
       codes: unique,
+      previousCodes: opts?.previousCodes,
+      targetRoleCodes: opts?.targetRoleCodes,
     });
     const invalid = unique.filter((c) => !this.allowedDirectPermCodes.has(c));
     if (invalid.length) {
@@ -387,6 +393,10 @@ export class UsuariosService {
       directPermIdsCreate = await this.resolveDirectPermissionIds(
         dto.directPermissionCodes,
         actorRoles,
+        {
+          previousCodes: [],
+          targetRoleCodes: uniqueRoleCodes,
+        },
       );
     }
 
@@ -666,15 +676,23 @@ export class UsuariosService {
     let directPermIdsUpdate: string[] | undefined;
     let antesDirectSorted: string[] | undefined;
     if (dto.directPermissionCodes !== undefined) {
-      directPermIdsUpdate = await this.resolveDirectPermissionIds(
-        dto.directPermissionCodes,
-        actorRoles,
-      );
       const cur = await this.prisma.userPermission.findMany({
         where: { userId: id },
         select: { permission: { select: { codigo: true } } },
       });
       antesDirectSorted = cur.map((c) => c.permission.codigo).sort();
+      const effectiveTargetRoles =
+        rolesToSet !== undefined
+          ? Array.from(new Set(rolesToSet))
+          : existingRoleCodes;
+      directPermIdsUpdate = await this.resolveDirectPermissionIds(
+        dto.directPermissionCodes,
+        actorRoles,
+        {
+          previousCodes: antesDirectSorted,
+          targetRoleCodes: effectiveTargetRoles,
+        },
+      );
     }
 
     try {

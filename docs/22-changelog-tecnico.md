@@ -24,6 +24,14 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Inmutabilidad protegida + DOC_UNLOCK
+
+- **API:** estados `EN_REVISION`/`APROBADO`/`ARCHIVADO` congelan metadata y archivos; `POST /documentos/:id/desbloquear` (motivo obligatorio, `DOC_UNLOCK`, concurrencia condicional) → `REGISTRADO`.
+- **Excepción:** `APROBADO` → `ARCHIVADO` state-only (`PATCH { estado: ARCHIVADO }`, permiso `DOC_UPDATE`); payload mixto → 400; no emite `DOC_UNLOCKED`.
+- **IAM:** permiso `DOC_UNLOCK` (seed: solo SUPERADMIN por rol; ADMIN por delegación directa SUPERADMIN→ADMIN).
+- **UI:** **Archivar documento** en detalle (APROBADO); **Desbloquear para corrección** separado.
+- Matriz: `MATRIZ_DESBLOQUEO_DOCUMENTAL.md`. Residual ALTO post-aprobación: **corregido** vía política de desbloqueo.
+
 ### 2026-09-03 — Hardening workflow estados documentales
 
 - **API:** PATCH no puede fijar `EN_REVISION`/`APROBADO`/`RECHAZADO`; reenvío `RECHAZADO`→`EN_REVISION` vía `POST .../enviar-revision`; resolución/envío con `updateMany` condicionado (anti doble resolución).

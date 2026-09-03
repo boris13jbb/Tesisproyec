@@ -69,6 +69,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [MATRIZ_VISIBILIDAD_CARGOS_ORGANIZACION.md](./MATRIZ_VISIBILIDAD_CARGOS_ORGANIZACION.md) | **Matriz Cargos / organización** (asignación, dependencia inactiva, RBAC) |
 | [MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md](./MATRIZ_VISIBILIDAD_TIPOS_DOCUMENTALES.md) | **Matriz Tipos documentales** (catálogo operativo, histórico, RBAC) |
 | [MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md](./MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md) | **Matriz Workflow / estados** (transiciones, PATCH anti-bypass, mutabilidad) |
+| [MATRIZ_DESBLOQUEO_DOCUMENTAL.md](./MATRIZ_DESBLOQUEO_DOCUMENTAL.md) | **Desbloqueo controlado** (`DOC_UNLOCK`, inmutabilidad, delegación SUPERADMIN→ADMIN) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |

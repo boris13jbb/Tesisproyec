@@ -7,8 +7,8 @@
 ## Objetivo
 
 Documentar el ciclo de vida **real**, endpoints, permisos, mutabilidad por estado,
-bypass de PATCH, concurrencia de resolución y riesgos residuales (p. ej. integridad
-post-aprobación) **sin** imponer una política nueva de inmutabilidad total.
+bypass de PATCH, concurrencia de resolución e **inmutabilidad + desbloqueo**
+(`DOC_UNLOCK`). Ver también `MATRIZ_DESBLOQUEO_DOCUMENTAL.md`.
 
 ## Estados reales
 
@@ -16,10 +16,10 @@ post-aprobación) **sin** imponer una política nueva de inmutabilidad total.
 |---|---|---:|---:|
 | `BORRADOR` | Borrador de captura | No | Sí |
 | `REGISTRADO` | Formalizado | No | Sí |
-| `EN_REVISION` | En cola de revisión | No | Sí (deuda/riesgo; ver residual) |
-| `APROBADO` | Decisión favorable | No | Sí (deuda ALTA post-aprobación) |
+| `EN_REVISION` | En cola de revisión | No | **No** (congelado; requiere `DOC_UNLOCK`) |
+| `APROBADO` | Decisión favorable | No | **No** (congelado; requiere `DOC_UNLOCK`) |
 | `RECHAZADO` | Decisión desfavorable | No | Sí |
-| `ARCHIVADO` | Cierre / conservación | **Sí** | Solo `activo` |
+| `ARCHIVADO` | Cierre / conservación | **Sí** | Solo `activo` o desbloqueo formal |
 
 Campo Prisma: `documentos.estado` (`String`, default `REGISTRADO`). Sin enum DB.
 
@@ -90,7 +90,7 @@ Sin endpoint dedicado `archivar` / `reabrir`.
 | Enviar / reenviar revisión | `DOC_REVISION_SEND` |
 | Aprobar / rechazar | `DOC_REVISION_RESOLVE` (+ ADMIN\|REVISOR) |
 | Archivar | `DOC_UPDATE` (+ ADMIN) vía PATCH estado |
-| Reabrir | No existe |
+| Reabrir | `DOC_UNLOCK` vía `POST .../desbloquear` → `REGISTRADO` |
 
 ## DOC_UPDATE vs revisión
 
@@ -101,21 +101,24 @@ PATCH **no** puede simular envío ni resolución.
 
 | Campo/acción | BORRADOR | REGISTRADO | EN_REVISION | APROBADO | RECHAZADO | ARCHIVADO |
 |---|---:|---:|---:|---:|---:|---:|
-| asunto / descripción | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
-| tipoDocumentalId | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
-| dependenciaId | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
-| contraparte / beneficiario | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
-| fechas | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
-| confidencialidad | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
+| asunto / descripción | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
+| tipoDocumentalId | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
+| dependenciaId | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
+| contraparte / beneficiario | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
+| fechas | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
+| confidencialidad | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
 | estado → EN_REVISION | ❌ | ❌ formal | N/A | ❌ | ❌ formal | ❌ |
 | estado → APROBADO/RECHAZADO | ❌ | ❌ | ❌ formal | ❌ | ❌ | ❌ |
-| estado → ARCHIVADO | ✅ | ✅ | ❌ | ✅ | ✅ | N/A |
-| activo | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Subir archivo | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ❌ |
-| Eliminar archivo | ✅* | ✅* | ⚠️* | ⚠️* | ✅* | ❌ |
+| estado → ARCHIVADO | ✅ | ✅ | ❌ | ✅ state-only | ✅ | N/A |
+| estado → REGISTRADO | ✅ | N/A | ❌ unlock | ❌ unlock | ❌ | ❌ unlock |
+| activo | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ✅ |
+| Subir archivo | ✅ | ✅ | ❌ freeze | ❌ freeze | ✅ | ❌ |
+| Eliminar archivo | ✅* | ✅* | ❌ freeze | ❌ freeze | ✅* | ❌ |
 
 \* Delete requiere ADMIN + `DOC_FILES_DELETE`.  
-⚠️ = permitido hoy; riesgo de integridad (deuda funcional, no corregido sin decisión de producto).
+**freeze** = contenido congelado; reapertura solo con `POST .../desbloquear` + `DOC_UNLOCK`.  
+**state-only** = `APROBADO` → `ARCHIVADO` solo con `{ "estado": "ARCHIVADO" }` (sin metadata); mixto → 400.  
+**unlock** = no vía PATCH; usar desbloqueo formal.
 
 ## Envío a revisión
 
@@ -135,9 +138,12 @@ PATCH **no** puede simular envío ni resolución.
 
 ## Archivado
 
-- Vía PATCH a `ARCHIVADO`.
-- Metadatos bloqueados; solo `activo` editable.
+- Vía PATCH a `ARCHIVADO` con permiso `DOC_UPDATE` (+ ADMIN).
+- Desde `APROBADO`: **solo** payload `{ "estado": "ARCHIVADO" }` (sin metadata).
+- Metadatos en `ARCHIVADO` bloqueados; solo `activo` editable.
 - Archivos: no upload/delete.
+- **No** genera `DOC_UNLOCKED` (archivar ≠ desbloquear).
+- UI: botón **Archivar documento** en detalle cuando estado = APROBADO.
 
 ## Reapertura
 
@@ -148,15 +154,14 @@ No existe operación formal.
 | Estado | Subir | Eliminar | Descargar |
 |---|---:|---:|---:|
 | BORRADOR / REGISTRADO / RECHAZADO | Sí† | Sí* | Sí† |
-| EN_REVISION / APROBADO | Sí† (⚠️) | Sí* (⚠️) | Sí† |
-| ARCHIVADO | No | No | Sí† |
+| EN_REVISION / APROBADO / ARCHIVADO | No (freeze) | No (freeze) | Sí† |
 
-Hash/versión: `DocumentoArchivo` versiona por nombre; soft-delete `activo`. Sin “congelar” evidencia post-aprobación.
+Hash/versión: `DocumentoArchivo` versiona por nombre; soft-delete `activo`. Congelación post-aprobación / en revisión / archivado hasta desbloqueo formal.
 
 ## Tipo documental / Dependencia
 
 Hardening previo (tipos/cargos/deps) se mantiene.  
-Cambio de tipo/dependencia en APROBADO/EN_REVISION sigue permitido por DOC_UPDATE → residual ALTO.
+Cambio de tipo/dependencia en `APROBADO`/`EN_REVISION` **bloqueado** (freeze); requiere desbloqueo formal.
 
 ## IDOR/BOLA
 
@@ -187,18 +192,20 @@ Riesgo residual: edición de metadatos concurrente sin optimistic lock de `updat
 
 | Botón | Condición |
 |---|---|
-| Editar | ADMIN |
+| Editar | ADMIN + `DOC_UPDATE` y estado no congelado |
 | Enviar / Reenviar a revisión | REGISTRADO\|RECHAZADO + (creador\|admin) + `DOC_REVISION_SEND` |
 | Aprobar / Rechazar | EN_REVISION + (ADMIN\|REVISOR) + `DOC_REVISION_RESOLVE` |
+| Archivar documento | APROBADO + ADMIN + `DOC_UPDATE` (PATCH state-only) |
+| Desbloquear para corrección | Estado protegido + SUPERADMIN o ADMIN+`DOC_UNLOCK` |
 | Select estado (edición) | Oculta EN_REVISION/APROBADO/RECHAZADO como destinos nuevos |
 
 ## Riesgos residuales
 
 | Riesgo | Severidad | Nota |
 |---|---|---|
-| Metadatos/archivos editables en APROBADO / EN_REVISION | **ALTO** | Preexistente; requiere decisión funcional (inmutabilidad / versión / reapertura) |
+| Integridad post-aprobación / EN_REVISION | **CORREGIDO** | Inmutabilidad + `POST .../desbloquear` + `DOC_UNLOCK` — ver `MATRIZ_DESBLOQUEO_DOCUMENTAL.md` |
 | Sin action `DOC_ARCHIVED` dedicada | MEDIO | Solo `DOC_STATE_CHANGED` |
-| Race en PATCH metadatos | BAJO/MEDIO | Sin `updatedAt` check |
+| Race en PATCH metadatos (estados editables) | BAJO/MEDIO | Sin `updatedAt` check |
 | `activo` vs ARCHIVADO | BAJO | Conceptos distintos; documentado |
 
 ## QA
@@ -208,12 +215,13 @@ Riesgo residual: edición de metadatos concurrente sin optimistic lock de `updat
 3. POST enviar desde RECHAZADO → 200 + SLA.  
 4. Doble resolver → 409.  
 5. Motivo whitespace → 400.  
-6. UI: reenviar en RECHAZADO; no EN_REVISION en select de edición.
+6. UI: reenviar en RECHAZADO; no EN_REVISION en select de edición.  
+7. Desbloqueo / inmutabilidad: ver `MATRIZ_DESBLOQUEO_DOCUMENTAL.md`.
 
-## Decisión de producto pendiente
+## Decisión de producto
 
-**No** se implementó inmutabilidad post-aprobación.  
-Separar:
+**Inmutabilidad + desbloqueo controlado: implementados** (política aprobada).  
+Separar históricamente:
 
-- **Bug de seguridad (corregido):** bypass PATCH de workflow formal + race de resolución.  
-- **Deuda de workflow (pendiente):** qué campos críticos deben congelarse tras APROBADO / durante EN_REVISION.
+- **Bug de seguridad (corregido en workflow):** bypass PATCH + race de resolución.  
+- **Deuda ALTA post-aprobación (corregida en esta fase):** congelación + `DOC_UNLOCK` + delegación SUPERADMIN→ADMIN.

@@ -1,7 +1,9 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ALL_PERMISSION_CODES, PERM } from './permission-codes';
 import {
   assertDirectPermissionsAssignableByActor,
+  assertDocUnlockDirectTargetAllowed,
+  assertDocUnlockRoleMatrixAllowed,
   assertSuperadminRoleMatrixMutationAllowed,
   assertSuperadminUserMutationAllowed,
 } from './rbac-policy.util';
@@ -139,6 +141,37 @@ describe('rbac-policy.util', () => {
       ).toThrow(ForbiddenException);
     });
 
+    it('ADMIN no puede otorgar DOC_UNLOCK', () => {
+      expect(() =>
+        assertDirectPermissionsAssignableByActor({
+          actorRoleCodes: ['ADMIN'],
+          codes: [PERM.DOC_UNLOCK],
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('ADMIN no puede revocar DOC_UNLOCK existente', () => {
+      expect(() =>
+        assertDirectPermissionsAssignableByActor({
+          actorRoleCodes: ['ADMIN'],
+          codes: [PERM.DOC_FILES_UPLOAD],
+          previousCodes: [PERM.DOC_UNLOCK],
+          targetRoleCodes: ['ADMIN'],
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('ADMIN puede preservar DOC_UNLOCK sin añadir ni quitarlo', () => {
+      expect(() =>
+        assertDirectPermissionsAssignableByActor({
+          actorRoleCodes: ['ADMIN'],
+          codes: [PERM.DOC_UNLOCK, PERM.DOC_FILES_UPLOAD],
+          previousCodes: [PERM.DOC_UNLOCK],
+          targetRoleCodes: ['ADMIN'],
+        }),
+      ).not.toThrow();
+    });
+
     it('ADMIN no puede otorgar el catálogo completo', () => {
       expect(() =>
         assertDirectPermissionsAssignableByActor({
@@ -162,6 +195,64 @@ describe('rbac-policy.util', () => {
         assertDirectPermissionsAssignableByActor({
           actorRoleCodes: ['SUPERADMIN'],
           codes: [PERM.DOC_REVISION_RESOLVE],
+        }),
+      ).not.toThrow();
+    });
+
+    it('SUPERADMIN puede otorgar DOC_UNLOCK a ADMIN', () => {
+      expect(() =>
+        assertDirectPermissionsAssignableByActor({
+          actorRoleCodes: ['SUPERADMIN'],
+          codes: [PERM.DOC_UNLOCK],
+          targetRoleCodes: ['ADMIN'],
+        }),
+      ).not.toThrow();
+    });
+
+    it('SUPERADMIN no puede otorgar DOC_UNLOCK a USER', () => {
+      expect(() =>
+        assertDirectPermissionsAssignableByActor({
+          actorRoleCodes: ['SUPERADMIN'],
+          codes: [PERM.DOC_UNLOCK],
+          targetRoleCodes: ['USUARIO'],
+        }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('SUPERADMIN no puede otorgar DOC_UNLOCK a REVISOR', () => {
+      expect(() =>
+        assertDocUnlockDirectTargetAllowed({
+          codes: [PERM.DOC_UNLOCK],
+          targetRoleCodes: ['REVISOR'],
+        }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('SUPERADMIN no puede otorgar DOC_UNLOCK a AUDITOR/CONSULTA/EDITOR_DOC', () => {
+      for (const role of ['AUDITOR', 'CONSULTA', 'EDITOR_DOC']) {
+        expect(() =>
+          assertDocUnlockDirectTargetAllowed({
+            codes: [PERM.DOC_UNLOCK],
+            targetRoleCodes: [role],
+          }),
+        ).toThrow(BadRequestException);
+      }
+    });
+
+    it('DOC_UNLOCK no va a matriz de rol ADMIN', () => {
+      expect(() =>
+        assertDocUnlockRoleMatrixAllowed({
+          roleCodigo: 'ADMIN',
+          permissionCodes: [PERM.DOC_UNLOCK, PERM.DOC_READ],
+        }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('DOC_UNLOCK sí puede estar en matriz SUPERADMIN', () => {
+      expect(() =>
+        assertDocUnlockRoleMatrixAllowed({
+          roleCodigo: 'SUPERADMIN',
+          permissionCodes: [PERM.DOC_UNLOCK],
         }),
       ).not.toThrow();
     });

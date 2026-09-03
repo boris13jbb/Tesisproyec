@@ -37,7 +37,11 @@ async function seedRolePermissions(): Promise<void> {
     }
   };
 
-  await replaceForRole('ADMIN', ALL_PERMISSION_CODES);
+  // DOC_UNLOCK: solo SUPERADMIN por rol; ADMIN lo recibe únicamente por delegación directa.
+  const adminRoleCodes = ALL_PERMISSION_CODES.filter(
+    (c) => c !== PERM.DOC_UNLOCK,
+  );
+  await replaceForRole('ADMIN', adminRoleCodes);
 
   const auditorConsultaBase = [
     PERM.DASHBOARD_SUMMARY,

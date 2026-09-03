@@ -24,6 +24,7 @@ import {
   JwtRequestUser,
   jwtUserIsAdmin,
   jwtUserIsRevisor,
+  jwtUserIsSuperAdmin,
 } from '../auth/request-user';
 import {
   computeFechaLimiteSla,
@@ -37,12 +38,18 @@ import {
   parseLikertNivel,
 } from '../dashboard/evaluacion-likert.util';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
+import { DesbloquearDocumentoDto } from './dto/desbloquear-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import {
+  assertContenidoMutable,
   assertEstadoCreacionPermitido,
+  assertEstadoDesbloqueable,
   assertEstadoNoResuelveRevisionViaPatch,
+  assertPatchPermitidoEnEstadoProtegido,
   assertTransicionEstado,
+  dtoTieneCambioDeContenido,
+  esEstadoContenidoProtegido,
   normalizeDocumentoEstado,
   type DocumentoEstado,
 } from './documento-estado.util';
@@ -889,11 +896,7 @@ export class DocumentosService {
     // Anti-IDOR: mismo alcance que detalle/descarga (no basta conocer el UUID).
     const docBase = await this.loadDocumentoVisibleById(documentoId, viewer);
     const createdById = viewer.id;
-    if (normalizeDocumentoEstado(docBase.estado) === 'ARCHIVADO') {
-      throw new BadRequestException(
-        'No se pueden cargar archivos en un documento archivado',
-      );
-    }
+    assertContenidoMutable(docBase.estado);
     if (!file) {
       throw new BadRequestException(
         'Archivo requerido (campo multipart: file)',
@@ -1073,11 +1076,7 @@ export class DocumentosService {
     ctx?: AuditContext,
   ) {
     const docBase = await this.loadDocumentoById(documentoId);
-    if (normalizeDocumentoEstado(docBase.estado) === 'ARCHIVADO') {
-      throw new BadRequestException(
-        'No se pueden eliminar archivos en un documento archivado',
-      );
-    }
+    assertContenidoMutable(docBase.estado);
     const row = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId, activo: true },
       select: { id: true, originalName: true, version: true },
@@ -1336,6 +1335,99 @@ export class DocumentosService {
     return this.enrichSlaFields(cleared);
   }
 
+  /**
+   * Desbloqueo administrativo: EN_REVISION|APROBADO|ARCHIVADO → REGISTRADO.
+   * No usa PATCH ni TRANSICIONES comunes. Motivo obligatorio. Audita DOC_UNLOCKED.
+   * SUPERADMIN: cualquier documento. ADMIN+DOC_UNLOCK: solo visibles (scope existente).
+   */
+  async desbloquear(
+    id: string,
+    dto: DesbloquearDocumentoDto,
+    viewer: JwtRequestUser,
+    ctx?: AuditContext,
+  ) {
+    const doc = jwtUserIsSuperAdmin(viewer)
+      ? await this.loadDocumentoById(id)
+      : await this.loadDocumentoVisibleById(id, viewer);
+
+    const desde = assertEstadoDesbloqueable(doc.estado);
+    const motivo = normalizeAdministrativeText(dto.motivo) ?? dto.motivo.trim();
+    const actorRoles = viewer.roles.map((r) => r.codigo).sort();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.documento.updateMany({
+        where: { id, estado: desde },
+        data: {
+          estado: 'REGISTRADO',
+          // Evita pendientes/SLA ficticios tras reabrir EN_REVISION.
+          fechaIngresoRevision: null,
+          fechaLimiteSla: null,
+        },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictException(
+          'El estado del documento cambió; refresque e intente de nuevo',
+        );
+      }
+
+      const documento = await tx.documento.findUniqueOrThrow({
+        where: { id },
+        include: includeCatalogos,
+      });
+
+      const before = documentoToSnapshot(doc);
+      const after = documentoToSnapshot(documento);
+      const diff = this.diffDocumento(before, after);
+
+      await tx.documentoEvento.create({
+        data: {
+          documentoId: documento.id,
+          tipo: 'ACTUALIZADO',
+          cambiosJson: JSON.stringify({ diff, unlock: true, motivo }),
+          createdById: viewer.id,
+        },
+      });
+
+      return documento;
+    });
+
+    await this.audit.log({
+      action: 'DOC_STATE_CHANGED',
+      result: 'OK',
+      resource: { type: 'Documento', id },
+      context: {
+        actorUserId: ctx?.actorUserId ?? viewer.id,
+        actorEmail: ctx?.actorEmail ?? null,
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
+        correlationId: ctx?.correlationId ?? null,
+      },
+      meta: { from: desde, to: 'REGISTRADO', via: 'DOC_UNLOCK' },
+    });
+
+    await this.audit.log({
+      action: 'DOC_UNLOCKED',
+      result: 'OK',
+      resource: { type: 'Documento', id },
+      context: {
+        actorUserId: ctx?.actorUserId ?? viewer.id,
+        actorEmail: ctx?.actorEmail ?? null,
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
+        correlationId: ctx?.correlationId ?? null,
+      },
+      meta: {
+        documentoId: id,
+        estadoAnterior: desde,
+        estadoNuevo: 'REGISTRADO',
+        motivo,
+        rolActor: actorRoles,
+      },
+    });
+
+    return this.enrichSlaFields(updated);
+  }
+
   async getAccess(documentoId: string) {
     const doc = await this.prisma.documento.findUnique({
       where: { id: documentoId },
@@ -1470,24 +1562,28 @@ export class DocumentosService {
     const beforeFull = await this.loadDocumentoById(id);
 
     const estadoPrevio = normalizeDocumentoEstado(beforeFull.estado);
+    const tieneCambioContenido = dtoTieneCambioDeContenido(dto);
+    const estadoDestino =
+      dto.estado !== undefined
+        ? normalizeDocumentoEstado(dto.estado.trim())
+        : undefined;
+
     if (estadoPrevio === 'ARCHIVADO') {
-      const intentaCambiarMetadatosOEstado =
-        dto.asunto !== undefined ||
-        dto.descripcion !== undefined ||
-        dto.fechaDocumento !== undefined ||
-        dto.fechaVencimiento !== undefined ||
-        dto.responsableInstitucional !== undefined ||
-        dto.contraparteId !== undefined ||
-        dto.beneficiarioId !== undefined ||
-        dto.tipoDocumentalId !== undefined ||
-        dto.estado !== undefined ||
-        dto.dependenciaId !== undefined ||
-        dto.nivelConfidencialidad !== undefined;
-      if (intentaCambiarMetadatosOEstado) {
+      const contenidoExceptoActivo = dtoTieneCambioDeContenido({
+        ...dto,
+        activo: undefined,
+      });
+      if (contenidoExceptoActivo || estadoDestino !== undefined) {
         throw new BadRequestException(
-          'Documento archivado: solo puede modificarse el indicador de registro activo.',
+          'Documento archivado: solo puede modificarse el indicador de registro activo, o desbloquearlo formalmente para corrección.',
         );
       }
+    } else if (esEstadoContenidoProtegido(estadoPrevio)) {
+      assertPatchPermitidoEnEstadoProtegido({
+        estadoActual: estadoPrevio,
+        estadoNuevo: estadoDestino,
+        tieneCambioContenido,
+      });
     }
 
     if (dto.estado !== undefined) {

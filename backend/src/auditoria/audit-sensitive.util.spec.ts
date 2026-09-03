@@ -6,6 +6,7 @@ describe('AUDIT_SENSITIVE_ACTIONS', () => {
       expect.arrayContaining([
         'DOC_DEACTIVATED',
         'DOC_FILE_DELETED',
+        'DOC_UNLOCKED',
         'USER_DIRECT_PERMISSIONS_UPDATED',
         'ROLE_PERMISSIONS_UPDATED',
         'ROLE_ASSIGNED',

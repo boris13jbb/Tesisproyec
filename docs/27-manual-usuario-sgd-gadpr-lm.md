@@ -403,9 +403,9 @@ Este reporte descarga exclusivamente documentos en estado **En revisión** (cola
 
 La pantalla se organiza en dos columnas (en escritorio), con el mismo estilo de **tarjetas** que el panel y la bandeja:
 
-- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** (requiere permiso `DOC_REVISION_SEND` y ser el registrador o un administrador) / **Aprobar** / **Rechazar** (rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`**).
-- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión (requiere **`DOC_FILES_DOWNLOAD`**). Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión solo para **ADMIN** / **SUPERADMIN**; **Descargar** requiere **`DOC_FILES_DOWNLOAD`**; **Historial** del archivo requiere **`DOC_FILES_READ`**.
-- **Derecha — Metadatos:** tipo documental; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (si tiene **`DOC_FILES_DOWNLOAD`**, última versión activa), **Editar** (solo **ADMIN** / **SUPERADMIN** — el servidor exige rol administrativo además de `DOC_UPDATE`) y **Ver historial** (desplaza a la tarjeta inferior).
+- **Cabecera de flujo:** asunto, fecha, quien registró y, si aplica, **Enviar a revisión** (requiere permiso `DOC_REVISION_SEND` y ser el registrador o un administrador) / **Aprobar** / **Rechazar** (rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`**). Si el documento está **Aprobado**, un **ADMIN** / **SUPERADMIN** con **`DOC_UPDATE`** verá **Archivar documento** (confirmación sencilla; no pide motivo de desbloqueo).
+- **Izquierda — Vista previa:** muestra **el contenido real** del archivo activo de **mayor versión** cuando es **PDF**, descargado de forma segura con tu sesión (requiere **`DOC_FILES_DOWNLOAD`**). Si el archivo pesa más de **20 MB**, el sistema solo muestra un aviso informativo (para no saturar la memoria del navegador) y debe usarse **Descargar** para verlo completo (la descarga permite hasta ~50 MiB, coherente con el límite de subida). **Solo se permiten subidas nuevas en PDF**; archivos históricos de otros tipos (si existieran) pueden verse con **Descargar**. Si no hay adjuntos o falla la carga, verá mensajes aclaratorios en pantalla; debajo, **fecha** y **descripción** del registro. Más abajo, **Archivos digitales** (cada versión en una tarjeta): **Subir archivo** aparece si tienes **`DOC_FILES_UPLOAD`**; **Eliminar** una versión solo para **ADMIN** / **SUPERADMIN**; **Descargar** requiere **`DOC_FILES_DOWNLOAD`**; **Historial** del archivo requiere **`DOC_FILES_READ`**. En estados **En revisión**, **Aprobado** o **Archivado**, subir/eliminar quedan bloqueados hasta desbloqueo formal.
+- **Derecha — Metadatos:** tipo documental; confidencialidad; **dependencia responsable**; **contraparte**; **beneficiario**; **responsable institucional**; **fecha de emisión**; **fecha de vencimiento** (si aplica); **fecha de registro** automática del sistema. Botones **Descargar** (si tiene **`DOC_FILES_DOWNLOAD`**, última versión activa), **Editar** (solo **ADMIN** / **SUPERADMIN** con `DOC_UPDATE` y documento **no** congelado — en **Aprobado** / **En revisión** / **Archivado** no aparece) y **Ver historial** (desplaza a la tarjeta inferior).
 - **Derecha — Historial y trazabilidad:** línea de tiempo con los eventos del documento (fechas y usuario).
 
 Si tu usuario es **ADMIN**, dentro de la tarjeta **Vista previa** verás además el bloque **Acceso al documento (ACL)**:
@@ -428,20 +428,39 @@ Cuando está **En revisión**:
 1. Un usuario con rol **REVISOR**, **ADMIN** o **SUPERADMIN** y permiso **`DOC_REVISION_RESOLVE`** puede pulsar **Aprobar** o **Rechazar**. No se puede cambiar a esos estados (ni a **En revisión**) editando el documento (PATCH).
 2. Si pulsas **Rechazar**, se abre un diálogo donde debes escribir el **motivo del rechazo** (obligatorio, mínimo 3 caracteres, máximo 2000); el texto queda registrado en **Auditoría** junto con la decisión.
 
+### 8.1.2 Desbloqueo para corrección (estados protegidos)
+
+Cuando el documento está **En revisión**, **Aprobado** o **Archivado**, el contenido (metadatos y archivos) queda **congelado**. No se edita ni se suben/eliminan archivos hasta desbloquear.
+
+1. Un **SUPERADMIN**, o un **ADMIN** al que el SUPERADMIN haya otorgado el permiso **`DOC_UNLOCK`**, verá el botón **Desbloquear para corrección**.
+2. Confirme en el diálogo (advertencia + **motivo obligatorio**) → el estado pasa a **Registrado**. La aprobación anterior, si existía, **permanece en el historial/auditoría** pero deja de ser el estado vigente.
+3. Tras desbloquear, la edición y los archivos vuelven a exigir los permisos normales (`DOC_UPDATE`, subida de archivos, etc.). Debe **enviar de nuevo a revisión** antes de una nueva aprobación.
+4. Detalle técnico: [MATRIZ_DESBLOQUEO_DOCUMENTAL.md](./MATRIZ_DESBLOQUEO_DOCUMENTAL.md).
+
+### 8.1.3 Archivar un documento aprobado
+
+**Archivar** no es lo mismo que **desbloquear**.
+
+1. Con el documento en estado **Aprobado**, un **ADMIN** / **SUPERADMIN** con permiso **`DOC_UPDATE`** pulsa **Archivar documento**.
+2. Confirma en el diálogo (**Cancelar** / **Archivar**). No se pide motivo de desbloqueo.
+3. El sistema envía solo el cambio de estado a **Archivado**. El documento queda en solo lectura; para corregirlo después use **Desbloquear para corrección** (`DOC_UNLOCK`).
+
 **Consulta rápida de pendientes**
 
 - En **Documentos**, filtra **Estado → En revisión**. Si tienes rol **REVISOR**, el listado muestra una nota de ayuda con este mismo consejo.
 
 **Resultado esperado**
 
-- Estados y trazas coherentes en el **Historial** del documento y en **Auditoría** (acciones como envío/resolución de revisión cuando el administrador revise la bitácora).
+- Estados y trazas coherentes en el **Historial** del documento y en **Auditoría** (acciones como envío/resolución de revisión y **desbloqueo** cuando el administrador revise la bitácora).
 
 **Fallos típicos**
 
 - **403** al resolver: tu usuario no es **REVISOR**, **ADMIN** ni **SUPERADMIN**, o no tiene **`DOC_REVISION_RESOLVE`**.
 - **403** al enviar: falta **`DOC_REVISION_SEND`**, o no eres quien registró el documento (salvo ADMIN/SUPERADMIN).
+- **403** al desbloquear: falta **`DOC_UNLOCK`** (ADMIN sin delegación) o rol no autorizado.
 - Estado incorrecto (p. ej. ya archivado o no está en «Registrado»): el backend rechaza la operación con un mensaje de validación.
 - Rechazo **sin motivo** o motivo demasiado corto: validación del servidor (**400**) o mensaje en el propio diálogo antes de confirmar.
+- Intentar editar un documento congelado sin desbloquear: **400** del servidor.
 
 ### 8.2 Sección “Archivos digitales” (adjuntos)
 

@@ -81,8 +81,13 @@ export function RolePermissionsPanel({
   );
 
   const filteredCatalog = useMemo(() => {
-    return sortedCatalog.filter((p) => permissionMatchesSearch(p.codigo, search, p.descripcion));
-  }, [sortedCatalog, search]);
+    let list = sortedCatalog;
+    // DOC_UNLOCK solo pertenece a la matriz SUPERADMIN (delegación individual a ADMIN).
+    if (roleCodigo.trim().toUpperCase() !== 'SUPERADMIN') {
+      list = list.filter((p) => p.codigo !== 'DOC_UNLOCK');
+    }
+    return list.filter((p) => permissionMatchesSearch(p.codigo, search, p.descripcion));
+  }, [sortedCatalog, search, roleCodigo]);
 
   const grouped = useMemo(
     () => groupPermissionsByModule(filteredCatalog.map((p) => p.codigo)),

@@ -234,8 +234,13 @@ export function UserAccessDrawer({
     if (!isSuperAdmin) {
       list = list.filter((p) => !isDirectPermissionBlockedForAdmin(p.codigo));
     }
+    const canReceiveDocUnlock =
+      roleCodes.includes('ADMIN') && !roleCodes.includes('SUPERADMIN');
+    if (!canReceiveDocUnlock) {
+      list = list.filter((p) => p.codigo !== 'DOC_UNLOCK');
+    }
     return list.filter((p) => permissionMatchesSearch(p.codigo, permSearch, p.descripcion));
-  }, [catalog, isSuperAdmin, permSearch]);
+  }, [catalog, isSuperAdmin, permSearch, roleCodes]);
 
   const groupedDirect = useMemo(
     () => groupPermissionsByModule(visibleDirectCatalog.map((p) => p.codigo)),

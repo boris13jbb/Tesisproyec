@@ -30,6 +30,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { PERM } from '../auth/permission-codes';
 import { JwtRequestUser } from '../auth/request-user';
 import { CreateDocumentoDto } from './dto/create-documento.dto';
+import { DesbloquearDocumentoDto } from './dto/desbloquear-documento.dto';
 import { ResolverRevisionDto } from './dto/resolver-revision.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import { UpdateDocumentAccessDto } from './dto/update-document-access.dto';
@@ -305,6 +306,25 @@ export class DocumentosController {
   ) {
     const ua = req.headers['user-agent'];
     return this.service.resolverRevision(id, dto, req.user, {
+      actorUserId: req.user.id,
+      actorEmail: req.user.email,
+      ip: req.ip ?? null,
+      userAgent: typeof ua === 'string' ? ua : null,
+    });
+  }
+
+  @Post(':id/desbloquear')
+  @HttpCode(200)
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Permissions(PERM.DOC_UNLOCK)
+  desbloquear(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DesbloquearDocumentoDto,
+    @Req() req: Request & { user: JwtRequestUser },
+  ) {
+    const ua = req.headers['user-agent'];
+    return this.service.desbloquear(id, dto, req.user, {
       actorUserId: req.user.id,
       actorEmail: req.user.email,
       ip: req.ip ?? null,

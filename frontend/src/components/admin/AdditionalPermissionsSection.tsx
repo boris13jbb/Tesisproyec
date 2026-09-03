@@ -83,8 +83,15 @@ export function AdditionalPermissionsSection({
     if (restrictCriticalForAdmin) {
       list = list.filter((p) => !isDirectPermissionBlockedForAdmin(p.codigo));
     }
+    // DOC_UNLOCK solo aplica a ADMIN (nunca a SUPERADMIN vía directo ni a roles operativos).
+    const canReceiveDocUnlock =
+      normalizedRoleCodes.includes('ADMIN') &&
+      !normalizedRoleCodes.includes('SUPERADMIN');
+    if (!canReceiveDocUnlock) {
+      list = list.filter((p) => p.codigo !== 'DOC_UNLOCK');
+    }
     return list.filter((p) => permissionMatchesSearch(p.codigo, search, p.descripcion));
-  }, [catalog, restrictCriticalForAdmin, search]);
+  }, [catalog, restrictCriticalForAdmin, search, normalizedRoleCodes]);
 
   const grouped = useMemo(
     () => groupPermissionsByModule(visibleCatalog.map((p) => p.codigo)),

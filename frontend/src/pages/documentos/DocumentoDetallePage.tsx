@@ -66,7 +66,7 @@ import {
 } from '../../utils/party-label';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
-import { userHasAdminAccess, userIsRevisorOrAdmin } from '../../auth/role-utils';
+import { userHasAdminAccess, userIsRevisorOrAdmin, userIsSuperAdmin } from '../../auth/role-utils';
 import { EmptyState } from '../../components/EmptyState';
 import { listSurfaceSx } from '../../components/listSurfaces';
 import { PageHeader } from '../../components/PageHeader';
@@ -350,6 +350,7 @@ export function DocumentoDetallePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = userHasAdminAccess(user?.roles);
+  const isSuperAdmin = userIsSuperAdmin(user?.roles);
   const [myPermissionCodes, setMyPermissionCodes] = useState<string[] | null>(null);
   /** Backend: RolesGuard ADMIN + DOC_ACCESS_MANAGE — no basta el permiso solo. */
   const canManageDocAccess = useMemo(() => isAdmin, [isAdmin]);
@@ -361,9 +362,6 @@ export function DocumentoDetallePage() {
 
   /** Backend: RolesGuard ADMIN + DOC_FILES_DELETE. */
   const canDeleteFiles = useMemo(() => isAdmin, [isAdmin]);
-
-  /** Backend: RolesGuard ADMIN + DOC_UPDATE (edición administrativa). */
-  const canEditDocumento = useMemo(() => isAdmin, [isAdmin]);
 
   const canDownloadFiles = useMemo(() => {
     if (isAdmin) return true;
@@ -407,6 +405,10 @@ export function DocumentoDetallePage() {
   const [rejectMotivoError, setRejectMotivoError] = useState<string | null>(
     null,
   );
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [unlockMotivo, setUnlockMotivo] = useState('');
+  const [unlockMotivoError, setUnlockMotivoError] = useState<string | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [archivoEventosOpen, setArchivoEventosOpen] = useState(false);
@@ -485,7 +487,22 @@ export function DocumentoDetallePage() {
 
   useRegisterBreadcrumbDetail(doc?.codigo);
 
-  const docArchivado = doc?.estado === 'ARCHIVADO';
+  const docContenidoProtegido = Boolean(
+    doc &&
+      (doc.estado === 'EN_REVISION' ||
+        doc.estado === 'APROBADO' ||
+        doc.estado === 'ARCHIVADO'),
+  );
+  /** Congelado: sin upload/delete hasta desbloqueo formal. */
+  const archivosInmutables = docContenidoProtegido;
+
+  /** Backend: RolesGuard ADMIN + DOC_UPDATE; no editable en estados protegidos. */
+  const canEditDocumento = Boolean(
+    doc &&
+      !docContenidoProtegido &&
+      isAdmin &&
+      (myPermissionCodes?.includes('DOC_UPDATE') ?? false),
+  );
 
   /** Mayor versión numérica (coherente con orden del API tras `orderBy version desc`). */
   const archivoUltimaVersion = useMemo(() => {
@@ -518,6 +535,19 @@ export function DocumentoDetallePage() {
       doc.estado === 'EN_REVISION' &&
       esRevisorOAdmin &&
       (myPermissionCodes?.includes('DOC_REVISION_RESOLVE') ?? false),
+  );
+  const puedeDesbloquear = Boolean(
+    doc &&
+      docContenidoProtegido &&
+      (isSuperAdmin ||
+        (isAdmin && (myPermissionCodes?.includes('DOC_UNLOCK') ?? false))),
+  );
+  /** APROBADO → ARCHIVADO: PATCH state-only con DOC_UPDATE (no DOC_UNLOCK). */
+  const puedeArchivar = Boolean(
+    doc &&
+      doc.estado === 'APROBADO' &&
+      isAdmin &&
+      (myPermissionCodes?.includes('DOC_UPDATE') ?? false),
   );
 
   useEffect(() => {
@@ -969,6 +999,71 @@ export function DocumentoDetallePage() {
     await onResolverRevision('RECHAZADO', t);
   };
 
+  const openUnlockDialog = () => {
+    setUnlockMotivo('');
+    setUnlockMotivoError(null);
+    setUnlockOpen(true);
+  };
+
+  const confirmDesbloquear = async () => {
+    if (!id) return;
+    const t = unlockMotivo.trim();
+    if (t.length < 3) {
+      setUnlockMotivoError('Indique el motivo (mínimo 3 caracteres).');
+      return;
+    }
+    if (t.length > 2000) {
+      setUnlockMotivoError('Máximo 2000 caracteres.');
+      return;
+    }
+    setError(null);
+    setWorkflowLoading(true);
+    try {
+      await apiClient.post(`/documentos/${id}/desbloquear`, {
+        motivo: normalizeAdministrativeText(t),
+      });
+      setUnlockOpen(false);
+      await load();
+    } catch (err: unknown) {
+      if (isAxiosError(err) && err.response?.data) {
+        const d = err.response.data as { message?: string | string[] };
+        const m = d.message;
+        setUnlockMotivoError(
+          Array.isArray(m) ? m.join(' ') : (m ?? 'No se pudo desbloquear.'),
+        );
+      } else {
+        setUnlockMotivoError('No se pudo desbloquear el documento.');
+      }
+    } finally {
+      setWorkflowLoading(false);
+    }
+  };
+
+  /** APROBADO → ARCHIVADO: solo `estado` (DOC_UPDATE). No es desbloqueo. */
+  const confirmArchivar = async () => {
+    if (!id) return;
+    setError(null);
+    setWorkflowLoading(true);
+    try {
+      await apiClient.patch(`/documentos/${id}`, { estado: 'ARCHIVADO' });
+      setArchiveOpen(false);
+      await load();
+    } catch (err: unknown) {
+      if (isAxiosError(err) && err.response?.data) {
+        const d = err.response.data as { message?: string | string[] };
+        const m = d.message;
+        setError(
+          Array.isArray(m) ? m.join(' ') : (m ?? 'No se pudo archivar.'),
+        );
+      } else {
+        setError('No se pudo archivar el documento.');
+      }
+      setArchiveOpen(false);
+    } finally {
+      setWorkflowLoading(false);
+    }
+  };
+
   const onUpload = async (file: File) => {
     if (!id) return;
     setError(null);
@@ -1199,6 +1294,28 @@ export function DocumentoDetallePage() {
                         Rechazar
                       </Button>
                     </>
+                  )}
+                  {puedeArchivar && (
+                    <Button
+                      color="inherit"
+                      variant="outlined"
+                      disabled={workflowLoading}
+                      onClick={() => setArchiveOpen(true)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Archivar documento
+                    </Button>
+                  )}
+                  {puedeDesbloquear && (
+                    <Button
+                      color="secondary"
+                      variant="outlined"
+                      disabled={workflowLoading}
+                      onClick={() => openUnlockDialog()}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Desbloquear para corrección
+                    </Button>
                   )}
                 </Stack>
               </Stack>
@@ -1579,7 +1696,7 @@ export function DocumentoDetallePage() {
                           variant="contained"
                           color="secondary"
                           component="label"
-                          disabled={uploading || docArchivado}
+                          disabled={uploading || archivosInmutables}
                           sx={{ textTransform: 'none' }}
                         >
                           {uploading ? 'Subiendo…' : 'Subir archivo'}
@@ -1615,8 +1732,8 @@ export function DocumentoDetallePage() {
                         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
                           Solo PDF (.pdf) · Máx{' '}
                           {Math.round(MAX_FILE_UPLOAD_BYTES / (1024 * 1024))} MB
-                          {docArchivado &&
-                            ' · Archivado: no cargas ni eliminaciones.'}
+                          {archivosInmutables &&
+                            ' · Contenido congelado: desbloquee para corregir archivos.'}
                         </Typography>
                       </Box>
                     )}
@@ -1670,7 +1787,7 @@ export function DocumentoDetallePage() {
                                   <Button
                                     sx={{ textTransform: 'none' }}
                                     color="error"
-                                    disabled={docArchivado}
+                                    disabled={archivosInmutables}
                                     onClick={() => void onDeleteArchivo(a)}
                                   >
                                     Eliminar
@@ -1963,6 +2080,82 @@ export function DocumentoDetallePage() {
             onClick={() => void confirmRejectConMotivo()}
           >
             Confirmar rechazo
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={unlockOpen}
+        onClose={() => !workflowLoading && setUnlockOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Desbloquear para corrección</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Estado actual:{' '}
+            <strong>{doc?.estado ? labelDocumentoEstado(doc.estado) : '—'}</strong>
+          </Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            El documento volverá a un estado editable y deberá pasar nuevamente por el
+            flujo de revisión antes de considerarse aprobado.
+            {doc?.estado === 'APROBADO'
+              ? ' La aprobación actual permanecerá en el historial, pero dejará de ser el estado vigente del documento.'
+              : null}
+          </Alert>
+          <TextField
+            label="Motivo del desbloqueo"
+            fullWidth
+            required
+            multiline
+            minRows={3}
+            value={unlockMotivo}
+            onChange={(e) => {
+              setUnlockMotivo(toAdministrativeInputUppercase(e.target.value));
+              setUnlockMotivoError(null);
+            }}
+            error={!!unlockMotivoError}
+            helperText={unlockMotivoError ?? `${unlockMotivo.trim().length}/2000`}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnlockOpen(false)} disabled={workflowLoading}>
+            Cancelar
+          </Button>
+          <Button
+            color="secondary"
+            variant="contained"
+            disabled={workflowLoading}
+            onClick={() => void confirmDesbloquear()}
+          >
+            Confirmar desbloqueo
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={archiveOpen}
+        onClose={() => !workflowLoading && setArchiveOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Archivar documento</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            El documento pasará a estado ARCHIVADO y quedará en solo lectura.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setArchiveOpen(false)} disabled={workflowLoading}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={workflowLoading}
+            onClick={() => void confirmArchivar()}
+          >
+            Archivar
           </Button>
         </DialogActions>
       </Dialog>

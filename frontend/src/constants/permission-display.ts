@@ -72,6 +72,12 @@ const PERMISSION_DISPLAY: Record<string, PermissionDisplayMeta> = {
     description: 'Resolver revisiones pendientes (aprobar o rechazar).',
     module: 'Revisiones',
   },
+  DOC_UNLOCK: {
+    label: 'Desbloqueo administrativo de documentos',
+    description:
+      'Reabrir documentos protegidos (en revisión, aprobados o archivados) para corrección controlada. No sustituye la edición ni los permisos de archivo.',
+    module: 'Revisiones',
+  },
   REPORTS_EXPORT: {
     label: 'Exportar reportes',
     description: 'Exportar reportes institucionales de documentos y auditoría.',

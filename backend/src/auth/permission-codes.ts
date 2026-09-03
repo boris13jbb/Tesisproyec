@@ -25,6 +25,8 @@ export const PERM = {
 
   DOC_REVISION_SEND: 'DOC_REVISION_SEND',
   DOC_REVISION_RESOLVE: 'DOC_REVISION_RESOLVE',
+  /** Reapertura administrativa controlada (EN_REVISION|APROBADO|ARCHIVADO → REGISTRADO). */
+  DOC_UNLOCK: 'DOC_UNLOCK',
 
   DOC_FILES_READ: 'DOC_FILES_READ',
   DOC_FILES_UPLOAD: 'DOC_FILES_UPLOAD',
@@ -69,6 +71,8 @@ export const PERM_DESCRIPTIONS: Record<PermissionCode, string> = {
 
   DOC_REVISION_SEND: 'Enviar documento a revisión.',
   DOC_REVISION_RESOLVE: 'Resolver revisión (aprobar/rechazar).',
+  DOC_UNLOCK:
+    'Desbloqueo administrativo de documentos protegidos para corrección (no sustituye DOC_UPDATE).',
 
   DOC_FILES_READ: 'Listar archivos adjuntos y eventos de archivo.',
   DOC_FILES_UPLOAD: 'Subir archivos adjuntos.',

@@ -7,12 +7,13 @@ import {
 } from './role-constants';
 
 /**
- * Permisos que un ADMIN operativo no puede otorgar como `user_permissions`.
- * Deben heredarse del rol (REVISOR/ADMIN/SUPERADMIN), no fabricarse por excepción.
+ * Permisos que un ADMIN operativo no puede otorgar ni revocar como `user_permissions`.
+ * Deben heredarse del rol (REVISOR/ADMIN/SUPERADMIN) o delegarse solo por SUPERADMIN.
  */
 export const PERMISSIONS_NOT_ASSIGNABLE_AS_DIRECT_BY_ADMIN: readonly string[] =
   [
     PERM.DOC_REVISION_RESOLVE,
+    PERM.DOC_UNLOCK,
     PERM.USERS_CREATE,
     PERM.USERS_UPDATE,
     PERM.USERS_DISABLE,
@@ -27,6 +28,52 @@ const BLOCKED_DIRECT_BY_ADMIN = new Set<string>(
 
 export function actorIsSuperAdmin(roleCodes: readonly string[]): boolean {
   return roleCodes.includes(ROLE_SUPERADMIN);
+}
+
+/**
+ * DOC_UNLOCK solo se asigna como permiso directo a cuentas con rol ADMIN
+ * (nunca a USER/REVISOR/AUDITOR/CONSULTA/EDITOR_DOC ni vía edición común a SUPERADMIN).
+ */
+export function assertDocUnlockDirectTargetAllowed(input: {
+  codes: readonly string[];
+  targetRoleCodes: readonly string[];
+}): void {
+  const wantsUnlock = input.codes.some((c) => c.trim() === PERM.DOC_UNLOCK);
+  if (!wantsUnlock) {
+    return;
+  }
+  const roles = input.targetRoleCodes.map((r) => r.trim().toUpperCase());
+  if (roles.includes(ROLE_SUPERADMIN)) {
+    throw new BadRequestException(
+      'DOC_UNLOCK no se asigna como permiso directo a SUPERADMIN (capacidad de rol)',
+    );
+  }
+  if (!roles.includes(ROLE_ADMIN)) {
+    throw new BadRequestException(
+      'DOC_UNLOCK solo puede otorgarse a usuarios con rol ADMIN',
+    );
+  }
+}
+
+/**
+ * DOC_UNLOCK no forma parte de matrices de rol operativas; solo SUPERADMIN lo hereda por rol.
+ */
+export function assertDocUnlockRoleMatrixAllowed(input: {
+  roleCodigo: string;
+  permissionCodes: readonly string[];
+}): void {
+  const role = input.roleCodigo.trim().toUpperCase();
+  const wantsUnlock = input.permissionCodes.some(
+    (c) => c.trim() === PERM.DOC_UNLOCK,
+  );
+  if (!wantsUnlock) {
+    return;
+  }
+  if (role !== ROLE_SUPERADMIN) {
+    throw new BadRequestException(
+      'DOC_UNLOCK solo puede formar parte de la matriz del rol SUPERADMIN',
+    );
+  }
 }
 
 /**
@@ -107,22 +154,48 @@ export function assertSuperadminRoleMatrixMutationAllowed(input: {
 }
 
 /**
- * Impide que un ADMIN fabrique un perfil equivalente a SUPERADMIN vía permisos directos.
+ * Impide que un ADMIN fabrique un perfil privilegiado vía permisos directos.
+ * Códigos bloqueados: no puede añadirlos ni retirarlos (solo SUPERADMIN).
+ * DOC_UNLOCK: target debe ser ADMIN (no SUPERADMIN vía directo).
  */
 export function assertDirectPermissionsAssignableByActor(input: {
   actorRoleCodes: string[];
   codes: string[];
+  /** Permisos directos previos del target (para permitir preservar bloqueados). */
+  previousCodes?: string[];
+  /** Roles efectivos del target tras la mutación. */
+  targetRoleCodes?: string[];
 }): void {
-  if (actorIsSuperAdmin(input.actorRoleCodes)) {
-    return;
-  }
   const unique = Array.from(
     new Set(input.codes.map((c) => c.trim()).filter(Boolean)),
   );
-  const blocked = unique.filter((c) => BLOCKED_DIRECT_BY_ADMIN.has(c));
-  if (blocked.length) {
+  const previous = new Set(
+    (input.previousCodes ?? []).map((c) => c.trim()).filter(Boolean),
+  );
+
+  if (actorIsSuperAdmin(input.actorRoleCodes)) {
+    if (input.targetRoleCodes) {
+      assertDocUnlockDirectTargetAllowed({
+        codes: unique,
+        targetRoleCodes: input.targetRoleCodes,
+      });
+    }
+    return;
+  }
+
+  const blockedInPayload = unique.filter((c) => BLOCKED_DIRECT_BY_ADMIN.has(c));
+  const newlyAddedBlocked = blockedInPayload.filter((c) => !previous.has(c));
+  if (newlyAddedBlocked.length) {
     throw new ForbiddenException(
-      `Permisos directos no asignables por administrador operativo: ${blocked.join(', ')}`,
+      `Permisos directos no asignables por administrador operativo: ${newlyAddedBlocked.join(', ')}`,
+    );
+  }
+  const removedBlocked = [...previous].filter(
+    (c) => BLOCKED_DIRECT_BY_ADMIN.has(c) && !unique.includes(c),
+  );
+  if (removedBlocked.length) {
+    throw new ForbiddenException(
+      `Permisos directos no revocables por administrador operativo: ${removedBlocked.join(', ')}`,
     );
   }
   if (unique.length >= ALL_PERMISSION_CODES.length) {
