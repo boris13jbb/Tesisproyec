@@ -361,6 +361,8 @@ function MainLayoutShell() {
   }, [isAdmin, myPermissionCodes]);
 
   const desktopDrawerWidth = sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED;
+  // En md+ el drawer temporal no debe quedar "open" (evita overflow:hidden en body de MUI).
+  const mobileDrawerOpen = !isMdUp && mobileOpen;
 
   useEffect(() => {
     let cancelled = false;
@@ -543,7 +545,19 @@ function MainLayoutShell() {
 
   return (
     <BreadcrumbDetailProvider>
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/*
+        Shell a altura de viewport dinámico (100dvh): el scroll vertical vive en <main>,
+        no en document/body. Evita contenido inferior inaccesible con 100vh + barra de tareas.
+      */}
+      <Box
+        sx={{
+          display: 'flex',
+          height: '100dvh',
+          maxHeight: '100dvh',
+          overflow: 'hidden',
+          bgcolor: 'background.default',
+        }}
+      >
         <AppBar
           position="fixed"
           elevation={0}
@@ -731,7 +745,7 @@ function MainLayoutShell() {
         <Box component="nav" sx={{ width: { md: desktopDrawerWidth }, flexShrink: { md: 0 } }}>
           <Drawer
             variant="temporary"
-            open={mobileOpen}
+            open={mobileDrawerOpen}
             onClose={() => setMobileOpen(false)}
             ModalProps={{ keepMounted: true }}
             sx={{
@@ -768,9 +782,13 @@ function MainLayoutShell() {
           className="page-fade-enter"
           key={location.pathname}
           sx={{
-            flexGrow: 1,
-            width: { md: `calc(100% - ${desktopDrawerWidth}px)` },
+            flex: 1,
             minWidth: 0,
+            minHeight: 0,
+            width: { md: `calc(100% - ${desktopDrawerWidth}px)` },
+            overflowX: 'hidden',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
             pb: { xs: 6, md: 5 },
             px: { xs: 1.5, sm: 2.5, md: 3 },
             pt: 0,
@@ -787,6 +805,7 @@ function MainLayoutShell() {
               mx: 'auto',
               width: '100%',
               pt: { xs: 1.5, sm: 2 },
+              pb: { xs: 2, md: 3 },
             }}
           >
             <LayoutBreadcrumbs />
