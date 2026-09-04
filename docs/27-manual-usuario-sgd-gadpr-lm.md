@@ -520,13 +520,15 @@ En el detalle del documento existe la tarjeta **Historial y trazabilidad** (tamb
 **Resultado esperado**
 
 - Lista paginada de eventos (`audit_logs`).
+- Si **Desde** es posterior a **Hasta**, o las fechas no son válidas, el servidor responde **400** y no carga resultados.
 - Columna **Usuario** muestra nombre preferente cuando el actor está enlazado a un usuario del sistema (si no, el correo registrado en el evento o guion).
 - **Documento / recurso** muestra el **código institucional del expediente** (p. ej. <code>SIS-2026-…</code>) cuando el backend puede resolverlo desde el documento o desde <code>documentoId</code> en metadatos; si no aplica, puede mostrarse “—” o una referencia técnica abreviada al UUID.
 - Cada exportación deja constancia en auditoría (`REPORT_EXPORTED`).
 
 **Posibles fallos**
 
-- **403 / vacío:** el usuario no es ADMIN o el token expiró (vuelve a iniciar sesión).
+- **403 / vacío:** el usuario no es ADMIN, no tiene permiso de consulta de auditoría o el token expiró (vuelve a iniciar sesión).
+- **400 en consulta/export:** revise que **Desde** no sea posterior a **Hasta** y que las fechas sean válidas.
 
 ---
 

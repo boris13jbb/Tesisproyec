@@ -48,7 +48,9 @@ export class ClientPerfController {
         metric: dto.metric,
         valueMs: dto.valueMs,
         rating: dto.rating,
-        pathname: dto.pathname ?? null,
+        pathname: dto.pathname
+          ? (dto.pathname.split(/[?#]/)[0]?.slice(0, 512) ?? null)
+          : null,
         navigationType: dto.navigationType ?? null,
         metricId: dto.metricId ?? null,
       },

@@ -113,7 +113,7 @@ export class ReportesService {
     const MAX_ROWS = 5000;
     const raw = await this.prisma.auditLog.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_ROWS,
     });
     return enrichAuditLogsWithDocumentoCodigo(this.prisma, raw);

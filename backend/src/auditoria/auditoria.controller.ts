@@ -16,8 +16,11 @@ import { PERM } from '../auth/permission-codes';
 import { PrismaService } from '../prisma/prisma.service';
 import { redactAuditMetaJsonForRead } from './audit-export-meta.util';
 import {
+  assertAuditDateRange,
   buildAuditWhere,
   enrichAuditLogsWithDocumentoCodigo,
+  parseOptionalAuditIsoDate,
+  resolveAuditPaging,
 } from './audit-list.util';
 import { AuditoriaService } from './auditoria.service';
 import { AuditQueryDto } from './dto/audit-query.dto';
@@ -44,12 +47,10 @@ export class AuditoriaController {
   @Get()
   @Permissions(PERM.AUDIT_READ)
   async findAll(@Query() q: AuditQueryDto) {
-    const page = Math.max(1, Number(q.page ?? '1'));
-    const pageSize = Math.min(100, Math.max(5, Number(q.pageSize ?? '10')));
-    const skip = (page - 1) * pageSize;
-
-    const from = q.from ? new Date(q.from) : undefined;
-    const to = q.to ? new Date(q.to) : undefined;
+    const { page, pageSize, skip } = resolveAuditPaging(q.page, q.pageSize);
+    const from = parseOptionalAuditIsoDate(q.from);
+    const to = parseOptionalAuditIsoDate(q.to);
+    assertAuditDateRange(from, to);
 
     const where = buildAuditWhere({
       action: q.action,
@@ -66,7 +67,7 @@ export class AuditoriaController {
       this.prisma.auditLog.count({ where }),
       this.prisma.auditLog.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }],
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take: pageSize,
       }),
@@ -93,9 +94,12 @@ export class AuditoriaController {
     @Query('actorUserId') actorUserId?: string,
     @Query('action') action?: string,
   ) {
+    const fromDate = parseOptionalAuditIsoDate(from);
+    const toDate = parseOptionalAuditIsoDate(to);
+    assertAuditDateRange(fromDate, toDate);
     return this.auditoriaService.getStats({
-      from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      from: fromDate,
+      to: toDate,
       actorUserId: actorUserId?.trim() || undefined,
       action: action?.trim() || undefined,
     });

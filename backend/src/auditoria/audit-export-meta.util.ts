@@ -1,6 +1,7 @@
 /**
  * Redacción central de metadatos de auditoría (persistencia, lectura API y export).
- * Claves normalizadas en minúsculas; valores sensibles → `[REDACTED]`.
+ * Claves normalizadas (minúsculas, sin `_`/`-`); match exacto o por subcadena
+ * (`password`, `token`, `secret`, `otpauth`, …). Valores sensibles → `[REDACTED]`.
  */
 const SENSITIVE_META_KEY = new Set([
   'password',
@@ -11,7 +12,7 @@ const SENSITIVE_META_KEY = new Set([
   'resettoken',
   'authorization',
   'cookie',
-  'set-cookie',
+  'setcookie',
   'secret',
   'totp',
   'totpsecret',
@@ -24,8 +25,28 @@ const SENSITIVE_META_KEY = new Set([
   'bearer',
 ]);
 
+/** Subcadenas para claves compuestas (`setupChallengeToken`, `debugToken`, etc.). */
+const SENSITIVE_META_SUBSTRINGS = [
+  'password',
+  'token',
+  'secret',
+  'authorization',
+  'cookie',
+  'otpauth',
+  'jwt',
+  'bearer',
+  'totp',
+] as const;
+
+function normalizeMetaKey(key: string): string {
+  return key.trim().toLowerCase().replace(/[_-]/g, '');
+}
+
 function isSensitiveMetaKey(key: string): boolean {
-  return SENSITIVE_META_KEY.has(key.trim().toLowerCase());
+  const k = normalizeMetaKey(key);
+  if (!k) return false;
+  if (SENSITIVE_META_KEY.has(k)) return true;
+  return SENSITIVE_META_SUBSTRINGS.some((part) => k.includes(part));
 }
 
 function redactMetaValue(key: string, value: unknown): unknown {

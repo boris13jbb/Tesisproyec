@@ -16,6 +16,10 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { PERM } from '../auth/permission-codes';
 import { JwtRequestUser } from '../auth/request-user';
 import { redactAuditMetaJsonForExport } from '../auditoria/audit-export-meta.util';
+import {
+  assertAuditDateRange,
+  parseOptionalAuditIsoDate,
+} from '../auditoria/audit-list.util';
 import { AuditService } from '../auditoria/audit.service';
 import { addSanitizedSpreadsheetRow } from './reportes-spreadsheet.util';
 import type { Request, Response } from 'express';
@@ -377,6 +381,9 @@ export class ReportesController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
+    const fromDate = parseOptionalAuditIsoDate(from);
+    const toDate = parseOptionalAuditIsoDate(to);
+    assertAuditDateRange(fromDate, toDate);
     await this.logReportExport(req, 'xlsx', 'auditoria');
     const items = await this.service.findAuditLogs({
       action,
@@ -385,8 +392,8 @@ export class ReportesController {
       actorEmail,
       resourceType,
       resourceId,
-      from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      from: fromDate,
+      to: toDate,
     });
 
     const wb = new ExcelJS.Workbook();
@@ -439,6 +446,9 @@ export class ReportesController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
+    const fromDate = parseOptionalAuditIsoDate(from);
+    const toDate = parseOptionalAuditIsoDate(to);
+    assertAuditDateRange(fromDate, toDate);
     await this.logReportExport(req, 'pdf', 'auditoria');
     const items = await this.service.findAuditLogs({
       action,
@@ -447,8 +457,8 @@ export class ReportesController {
       actorEmail,
       resourceType,
       resourceId,
-      from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      from: fromDate,
+      to: toDate,
     });
 
     const filename = `auditoria_${new Date().toISOString().slice(0, 10)}.pdf`;

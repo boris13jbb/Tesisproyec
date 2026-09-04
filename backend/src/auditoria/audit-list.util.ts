@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import type { AuditLog, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -11,6 +12,39 @@ export type AuditListQueryFilter = {
   from?: Date;
   to?: Date;
 };
+
+/** Fecha ISO opcional: inválida → 400 (evita `Invalid Date` hacia Prisma). */
+export function parseOptionalAuditIsoDate(raw?: string): Date | undefined {
+  const t = raw?.trim();
+  if (!t) return undefined;
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestException('Rango de fechas inválido');
+  }
+  return d;
+}
+
+export function assertAuditDateRange(from?: Date, to?: Date): void {
+  if (from && to && from.getTime() > to.getTime()) {
+    throw new BadRequestException(
+      'La fecha inicial no puede ser posterior a la fecha final',
+    );
+  }
+}
+
+export function resolveAuditPaging(
+  pageRaw?: string,
+  pageSizeRaw?: string,
+): { page: number; pageSize: number; skip: number } {
+  const pageN = Number(pageRaw ?? '1');
+  const sizeN = Number(pageSizeRaw ?? '10');
+  const page =
+    Number.isFinite(pageN) && pageN > 0 ? Math.max(1, Math.floor(pageN)) : 1;
+  const pageSize = Number.isFinite(sizeN)
+    ? Math.min(100, Math.max(5, Math.floor(sizeN)))
+    : 10;
+  return { page, pageSize, skip: (page - 1) * pageSize };
+}
 
 /**
  * Predicado coherentes con listados y exportaciones (evita `contains` en códigos de acción RBAC).

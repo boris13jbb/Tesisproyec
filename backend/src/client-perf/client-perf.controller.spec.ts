@@ -135,4 +135,21 @@ describe('POST /client-perf/web-vitals (anti-falsificación RUM)', () => {
       .expect(403);
     expect(auditLog).not.toHaveBeenCalled();
   });
+
+  it('omite query string del pathname (no audita token en URL)', async () => {
+    await request(app.getHttpServer())
+      .post('/client-perf/web-vitals')
+      .send({
+        metric: 'LCP',
+        valueMs: 900,
+        rating: 'good',
+        pathname: '/dashboard?accessToken=should-not-persist#frag',
+      })
+      .expect(204);
+
+    const calls = auditLog.mock.calls as Array<
+      [{ meta?: { pathname?: string | null } }]
+    >;
+    expect(calls[0]?.[0]?.meta?.pathname).toBe('/dashboard');
+  });
 });

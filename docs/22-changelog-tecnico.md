@@ -24,6 +24,14 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Auditoría transversal (trazabilidad / privacidad / integridad)
+
+- **Redacción:** claves compuestas (`setupChallengeToken`, `otpauthUrl`, `Set-Cookie`, etc.) además del set exacto; sigue aplicándose **antes de persistir**.
+- **API:** fechas inválidas y `from > to` → 400; paginación NaN/negativa/enorme clampada; orden `createdAt desc` + `id desc`.
+- **Export auditoría:** mismas fechas 400 **antes** de `REPORT_EXPORTED`; tope 5000; redacción + sanitizer de fórmulas.
+- **RUM:** `pathname` sin query/fragmento.
+- Matriz: `MATRIZ_AUDITORIA_TRAZABILIDAD_INTEGRAL.md`.
+
 ### 2026-09-03 — Hardening autenticación / MFA / reset password
 
 - **MFA:** SUPERADMIN no puede desactivar TOTP si la política exige MFA admin; challenge one-time atómico; invalidación tras N fallos; setup sin campo JSON `secret` (sí `otpauthUrl` con `secret=` embebido + `secretMasked`); `Cache-Control: no-store` en begin setup.

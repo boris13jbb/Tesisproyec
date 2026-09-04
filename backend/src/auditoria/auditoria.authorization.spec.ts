@@ -202,4 +202,88 @@ describe('GET /auditoria (autorización y redacción)', () => {
     await request(app.getHttpServer()).patch('/auditoria/a1').expect(404);
     await request(app.getHttpServer()).delete('/auditoria/a1').expect(404);
   });
+
+  it('CONSULTA → 403 (rol no ADMIN)', async () => {
+    setUser({
+      id: 'consulta-1',
+      email: 'consulta@local.test',
+      nombres: 'Consulta',
+      apellidos: 'QA',
+      roles: [{ codigo: 'CONSULTA', nombre: 'Consulta' }],
+      dependenciaId: null,
+    });
+    getCodesForUserId.mockResolvedValue(new Set([PERM.AUDIT_READ]));
+
+    await request(app.getHttpServer()).get('/auditoria').expect(403);
+    expect(auditLogFindMany).not.toHaveBeenCalled();
+  });
+
+  it('fecha inválida → 400 (no consulta Prisma)', async () => {
+    setUser({
+      id: 'admin-dates',
+      email: 'admin-dates@local.test',
+      nombres: 'Admin',
+      apellidos: 'Dates',
+      roles: [{ codigo: 'ADMIN', nombre: 'Administrador' }],
+      dependenciaId: null,
+    });
+    getCodesForUserId.mockResolvedValue(new Set([PERM.AUDIT_READ]));
+
+    await request(app.getHttpServer())
+      .get('/auditoria')
+      .query({ from: 'not-a-date' })
+      .expect(400);
+    expect(auditLogFindMany).not.toHaveBeenCalled();
+  });
+
+  it('from posterior a to → 400', async () => {
+    setUser({
+      id: 'admin-range',
+      email: 'admin-range@local.test',
+      nombres: 'Admin',
+      apellidos: 'Range',
+      roles: [{ codigo: 'ADMIN', nombre: 'Administrador' }],
+      dependenciaId: null,
+    });
+    getCodesForUserId.mockResolvedValue(new Set([PERM.AUDIT_READ]));
+
+    await request(app.getHttpServer())
+      .get('/auditoria')
+      .query({
+        from: '2026-09-02T00:00:00.000Z',
+        to: '2026-09-01T00:00:00.000Z',
+      })
+      .expect(400);
+    expect(auditLogFindMany).not.toHaveBeenCalled();
+  });
+
+  it('page/pageSize abusivos se clampan (no dump masivo)', async () => {
+    setUser({
+      id: 'admin-page',
+      email: 'admin-page@local.test',
+      nombres: 'Admin',
+      apellidos: 'Page',
+      roles: [{ codigo: 'ADMIN', nombre: 'Administrador' }],
+      dependenciaId: null,
+    });
+    getCodesForUserId.mockResolvedValue(new Set([PERM.AUDIT_READ]));
+    auditLogCount.mockResolvedValue(0);
+    auditLogFindMany.mockResolvedValue([]);
+
+    const res = await request(app.getHttpServer())
+      .get('/auditoria')
+      .query({ page: '-1', pageSize: '99999' })
+      .expect(200);
+
+    const body = res.body as { page: number; pageSize: number };
+    expect(body.page).toBe(1);
+    expect(body.pageSize).toBe(100);
+    expect(auditLogFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 100,
+        skip: 0,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
+  });
 });

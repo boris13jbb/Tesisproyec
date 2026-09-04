@@ -4,6 +4,8 @@
 **Alcance:** `AuditLog` transversal, historial documental (`DocumentoEvento` / `DocumentoArchivoEvento`), API de consulta, exportación y UI `/admin/auditoria`.  
 **Estándares:** ISO/IEC 27001:2022 (evidencia/trazabilidad), ISO 15489 (registros confiables), OWASP ASVS (V4 acceso, V7/V8 secretos/datos, V10 logging).
 
+Equivalente de inventario integral (eventos, actor, export, integridad): **`MATRIZ_AUDITORIA_TRAZABILIDAD_INTEGRAL.md`**.
+
 ## Objetivo
 
 Documentar el comportamiento **real** de generación, lectura, alcance, redacción e integridad de la auditoría, sin inventar endpoints ni permisos. El **backend es autoridad**; la UI solo refleja rol + permiso.
@@ -225,7 +227,7 @@ No hay política automática de borrado/archivado de `audit_logs` en código. Do
 | `resourceType` / `resourceId` | Servidor `ClientPerf` / `null` | No |
 | `correlationId` | Servidor `null` | No |
 | `createdAt` | BD | No |
-| `meta.metric|valueMs|rating|pathname|navigationType|metricId` | DTO validado | Solo dentro de rangos/whitelist |
+| `meta.pathname` | DTO; **sin query/fragmento** | Path de ruta, no `?token=` |
 | Headers Authorization / cookies / password | No se aceptan en DTO | Rechazo `forbidNonWhitelisted` |
 
 - Auth: JWT obligatorio.  
