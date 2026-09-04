@@ -17,9 +17,12 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
   - **Rotación de refresh (ASVS V3)**: cada `POST /auth/refresh` invalida el refresh usado y emite uno nuevo (misma `expires_at` en BD que el token anterior); la cookie HttpOnly se renueva desde el servidor.
   - **Inactividad (ASVS V3)**: columna `last_used_at` en `refresh_tokens`; si no hay refresh dentro del umbral `SESSION_INACTIVITY_MINUTES`, la sesión deja de poder renovarse.
   - Rate limiting en login y recuperación (ver infra / `@nestjs/throttler`).
-  - **Lockout por cuenta (R-9 MVP):** tras N intentos fallidos de contraseña la cuenta queda bloqueada unos minutos (`users.failed_login_attempts` / `users.locked_until`); valores `AUTH_LOCKOUT_MAX_ATTEMPTS` y `AUTH_LOCKOUT_MINUTES` en `.env` (ver `.env.example`). Se limpia en login exitoso y al confirmar/recibir reset de contraseña.
+  - **Lockout por cuenta (R-9 MVP):** tras N intentos fallidos de contraseña la cuenta queda bloqueada unos minutos (`users.failed_login_attempts` / `users.locked_until`). Valores efectivos desde **`SecurityPolicy`** (si existe fila `default`) o fallback env `AUTH_LOCKOUT_*`. Se limpia en login exitoso y al confirmar reset de contraseña.
   - Argon2id en usuarios.
-  - Recuperación de credenciales: tokens opacos (hash SHA-256 en BD), un solo uso, expiración; **opcionalmente envío SMTP** (`MailService`/nodemailer) del enlace a `/restablecer?token=`.
+  - MFA/TOTP: secret cifrado; challenges hasheados one-time; setup API **sin** campo JSON `secret` (sí URI `otpauthUrl` con `secret=` embebido + `secretMasked`; `Cache-Control: no-store`).
+  - JWT access firmado/verificado solo con **HS256**.
+  - Recuperación de credenciales: tokens opacos (hash SHA-256 en BD), un solo uso con claim atómico, expiración; **opcionalmente envío SMTP** (`MailService`/nodemailer) del enlace a `/restablecer?token=`.
+  - Matriz de auditoría: `MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md`.
   - Endpoints:
     - `POST /api/v1/auth/login`
     - `POST /api/v1/auth/refresh`
@@ -42,7 +45,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 
 ### OWASP ASVS (Nivel 2, secciones clave)
 - **V2 Autenticación**: credenciales validadas en servidor, mensajes genéricos, no enumeración.
-- **V3 Sesión**: expiración de access, refresh en cookie HttpOnly, logout revoca.
+- **V3 Sesión**: expiración de access (`JWT_ACCESS_EXPIRES`, default `15m`), refresh en cookie HttpOnly; logout/reset **revocan refresh** (el access ya emitido es stateless hasta `exp`, salvo `activo=false`).
 - **V4 Control de acceso**: `/me` y operaciones protegidas por JWT; mutaciones administrativas por rol (ver `07`).
 - **V5 Validación**: DTOs + `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
 - **V10 Logging**: eventos de autenticación registrados en **`audit_logs`** vía `AuditService` (login/refresh/logout/reset; ver `backend/src/auth/auth.service.ts`). Política de retención y consulta admin: `15-modulo-auditoria.md`.
@@ -50,7 +53,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 ### ISO/IEC 27001:2022 (aplicación práctica)
 - **Control de acceso / IAM**: autenticación centralizada; roles en token (vía `/me`).
 - **Registro de eventos**: diseño de eventos auditables (login/logout, reset password, denegaciones).
-- **Gestión de credenciales**: hash fuerte (Argon2id), restablecimiento seguro, invalidación de sesión.
+- **Gestión de credenciales**: hash fuerte (Argon2id), restablecimiento seguro, **revocación de refresh** (forzar re-login al renovar).
 
 ### ISO 15489 (interacción con gestión documental)
 - La autenticación/identidad sustenta la **atribución** de acciones (`created_by_id`) en trazabilidad documental (quién hizo qué y cuándo).
@@ -62,10 +65,10 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 
 ## Flujos
 
-- Login → tokens; refresh periódico; logout revoca/borra refresh.
+- Login → tokens; refresh periódico; logout revoca/borra **refresh** (access en cliente se limpia en UI; el JWT access en sí permanece válido hasta `exp` si alguien lo reutilizara).
 - Recuperación:
   - Solicitud (`/password-reset/request`) → **respuesta constante** (no revela si el correo existe) y generación de token (si aplica).
-  - Confirmación (`/password-reset/confirm`) → valida token (vigente y no usado), actualiza `password_hash`, marca token como usado e invalida refresh tokens activos.
+  - Confirmación (`/password-reset/confirm`) → valida token (vigente y no usado), actualiza `password_hash`, marca token como usado e **revoca refresh tokens activos** (access JWT previos: hasta `exp`).
 
 ### Diagrama (texto)
 
@@ -79,19 +82,19 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 - Si `401` → UI → `POST /auth/refresh` (cookie) → nuevo access → reintenta request
 
 3) **Logout**
-- UI → `POST /auth/logout` (cookie) → API revoca refresh → limpia cookie (en respuesta)
+- UI → `POST /auth/logout` (cookie) → API revoca refresh → limpia cookie (en respuesta). Access JWT: sin denylist (válido hasta `exp`); la UI limpia el access en memoria.
 
 4) **Olvidé mi contraseña**
 - UI → `POST /auth/password-reset/request` (email) → API responde **siempre** `{ ok: true }`
-- UI → `POST /auth/password-reset/confirm` (token + newPassword) → API actualiza password, marca token usado e invalida sesiones
+- UI → `POST /auth/password-reset/confirm` (token + newPassword) → API actualiza password, marca token usado y **revoca refresh** (access previos hasta `exp`).
 
 ## Endpoints
 
 - `POST /api/v1/auth/login` — body `{ email, password }`; responde `{ accessToken, user }` y fija cookie de refresh.
 - `POST /api/v1/auth/refresh` — usa cookie; responde `{ accessToken, user }` o `401` si no hay sesión válida.
 - `POST /api/v1/auth/session/restore` — usa cookie; **siempre 200** con `{ restored: true, accessToken, user }` o `{ restored: false }`; limpia cookie si el refresh es inválido.
-- `POST /api/v1/auth/logout` — revoca refresh en BD y borra cookie (204).
-- `GET /api/v1/auth/me` — cabecera `Authorization: Bearer <access>`; usuario con roles.
+- `POST /api/v1/auth/logout` — revoca refresh en BD y borra cookie (204). No denylist de access JWT.
+- `GET /api/v1/auth/me` — cabecera `Authorization: Bearer <access>`; usuario con roles (revalida `activo` en strategy).
 
 ### Recuperación de credenciales (olvidé mi contraseña)
 
@@ -103,7 +106,7 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 - `POST /api/v1/auth/password-reset/confirm`
   - Body: `{ token, newPassword }`
   - Respuesta: `200 { ok: true }` o `401` si token inválido/expirado/usado/revocado
-  - Efecto: actualiza contraseña (Argon2id) e invalida sesiones (refresh tokens) para forzar re-login.
+  - Efecto: actualiza contraseña (Argon2id) y **revoca refresh tokens activos** (forzar re-login al renovar). Access JWT previos: válidos hasta `exp`.
 
 ## Pantallas
 
@@ -129,8 +132,9 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
     - `maxAge` según `JWT_REFRESH_DAYS`
 - **Access token**:
   - Se usa en header `Authorization: Bearer ...`
-  - Vida: `JWT_ACCESS_EXPIRES` (default `15m`)
+  - Vida: `JWT_ACCESS_EXPIRES` (default `15m` en `.env.example` y fallback de `auth.service.ts`)
   - Almacenamiento: **memoria** (frontend), nunca en `localStorage` para refresh.
+  - Stateless: logout/reset **no** denylistean el access; tras desactivar usuario, `JwtStrategy` rechaza por `activo=false`.
 
 ## Validaciones
 
@@ -145,9 +149,10 @@ Login, logout, refresh, expiración; **recuperación de credenciales (olvidé mi
 
 - **RB-Auth-01**: si el usuario está inactivo (`activo=false`), el login debe fallar con mensaje genérico.
 - **RB-Auth-02**: el refresh token debe ser revocable; logout marca `revoked_at`.
-- **RB-Auth-03**: el restablecimiento de contraseña invalida sesiones vigentes (revoca refresh tokens activos).
+- **RB-Auth-03**: el restablecimiento de contraseña **revoca refresh tokens activos** (no denylist de access JWT; TTL access corto).
 - **RB-Auth-04**: `password-reset/request` no revela si el correo existe (anti-enumeración).
 - **RB-Auth-05**: el token de reset es **un solo uso** (`used_at`) y expira (`expires_at`).
+- **RB-Auth-06**: usuario `activo=false` → login genérico fallido; requests con access previo → `401` en `JwtStrategy`.
 
 ## Eventos auditables (bitácora `audit_logs`)
 
@@ -203,7 +208,7 @@ MFA institucional, CAPTCHA en recuperación si la política lo exige, límite ad
 
 5) **Recuperación (confirm)**
 - Acción: `/restablecer` con token válido + contraseña nueva (>=8).
-- Esperado: `200 { ok: true }`, y sesiones previas invalidadas (relogin requerido).
+- Esperado: `200 { ok: true }`, refresh previos revocados (relogin vía cookie/refresh falla); access JWT previos solo hasta `exp`.
 
 ---
 

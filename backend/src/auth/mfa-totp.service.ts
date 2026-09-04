@@ -163,13 +163,43 @@ export class MfaTotpService {
   }
 
   async consumeChallenge(challengeId: string): Promise<void> {
-    await this.prisma.mfaLoginChallenge.delete({ where: { id: challengeId } });
+    await this.prisma.mfaLoginChallenge.deleteMany({
+      where: { id: challengeId },
+    });
+  }
+
+  /**
+   * Consumo one-time atómico: solo un verify concurrente gana.
+   * count !== 1 → desafío ya usado o expirado.
+   */
+  private async consumeChallengeOnce(challengeId: string): Promise<void> {
+    const deleted = await this.prisma.mfaLoginChallenge.deleteMany({
+      where: { id: challengeId, expiresAt: { gt: new Date() } },
+    });
+    if (deleted.count !== 1) {
+      throw new UnauthorizedException();
+    }
+    this.challengeFailCounts.delete(challengeId);
+  }
+
+  private readonly challengeFailCounts = new Map<string, number>();
+  private static readonly MAX_CHALLENGE_FAILURES = 5;
+
+  private async registerChallengeFailure(challengeId: string): Promise<void> {
+    const next = (this.challengeFailCounts.get(challengeId) ?? 0) + 1;
+    this.challengeFailCounts.set(challengeId, next);
+    if (next >= MfaTotpService.MAX_CHALLENGE_FAILURES) {
+      await this.prisma.mfaLoginChallenge.deleteMany({
+        where: { id: challengeId },
+      });
+      this.challengeFailCounts.delete(challengeId);
+    }
   }
 
   async beginSetupForChallenge(
     challengeToken: string,
     email: string,
-  ): Promise<{ otpauthUrl: string; secretMasked: string; secret: string }> {
+  ): Promise<{ otpauthUrl: string; secretMasked: string }> {
     const row = await this.resolveChallenge(challengeToken, 'SETUP');
     const secret = this.generateSecret();
     const secretEnc = encryptMfaSecret(secret, this.encryptionMaterial());
@@ -189,13 +219,13 @@ export class MfaTotpService {
 
     const otpauthUrl = this.buildOtpAuthUrl(email, secret);
     const secretMasked = `${secret.slice(0, 4)}…${secret.slice(-4)}`;
-    return { otpauthUrl, secretMasked, secret };
+    return { otpauthUrl, secretMasked };
   }
 
   async beginSetupForAuthenticatedUser(
     userId: string,
     email: string,
-  ): Promise<{ otpauthUrl: string; secretMasked: string; secret: string }> {
+  ): Promise<{ otpauthUrl: string; secretMasked: string }> {
     const secret = this.generateSecret();
     const secretEnc = encryptMfaSecret(secret, this.encryptionMaterial());
 
@@ -208,7 +238,6 @@ export class MfaTotpService {
     return {
       otpauthUrl: this.buildOtpAuthUrl(email, secret),
       secretMasked: `${secret.slice(0, 4)}…${secret.slice(-4)}`,
-      secret,
     };
   }
 
@@ -288,6 +317,7 @@ export class MfaTotpService {
 
     const secret = decryptMfaSecret(totp.secretEnc, this.encryptionMaterial());
     if (!this.verifyCode(secret, code)) {
+      await this.registerChallengeFailure(row.id);
       await this.audit.log({
         action: 'AUTH_MFA_VERIFY_FAIL',
         result: 'FAIL',
@@ -302,6 +332,8 @@ export class MfaTotpService {
       });
       throw new UnauthorizedException('Código de verificación incorrecto');
     }
+
+    await this.consumeChallengeOnce(row.id);
 
     await this.audit.log({
       action: 'AUTH_MFA_VERIFY_OK',
@@ -334,11 +366,17 @@ export class MfaTotpService {
     challengeId: string;
   }> {
     const row = await this.resolveChallenge(challengeToken, 'SETUP');
-    await this.confirmSetup(row.userId, code, {
-      ip: context?.ip,
-      userAgent: context?.userAgent,
-      email: row.user.email,
-    });
+    try {
+      await this.confirmSetup(row.userId, code, {
+        ip: context?.ip,
+        userAgent: context?.userAgent,
+        email: row.user.email,
+      });
+    } catch (err) {
+      await this.registerChallengeFailure(row.id);
+      throw err;
+    }
+    await this.consumeChallengeOnce(row.id);
     return { user: row.user, challengeId: row.id };
   }
 
@@ -359,7 +397,10 @@ export class MfaTotpService {
     const mustKeep =
       (await this.isAdminMfaRequiredByPolicy()) &&
       (await this.prisma.userRole.findFirst({
-        where: { userId, role: { codigo: 'ADMIN' } },
+        where: {
+          userId,
+          role: { codigo: { in: ['ADMIN', 'SUPERADMIN'] } },
+        },
       })) != null;
 
     if (mustKeep) {

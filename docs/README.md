@@ -71,6 +71,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md](./MATRIZ_WORKFLOW_ESTADOS_DOCUMENTALES.md) | **Matriz Workflow / estados** (transiciones, PATCH anti-bypass, mutabilidad) |
 | [MATRIZ_DESBLOQUEO_DOCUMENTAL.md](./MATRIZ_DESBLOQUEO_DOCUMENTAL.md) | **Desbloqueo controlado** (`DOC_UNLOCK`, inmutabilidad, delegación SUPERADMIN→ADMIN) |
 | [MATRIZ_SEGURIDAD_ARCHIVOS.md](./MATRIZ_SEGURIDAD_ARCHIVOS.md) | **Seguridad de archivos** (upload/download/delete, IDOR, path, MIME, storage) |
+| [MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md](./MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md) | **Auth / sesiones / MFA / reset** (JWT, refresh, enumeration, rate limit) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |

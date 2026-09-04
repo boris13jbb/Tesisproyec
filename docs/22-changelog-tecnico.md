@@ -24,6 +24,14 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Hardening autenticación / MFA / reset password
+
+- **MFA:** SUPERADMIN no puede desactivar TOTP si la política exige MFA admin; challenge one-time atómico; invalidación tras N fallos; setup sin campo JSON `secret` (sí `otpauthUrl` con `secret=` embebido + `secretMasked`); `Cache-Control: no-store` en begin setup.
+- **JWT:** firma/verify restringidos a HS256; access TTL `JWT_ACCESS_EXPIRES` (default `15m`). Logout/reset revocan **refresh**; access ya emitido es stateless hasta `exp` (desactivación sí corta access vía `activo`).
+- **Reset:** claim concurrente con `updateMany` (`usedAt: null`); lockout runtime desde `SecurityPolicy`.
+- **UI:** clave manual TOTP derivada del `otpauthUrl` en memoria (sin persistir).
+- Matriz: `MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md` (precisión otpauth + revocación refresh vs access).
+
 ### 2026-09-03 — Hardening seguridad de archivos documentales
 
 - **API:** nombre físico `UUID.pdf` (no `originalname`); MIME/extensión obligatorios + firma `%PDF`; límite 50 MB también en servicio (413); download `attachment` + `nosniff`; delete usa visibilidad del documento.

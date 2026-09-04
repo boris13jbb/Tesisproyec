@@ -364,6 +364,7 @@ export class AuthService {
 
   private accessSignOptions(): JwtSignOptions {
     return {
+      algorithm: 'HS256',
       expiresIn: (this.config.get<string>('JWT_ACCESS_EXPIRES') ??
         '15m') as JwtSignOptions['expiresIn'],
     };
@@ -379,6 +380,51 @@ export class AuthService {
     return Number.isFinite(n)
       ? Math.min(24 * 60, Math.max(5, Math.floor(n)))
       : 15;
+  }
+
+  /** Lockout efectivo: SecurityPolicy (si existe) gana sobre env. */
+  private async resolveLoginLockout(): Promise<{
+    enabled: boolean;
+    max: number;
+    minutes: number;
+  }> {
+    const row = await this.prisma.securityPolicy.findUnique({
+      where: { id: 'default' },
+      select: {
+        desiredLockoutEnabled: true,
+        desiredLockoutMaxAttempts: true,
+        desiredLockoutMinutes: true,
+      },
+    });
+    if (row) {
+      if (!row.desiredLockoutEnabled) {
+        return {
+          enabled: false,
+          max: this.loginLockoutMaxAttempts(),
+          minutes: this.loginLockoutMinutes(),
+        };
+      }
+      return {
+        enabled: true,
+        max: this.clampInt(
+          row.desiredLockoutMaxAttempts,
+          this.loginLockoutMaxAttempts(),
+          3,
+          30,
+        ),
+        minutes: this.clampInt(
+          row.desiredLockoutMinutes,
+          this.loginLockoutMinutes(),
+          5,
+          24 * 60,
+        ),
+      };
+    }
+    return {
+      enabled: true,
+      max: this.loginLockoutMaxAttempts(),
+      minutes: this.loginLockoutMinutes(),
+    };
   }
 
   async login(
@@ -433,10 +479,11 @@ export class AuthService {
 
     const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) {
-      const max = this.loginLockoutMaxAttempts();
-      const lockMinutes = this.loginLockoutMinutes();
+      const lockout = await this.resolveLoginLockout();
+      const max = lockout.max;
+      const lockMinutes = lockout.minutes;
       const nextAttempt = user.failedLoginAttempts + 1;
-      const shouldLock = nextAttempt >= max;
+      const shouldLock = lockout.enabled && nextAttempt >= max;
       const lockedUntil = shouldLock
         ? new Date(now.getTime() + lockMinutes * 60_000)
         : null;
@@ -444,7 +491,11 @@ export class AuthService {
       await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          failedLoginAttempts: shouldLock ? 0 : nextAttempt,
+          failedLoginAttempts: shouldLock
+            ? 0
+            : lockout.enabled
+              ? nextAttempt
+              : user.failedLoginAttempts,
           lockedUntil,
         },
       });
@@ -460,7 +511,7 @@ export class AuthService {
         },
         meta: {
           reason: 'BAD_PASSWORD',
-          attempt: nextAttempt,
+          attempt: lockout.enabled ? nextAttempt : undefined,
           ...(shouldLock && lockedUntil
             ? { lockedUntil: lockedUntil.toISOString() }
             : {}),
@@ -987,25 +1038,51 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(input.newPassword);
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: row.userId },
-        data: {
-          passwordHash,
-          failedLoginAttempts: 0,
-          lockedUntil: null,
-        },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: row.id },
-        data: { usedAt: new Date() },
-      }),
-      // Invalida sesiones activas: fuerza re-login tras restablecer contraseña.
-      this.prisma.refreshToken.updateMany({
-        where: { userId: row.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.passwordResetToken.updateMany({
+          where: {
+            id: row.id,
+            usedAt: null,
+            revokedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+          data: { usedAt: new Date() },
+        });
+        if (claimed.count !== 1) {
+          throw new UnauthorizedException();
+        }
+
+        await tx.user.update({
+          where: { id: row.userId },
+          data: {
+            passwordHash,
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+
+        // Invalida sesiones activas: fuerza re-login tras restablecer contraseña.
+        await tx.refreshToken.updateMany({
+          where: { userId: row.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      });
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        await this.audit.log({
+          action: 'AUTH_PASSWORD_RESET_CONFIRM_FAIL',
+          result: 'FAIL',
+          resource: { type: 'User', id: row.userId },
+          context: {
+            actorUserId: row.userId,
+            actorEmail: row.user.email,
+          },
+          meta: { reason: 'TOKEN_ALREADY_USED' },
+        });
+      }
+      throw err;
+    }
 
     await this.passwordPolicy.recordPasswordChange(
       row.userId,
@@ -1150,6 +1227,7 @@ export class AuthService {
     const historyCount =
       await this.passwordPolicy.getEffectivePasswordHistoryCount();
     const mfaRequired = await this.mfaTotp.isAdminMfaRequiredByPolicy();
+    const lockout = await this.resolveLoginLockout();
 
     return {
       schemaVersion: 1,
@@ -1166,9 +1244,9 @@ export class AuthService {
         algorithm: 'TOTP',
       },
       accountLockout: {
-        enabled: true,
-        maxFailedAttempts: this.loginLockoutMaxAttempts(),
-        lockoutMinutes: this.loginLockoutMinutes(),
+        enabled: lockout.enabled,
+        maxFailedAttempts: lockout.max,
+        lockoutMinutes: lockout.minutes,
       },
       jwtAccessExpiresIn:
         this.config.get<string>('JWT_ACCESS_EXPIRES') ?? '15m',

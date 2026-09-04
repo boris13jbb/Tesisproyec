@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Post,
   Req,
@@ -126,6 +127,7 @@ export class AuthController {
 
   @Post('mfa/setup/begin-login')
   @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 10, ttl: 10 * 60_000 } })
   beginMfaSetupLogin(@Body() dto: MfaSetupChallengeDto) {
     return this.authService.beginMfaSetupFromChallenge(dto.setupChallengeToken);
@@ -175,6 +177,7 @@ export class AuthController {
 
   @Post('mfa/setup/begin')
   @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
   @UseGuards(JwtAuthGuard)
   beginMfaSetup(@Req() req: Request & { user: JwtRequestUser }) {
     return this.authService.beginMyMfaSetup(req.user.id, req.user.email);

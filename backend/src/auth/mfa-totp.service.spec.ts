@@ -27,6 +27,7 @@ describe('MfaTotpService', () => {
       create: jest.fn(),
       findUnique: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     securityPolicy: {
       findUnique: jest.fn(),

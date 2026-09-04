@@ -84,7 +84,6 @@ export function LoginPage() {
       );
       setSetupPayload({
         otpauthUrl: data.otpauthUrl,
-        secret: data.secret,
         secretMasked: data.secretMasked,
       });
     } catch (err: unknown) {

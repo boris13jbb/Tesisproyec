@@ -15,10 +15,10 @@ import {
 } from '@mui/material';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
+import { extractTotpSecretFromOtpauth } from './otpauth-secret';
 
 export type MfaSetupPayload = {
   otpauthUrl: string;
-  secret: string;
   secretMasked: string;
 };
 
@@ -62,11 +62,14 @@ export function MfaSetupPanel({
   const [copyHint, setCopyHint] = useState<string | null>(null);
 
   const handleCopySecret = async () => {
-    if (!setupPayload?.secret) {
+    const secret = setupPayload
+      ? extractTotpSecretFromOtpauth(setupPayload.otpauthUrl)
+      : '';
+    if (!secret) {
       return;
     }
     try {
-      await navigator.clipboard.writeText(setupPayload.secret);
+      await navigator.clipboard.writeText(secret);
       setCopyHint('Clave copiada al portapapeles.');
     } catch {
       setCopyHint('No se pudo copiar. Copie la clave manualmente.');
@@ -178,7 +181,10 @@ export function MfaSetupPanel({
               <TextField
                 value={
                   setupPayload
-                    ? maskedSecretDisplay(setupPayload.secret, secretVisible)
+                    ? maskedSecretDisplay(
+                        extractTotpSecretFromOtpauth(setupPayload.otpauthUrl),
+                        secretVisible,
+                      )
                     : ''
                 }
                 fullWidth

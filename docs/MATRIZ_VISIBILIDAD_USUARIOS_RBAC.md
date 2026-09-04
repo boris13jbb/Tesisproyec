@@ -111,14 +111,16 @@ No hay endpoint administrativo para resetear MFA de terceros.
 
 ---
 
-## 7. Sesiones tras desactivar
+## 7. Sesiones tras eventos sensibles
 
-| Token | Comportamiento |
-|-------|----------------|
-| Refresh | **Revocado** al desactivar / reset password / cambio sensible de roles-permisos |
-| Access JWT | Sigue válido hasta expirar **pero** `JwtStrategy.validate` exige `activo` → **401** en cada request autenticado |
+| Evento | Refresh | Access JWT ya emitido |
+|--------|---------|------------------------|
+| Logout | Revocado + cookie borrada | Válido hasta `exp` (~15m default); UI limpia memoria |
+| Password reset self | Revocado | Válido hasta `exp` |
+| Password reset admin | Revocado | Válido hasta `exp` |
+| Desactivar usuario | Revocado | **401** en siguiente request (`JwtStrategy` exige `activo`) |
 
-Política documentada: no hay denylist de access tokens; defensa = refresh revoke + check `activo` en validate.
+Política: no hay denylist de access tokens. Defensa = revocación de refresh + check `activo` + TTL corto del access.
 
 ---
 
@@ -221,7 +223,7 @@ Eventos típicos: `USER_CREATED`, `USER_UPDATED`, `ROLE_ASSIGNED`/`REVOKED`, `US
 | Rol | MFA enrolado | Comportamiento login (política `desiredAdminStepUpAuth=true`) |
 |-----|--------------|---------------------------------------------------------------|
 | SUPERADMIN | Sí | Password OK → `mfaRequired` + challenge LOGIN → TOTP → sesión |
-| SUPERADMIN | No | Password OK → `mfaSetupRequired` + `setupChallengeToken` → `POST /auth/mfa/setup/begin-login` (otpauth/secret de enrolamiento) → confirm → sesión. **No bloqueo / no loop MFA_REQUIRED** |
+| SUPERADMIN | No | Password OK → `mfaSetupRequired` + `setupChallengeToken` → `POST /auth/mfa/setup/begin-login` (`otpauthUrl` + `secretMasked`; sin campo `secret`) → confirm → sesión. **No bloqueo / no loop MFA_REQUIRED** |
 | ADMIN | Sí | Igual que antes: `mfaRequired` (verificado `admin@local.test`) |
 | ADMIN | No | `mfaSetupRequired` (mismo flujo de enrolamiento) |
 | USER | Sí/No | Sin step-up administrativo; sesión directa si password OK |
