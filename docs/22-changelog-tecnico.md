@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Hardening seguridad de archivos documentales
+
+- **API:** nombre físico `UUID.pdf` (no `originalname`); MIME/extensión obligatorios + firma `%PDF`; límite 50 MB también en servicio (413); download `attachment` + `nosniff`; delete usa visibilidad del documento.
+- **Multer:** `LIMIT_FILE_SIZE` → 413 sin stack.
+- Matriz: `MATRIZ_SEGURIDAD_ARCHIVOS.md`.
+
 ### 2026-09-03 — Inmutabilidad protegida + DOC_UNLOCK
 
 - **API:** estados `EN_REVISION`/`APROBADO`/`ARCHIVADO` congelan metadata y archivos; `POST /documentos/:id/desbloquear` (motivo obligatorio, `DOC_UNLOCK`, concurrencia condicional) → `REGISTRADO`.

@@ -135,7 +135,20 @@ describe('DocumentosService — seguridad (alcance / IDOR)', () => {
     expect(prisma.documentoArchivo.aggregate).not.toHaveBeenCalled();
   });
 
-  it('prepareDownloadArchivo — documento ajeno → 404', async () => {
+  it('prepareDownloadArchivo — archivoId de otro documento → 404', async () => {
+    prisma.documento.findFirst.mockResolvedValue({ id: docOwnId });
+    prisma.documentoArchivo.findFirst.mockResolvedValue(null);
+    await expect(
+      service.prepareDownloadArchivo(
+        docOwnId,
+        'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        userA,
+        null,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('prepareDownloadArchivo — documento ajeno no consulta archivo', async () => {
     prisma.documento.findFirst.mockResolvedValue(null);
     await expect(
       service.prepareDownloadArchivo(
@@ -145,6 +158,7 @@ describe('DocumentosService — seguridad (alcance / IDOR)', () => {
         null,
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.documentoArchivo.findFirst).not.toHaveBeenCalled();
   });
 
   it('findAll — count y findMany usan el mismo where con scope', async () => {

@@ -22,6 +22,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
+import {
+  assertPdfFilenameAndMime,
+  DOCUMENTO_ARCHIVO_MAX_BYTES,
+  safeContentDispositionFilename,
+} from './documento-archivo-storage.util';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -215,7 +220,15 @@ export class DocumentosController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+      limits: { fileSize: DOCUMENTO_ARCHIVO_MAX_BYTES },
+      fileFilter: (_req, file, cb) => {
+        try {
+          assertPdfFilenameAndMime(file.originalname, file.mimetype);
+          cb(null, true);
+        } catch (err) {
+          cb(err as Error, false);
+        }
+      },
     }),
   )
   uploadArchivo(
@@ -264,8 +277,11 @@ export class DocumentosController {
           userAgent: req.headers['user-agent'] ?? null,
         },
       );
+    const safeName = safeContentDispositionFilename(downloadName);
     res.setHeader('Content-Type', mimeType);
-    return res.download(absPath, downloadName);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    return res.download(absPath, safeName);
   }
 
   @Get(':id/archivos/:archivoId/eventos')
@@ -347,12 +363,17 @@ export class DocumentosController {
         'Usuario no disponible en request',
       );
     }
-    return this.service.deleteArchivo(id, archivoId, deletedById, {
-      actorUserId: deletedById,
-      actorEmail: req.user?.email ?? null,
-      ip: req.ip ?? null,
-      userAgent: req.headers['user-agent'] ?? null,
-    });
+    return this.service.deleteArchivo(
+      id,
+      archivoId,
+      req.user as JwtRequestUser,
+      {
+        actorUserId: deletedById,
+        actorEmail: req.user?.email ?? null,
+        ip: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    );
   }
 
   @Patch(':id')

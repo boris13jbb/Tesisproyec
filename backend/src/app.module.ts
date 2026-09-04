@@ -18,6 +18,7 @@ import { ReportesModule } from './reportes/reportes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { ForbiddenAuditFilter } from './common/filters/forbidden-audit.filter';
+import { MulterLimitFilter } from './common/filters/multer-limit.filter';
 import { ThrottlerAuditFilter } from './common/filters/throttler-audit.filter';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { RbacModule } from './rbac/rbac.module';
@@ -109,6 +110,7 @@ class StartupConfigGuard implements OnModuleInit {
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: ThrottlerAuditFilter },
     { provide: APP_FILTER, useClass: ForbiddenAuditFilter },
+    { provide: APP_FILTER, useClass: MulterLimitFilter },
   ],
 })
 export class AppModule {}

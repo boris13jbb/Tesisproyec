@@ -466,11 +466,11 @@ Cuando el documento está **En revisión**, **Aprobado** o **Archivado**, el con
 
 > Esta sección está en la tarjeta **Vista previa** del detalle del documento. No aparece en Inicio.
 
-#### 8.2.1 Subir archivo (solo ADMIN)
+#### 8.2.1 Subir archivo (`DOC_FILES_UPLOAD`)
 
 1. Dentro del detalle del documento, en **Vista previa**, ubica **Archivos digitales**.
-2. Presiona **Subir archivo**.
-3. Selecciona un **PDF** (`.pdf`, máx 50MB).
+2. Presiona **Subir archivo** (disponible en **Borrador**, **Registrado** o **Rechazado**; no en **En revisión**, **Aprobado** ni **Archivado**).
+3. Selecciona un **PDF** (`.pdf`, máx 50 MB). Si el archivo es demasiado grande, verá un mensaje claro (no un error técnico 413).
 
 **Resultado esperado**
 - El archivo aparece como `v1` (o `v2`, `v3` si ya existía el mismo nombre).

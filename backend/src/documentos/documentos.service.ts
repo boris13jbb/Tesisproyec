@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import crypto from 'crypto';
 import fs from 'fs/promises';
@@ -53,6 +54,17 @@ import {
   normalizeDocumentoEstado,
   type DocumentoEstado,
 } from './documento-estado.util';
+import {
+  assertPdfFilenameAndMime,
+  assertPdfMagicBytes,
+  buildDocumentoArchivoPathRel,
+  buildStoredPdfName,
+  DOCUMENTO_ARCHIVO_MAX_BYTES,
+  DOCUMENTO_ARCHIVO_MIME_PDF,
+  downloadContentType,
+  resolveStoragePathOrThrow,
+  sanitizeOriginalName,
+} from './documento-archivo-storage.util';
 import { documentoWhereLibre } from './documento-q-filter.util';
 
 function escapeRegExpSegment(s: string): string {
@@ -830,61 +842,15 @@ export class DocumentosService {
     });
   }
 
-  /** Solo PDF institucional (MIME declarado). */
-  private allowedMimes(): Set<string> {
-    return new Set(['application/pdf']);
-  }
-
+  /** Solo PDF institucional (MIME declarado + firma). */
   private assertPdfUpload(file: Express.Multer.File): void {
-    const original = (file.originalname || '').trim().toLowerCase();
-    if (!original.endsWith('.pdf')) {
-      throw new BadRequestException('Solo se permiten archivos PDF (.pdf)');
-    }
-    const mime = (file.mimetype || '').trim().toLowerCase();
-    if (mime && !this.allowedMimes().has(mime)) {
-      throw new BadRequestException(
-        `Tipo de archivo no permitido (${file.mimetype || 'desconocido'}). Solo PDF.`,
-      );
-    }
-    const head = file.buffer?.subarray(0, 5)?.toString('latin1') ?? '';
-    if (!head.startsWith('%PDF')) {
-      throw new BadRequestException(
-        'El contenido no corresponde a un PDF válido',
-      );
-    }
-  }
-
-  private sanitizeName(name: string): string {
-    const base = name.trim().replace(/[/\\?%*:|"<>]/g, '_');
-    const safe = base.replace(/[^\w.\- ()]/g, '_');
-    return safe.length > 120 ? safe.slice(-120) : safe;
+    assertPdfFilenameAndMime(file.originalname, file.mimetype);
+    assertPdfMagicBytes(file.buffer);
   }
 
   private storageRootAbs(): string {
     // backend/dist queda en backend/dist; usamos la raíz del repo: backend/../storage
     return path.resolve(process.cwd(), '..', 'storage');
-  }
-
-  /**
-   * Resuelve pathRel bajo storage y rechaza traversal (`../`, absolutos).
-   * Defensa en profundidad: pathRel en BD debe permanecer anclado al root.
-   */
-  private resolveStoragePathOrThrow(pathRel: string): string {
-    const root = this.storageRootAbs();
-    if (!pathRel?.trim() || pathRel.includes('\0')) {
-      throw new NotFoundException('Archivo físico no disponible');
-    }
-    const rawParts = pathRel.split(/[/\\]+/).filter((s) => s.length > 0);
-    if (!rawParts.length || rawParts.some((s) => s === '..' || s === '.')) {
-      throw new NotFoundException('Archivo físico no disponible');
-    }
-    const absPath = path.resolve(root, ...rawParts);
-    const rootNorm = path.resolve(root);
-    const rel = path.relative(rootNorm, absPath);
-    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
-      throw new NotFoundException('Archivo físico no disponible');
-    }
-    return absPath;
   }
 
   async uploadArchivo(
@@ -905,9 +871,16 @@ export class DocumentosService {
     if (!file.buffer || !file.buffer.length) {
       throw new BadRequestException('Archivo vacío');
     }
+    if (file.buffer.length > DOCUMENTO_ARCHIVO_MAX_BYTES) {
+      throw new PayloadTooLargeException(
+        `El archivo excede el tamaño permitido (máx. ${Math.round(DOCUMENTO_ARCHIVO_MAX_BYTES / (1024 * 1024))} MB).`,
+      );
+    }
     this.assertPdfUpload(file);
 
-    const safeOriginal = this.sanitizeName(file.originalname || 'archivo');
+    const safeOriginal = sanitizeOriginalName(
+      file.originalname || 'archivo.pdf',
+    );
     const nextVersion =
       (
         await this.prisma.documentoArchivo.aggregate({
@@ -918,18 +891,16 @@ export class DocumentosService {
     const version = nextVersion + 1;
 
     const archivoId = crypto.randomUUID();
-    const storedName = `${archivoId}_${safeOriginal}`;
-    const relDir = path.posix.join('documentos', documentoId);
-    const pathRel = path.posix.join(relDir, storedName);
+    const storedName = buildStoredPdfName(archivoId);
+    const pathRel = buildDocumentoArchivoPathRel(documentoId, storedName);
+    const absPath = resolveStoragePathOrThrow(this.storageRootAbs(), pathRel);
+    const absDir = path.dirname(absPath);
 
     const sha256 = crypto
       .createHash('sha256')
       .update(file.buffer)
       .digest('hex');
-    const sizeBytes = file.size ?? file.buffer.length;
-
-    const absDir = path.join(this.storageRootAbs(), 'documentos', documentoId);
-    const absPath = path.join(absDir, storedName);
+    const sizeBytes = file.buffer.length;
 
     await fs.mkdir(absDir, { recursive: true });
     await fs.writeFile(absPath, file.buffer);
@@ -943,7 +914,7 @@ export class DocumentosService {
             version,
             originalName: safeOriginal,
             storedName,
-            mimeType: file.mimetype,
+            mimeType: DOCUMENTO_ARCHIVO_MIME_PDF,
             sizeBytes,
             sha256,
             pathRel,
@@ -1032,7 +1003,10 @@ export class DocumentosService {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    const absPath = this.resolveStoragePathOrThrow(row.pathRel);
+    const absPath = resolveStoragePathOrThrow(
+      this.storageRootAbs(),
+      row.pathRel,
+    );
     try {
       await fs.stat(absPath);
     } catch {
@@ -1065,17 +1039,18 @@ export class DocumentosService {
     return {
       absPath,
       downloadName: row.originalName,
-      mimeType: row.mimeType,
+      mimeType: downloadContentType(row.mimeType),
     };
   }
 
   async deleteArchivo(
     documentoId: string,
     archivoId: string,
-    deletedById: string,
+    viewer: JwtRequestUser,
     ctx?: AuditContext,
   ) {
-    const docBase = await this.loadDocumentoById(documentoId);
+    const deletedById = viewer.id;
+    const docBase = await this.loadDocumentoVisibleById(documentoId, viewer);
     assertContenidoMutable(docBase.estado);
     const row = await this.prisma.documentoArchivo.findFirst({
       where: { id: archivoId, documentoId, activo: true },

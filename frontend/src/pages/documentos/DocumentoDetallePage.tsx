@@ -1074,7 +1074,11 @@ export function DocumentoDetallePage() {
       await apiClient.post(`/documentos/${id}/archivos`, form);
       await load();
     } catch (err: unknown) {
-      if (isAxiosError(err) && err.response?.data) {
+      if (isAxiosError(err) && err.response?.status === 413) {
+        setError(
+          `El archivo excede el tamaño permitido (máx ${Math.round(MAX_FILE_UPLOAD_BYTES / (1024 * 1024))} MB).`,
+        );
+      } else if (isAxiosError(err) && err.response?.data) {
         const d = err.response.data as { message?: string | string[] };
         const m = d.message;
         setError(Array.isArray(m) ? m.join(' ') : (m ?? 'No se pudo subir el archivo.'));

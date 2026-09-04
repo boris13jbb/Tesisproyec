@@ -16,14 +16,14 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 - **Storage:** guardado físico bajo `storage/documentos/<documentoId>/...` (ruta no expuesta directamente).
 - **Versionado:** versión incremental por documento + nombre (`version`), mantiene historial y permite múltiples cargas del “mismo” archivo.
 - **API:**
-  - `GET /api/v1/documentos/:id/archivos` (JWT)
-  - `POST /api/v1/documentos/:id/archivos` (JWT + `ADMIN`, multipart `file`, máx 10MB, lista blanca MIME)
-  - `GET /api/v1/documentos/:id/archivos/:archivoId/download` (JWT, descarga controlada)
-  - `GET /api/v1/documentos/:id/archivos/:archivoId/eventos` (JWT)
-  - `DELETE /api/v1/documentos/:id/archivos/:archivoId` (JWT + `ADMIN`, borrado lógico)
-- **Frontend:** en `/documentos/:id` sección **Archivos** para listar, subir (ADMIN) y descargar.
+  - `GET /api/v1/documentos/:id/archivos` — JWT + `DOC_FILES_READ`
+  - `POST /api/v1/documentos/:id/archivos` — JWT + `DOC_FILES_UPLOAD`, multipart `file`, máx **50 MB**, solo PDF (extensión + MIME + firma `%PDF`)
+  - `GET /api/v1/documentos/:id/archivos/:archivoId/download` — JWT + `DOC_FILES_DOWNLOAD`
+  - `GET /api/v1/documentos/:id/archivos/:archivoId/eventos` — JWT + `DOC_FILES_READ`
+  - `DELETE /api/v1/documentos/:id/archivos/:archivoId` — JWT + rol ADMIN + `DOC_FILES_DELETE` (borrado lógico)
+- **Frontend:** en `/documentos/:id` sección **Archivos** (listar, subir según permiso, descargar autenticado por blob, eliminar con confirmación).
 
-**Visibilidad y anti‑IDOR:** las rutas anteriores aplican las **mismas reglas de acceso por documento** que el listado/detalle (`dependencia_id` propietaria + `nivel_confidencialidad` en relación al usuario JWT), además del rol (**ADMIN**, **JWT** usuario).
+**Visibilidad y anti‑IDOR:** las rutas aplican `documentoVisibilityWhere` (mismo alcance que el detalle). El `archivoId` se resuelve con `{ id, documentoId }`. Matriz: `MATRIZ_SEGURIDAD_ARCHIVOS.md`.
 
 ## Decisiones técnicas
 
@@ -35,7 +35,7 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 
 ### OWASP ASVS (Nivel 2, enfoque en subida/descarga)
 - **Validación de archivos (V5 + File Upload)**: whitelist de MIME/extensión, límite de tamaño, nombres seguros, bloqueo de path traversal.
-- **Control de acceso (V4)**: descarga/listado solo vía API con JWT; subida/borrado restringido a `ADMIN`.
+- **Control de acceso (V4)**: listado/descarga/subida vía API con JWT + permisos `DOC_FILES_*`; borrado restringido a `ADMIN` + `DOC_FILES_DELETE`.
 - **Gestión de sesión (V3)**: descarga requiere sesión válida; ante `401` se fuerza re-login.
 - **Logging (V10)**: eventos `SUBIDO`, `DESCARGADO`, `ELIMINADO` (sin exponer rutas físicas ni tokens).
 
@@ -52,7 +52,7 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 
 ## Flujo operativo (resumen)
 
-1) **Subida (ADMIN)**
+1) **Subida (`DOC_FILES_UPLOAD`)**
 - UI → `POST /documentos/:id/archivos` (multipart `file`)
 - API:
   - valida permisos (ADMIN),
@@ -106,7 +106,7 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 ## Reglas de negocio
 
 - **RB-Arch-01 (whitelist)**: solo se admiten archivos **PDF** (extensión `.pdf`, MIME `application/pdf` y firma de contenido `%PDF`).
-- **RB-Arch-02 (tamaño)**: máximo **10MB** por archivo (configurable).
+- **RB-Arch-02 (tamaño)**: máximo **50 MB** por archivo (Multer + servicio; UI alineada).
 - **RB-Arch-03 (anti-IDOR)**: `archivoId` debe pertenecer al `documentoId` de la ruta.
 - **RB-Arch-04 (versionado)**: si existe un archivo activo con `originalName`, el siguiente subido crea `version+1`; nunca sobrescribe binarios previos.
 - **RB-Arch-05 (borrado lógico)**: eliminar marca `activo=false` y registra evento; no se elimina físicamente por defecto.
@@ -197,7 +197,7 @@ Validación MIME/tamaño/extensión; nombres internos seguros; sin servir disco 
 ## Plan de pruebas (paso a paso)
 
 1) **Subida válida (ADMIN)**
-- Acción: en `/documentos/:id` subir un PDF < 10MB.
+- Acción: en `/documentos/:id` subir un PDF ≤ 50 MB.
 - Esperado: aparece en listado como `v1` y evento `SUBIDO`.
 - Fallos a revisar: `403` (sin ADMIN), `400` (MIME/tamaño), `500` (storage/DB).
 

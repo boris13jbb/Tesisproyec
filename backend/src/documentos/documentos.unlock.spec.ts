@@ -350,12 +350,12 @@ describe('DocumentosService — desbloqueo e inmutabilidad', () => {
   });
 
   it('delete en ARCHIVADO → bloqueado', async () => {
-    prisma.documento.findUnique.mockResolvedValue(docBase('ARCHIVADO'));
+    prisma.documento.findFirst.mockResolvedValue(docBase('ARCHIVADO'));
     await expect(
       service.deleteArchivo(
         DOC_ID,
         'ffffffff-ffff-4fff-8fff-ffffffffffff',
-        admin.id,
+        admin,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
