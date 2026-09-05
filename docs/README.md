@@ -78,6 +78,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md](./MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md) | **Hardening operativo** (CORS, Helmet/HSTS, errores, health, env) |
 | [MATRIZ_DEPENDENCY_HARDENING.md](./MATRIZ_DEPENDENCY_HARDENING.md) | **Dependency hardening** (npm audit, Nest 11, multer, nodemailer, overrides) |
 | [MATRIZ_TOOLING_DEPENDENCY_HARDENING.md](./MATRIZ_TOOLING_DEPENDENCY_HARDENING.md) | **Tooling/dev hardening** (Vite 8.0.16; build frontend Node `^20.19.0` o `>=22.12.0`) |
+| [MATRIZ_QA_INSTITUCIONAL_END_TO_END.md](./MATRIZ_QA_INSTITUCIONAL_END_TO_END.md) | **QA institucional end-to-end** (ADMIN/USUARIO/SUPERADMIN LIVE PASS; DOC_UNLOCK; host mix resuelto; checkpoint `baeb4a3`; APTO cierre técnico) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |

@@ -27,10 +27,13 @@
 
 | Servicio | URL / host | Puerto típico |
 |----------|------------|---------------|
-| Frontend Vite | `http://localhost:5173` | 5173 |
-| Backend NestJS | `http://localhost:3000` | 3000 |
+| Frontend Vite (canónico smoke/QA) | `http://127.0.0.1:5173` | 5173 |
+| Frontend Vite (alternativo; no mezclar con el anterior en la misma sesión) | `http://localhost:5173` | 5173 |
+| Backend NestJS | `http://127.0.0.1:3000` (proxy Vite) / `localhost:3000` | 3000 |
 | MySQL/MariaDB (XAMPP) | `127.0.0.1` | 3306 |
 | phpMyAdmin (XAMPP) | `http://localhost/phpmyadmin` | 80 (Apache del XAMPP) |
+
+**Cookies refresh:** host-only (sin `Domain`). `localhost` ≠ `127.0.0.1`. Mantener un único host SPA por sesión o `session/restore` devolverá `restored:false`.
 
 Si `vite.config` o `main.ts` usan otros puertos, **documentar el valor real** en este archivo y en `.env.example`.
 
@@ -57,7 +60,7 @@ Definir en `.env` en la raíz del backend (o según estructura del repo):
 | `DATABASE_URL` | Cadena Prisma hacia MySQL/MariaDB de XAMPP |
 | `JWT_SECRET` / claves relacionadas | Firma de tokens (valores fuertes; no commitear secretos reales) |
 | `PORT` | Puerto del API (p. ej. 3000) |
-| Orígenes CORS | Lista que incluya `http://localhost:5173` y, **solo cuando se use ngrok**, el origen `https://xxxx.ngrok-free.app` de esa sesión |
+| Orígenes CORS | Lista exacta: en local incluir `http://127.0.0.1:5173` y `http://localhost:5173` si ambos se usan (sin mezclar en la misma sesión del navegador); ngrok: origen HTTPS de esa sesión |
 
 ### Frontend (Vite)
 

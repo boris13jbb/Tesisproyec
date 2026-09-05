@@ -7,6 +7,9 @@ const BACKUP_PROXY_TIMEOUT_MS = 15 * 60 * 1000
 
 const apiProxy = {
   '/api': {
+    // Target solo del proceso Vite (no es el host de la cookie del browser).
+    // El SPA debe abrirse siempre en UN host: preferir http://127.0.0.1:5173 en smoke/QA
+    // (localhost y 127.0.0.1 no comparten cookies host-only).
     target: 'http://127.0.0.1:3000',
     changeOrigin: true,
     timeout: BACKUP_PROXY_TIMEOUT_MS,

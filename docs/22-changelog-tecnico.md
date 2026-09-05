@@ -24,6 +24,26 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-05 — QA institucional end-to-end COMPLETADO (cierre técnico)
+
+- Checkpoint base `baeb4a3`. Smokes LIVE: ADMIN PASS, USUARIO PASS, SUPERADMIN PASS (MFA + restore UI-only + DOC_UNLOCK positivo EN_REVISION→REGISTRADO; auditoría DOC_UNLOCKED LIVE).
+- Host mix `localhost`/`127.0.0.1` **RESUELTO** (cookie refresh host-only; Auth sin cambios). Canónico: `http://127.0.0.1:5173`.
+- BLOQUEANTES 0 / ALTOS 0. Decisión: **APTO PARA CIERRE TÉCNICO FINAL**. No afirma certificación ni “0 vulnerabilidades”.
+- Matriz: `MATRIZ_QA_INSTITUCIONAL_END_TO_END.md`.
+
+### 2026-09-05 — Host canónico local (cookies refresh / session restore)
+
+- Diagnóstico smoke: mezcla `localhost` vs `127.0.0.1` con cookie HttpOnly host-only ⇒ `session/restore` → `restored:false` sin ser fallo de Auth.
+- Fix local: `CORS_ORIGIN` incluye ambos orígenes Vite; docs/`.env.example`/README fijan host canónico smoke `http://127.0.0.1:5173` y prohíben mezclar hosts en la misma sesión.
+- Auth logic: **sin cambios**. Ver `18-seguridad-y-hardening.md`.
+
+### 2026-09-04 — QA institucional end-to-end (fase automatizada)
+
+- Acceptance/security regression sobre checkpoint `baeb4a3` (sin cambios de producto, Prisma, seed, deploy ni commit).
+- Gates: 61 suites / 404 tests / 0 failed; lint/build backend y frontend OK; Vite 8.0.16; audit fresco HIGH 0 runtime y full.
+- Rol real operativo: `USUARIO` (no existe rol `USER`).
+- Matriz: `MATRIZ_QA_INSTITUCIONAL_END_TO_END.md`.
+
 ### 2026-09-04 — Tooling / dev dependency hardening
 
 - Backend full HIGH 5 → **0**; frontend full HIGH 6 → **0** (overrides por major + Vite **8.0.16**). Runtime HIGH sigue **0**.
