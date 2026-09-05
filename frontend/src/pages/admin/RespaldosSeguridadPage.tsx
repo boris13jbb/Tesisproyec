@@ -268,7 +268,7 @@ export function RespaldosSeguridadPage() {
 
   const restorationSteps = [
     'Seleccionar punto de respaldo',
-    'Validar hash de integridad',
+    'Comprobar el archivo (tamaño; hash SHA-256 solo si se calcula fuera del SGD)',
     'Confirmar autorización',
     'Ejecutar restauración',
   ];

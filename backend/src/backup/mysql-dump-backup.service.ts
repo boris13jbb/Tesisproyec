@@ -9,10 +9,28 @@ import * as path from 'path';
 import { pipeline } from 'stream/promises';
 import { AuditService } from '../auditoria/audit.service';
 import {
+  AUTOMATED_SQL_BACKUP_NAME,
+  AUTOMATED_STORAGE_ZIP_NAME,
+  buildMysqldumpArgs,
+  isRecognizedBackupArtifactName,
+  isSafeExternalExecutablePath,
+  isSafeMysqlDatabaseName,
+  isSafeMysqlPort,
+  quoteMysqlCnfValue,
+  resolveBackupKeepCount,
+  safeJoinUnderRoot,
+  sanitizeBackupErrorMessage,
+} from './backup-safety.util';
+import {
   AUDIT_ACTION_BACKUP_VERIFIED,
   BACKUP_META_SOURCE_SCHEDULED,
 } from './backup.constants';
 import { parseMysqlDatabaseUrl } from './mysql-url.util';
+
+export type BackupRunActor = {
+  userId: string;
+  email: string;
+};
 
 @Injectable()
 export class MysqlDumpBackupService {
@@ -45,9 +63,7 @@ export class MysqlDumpBackupService {
   }
 
   private keepCount(): number {
-    const n = Number(this.config.get('BACKUP_KEEP_COUNT') ?? 14);
-    if (!Number.isFinite(n) || n < 1) return 14;
-    return Math.min(500, Math.floor(n));
+    return resolveBackupKeepCount(this.config.get('BACKUP_KEEP_COUNT'));
   }
 
   private includeStorageZip(): boolean {
@@ -57,11 +73,25 @@ export class MysqlDumpBackupService {
     );
   }
 
+  private resolveActor(
+    trigger: 'cron' | 'manual',
+    actor?: BackupRunActor,
+  ): { actorUserId: string | null; actorEmail: string } {
+    if (trigger === 'manual' && actor?.userId && actor.email) {
+      return { actorUserId: actor.userId, actorEmail: actor.email };
+    }
+    return { actorUserId: null, actorEmail: 'system-scheduled-backup' };
+  }
+
   /**
    * Ejecuta mysqldump + ZIP opcional de `storage/`, rota archivos viejos y audita un único `BACKUP_VERIFIED` OK/FAIL.
+   * OK = proceso mysqldump código 0 y archivo SQL con tamaño > 0 (no es checksum SHA-256 ni prueba de restore).
    * Idempotente ante solapamiento: ignora si ya hay una ejecución en curso.
    */
-  async runAutomatedBackup(trigger: 'cron' | 'manual' = 'cron'): Promise<{
+  async runAutomatedBackup(
+    trigger: 'cron' | 'manual' = 'cron',
+    actor?: BackupRunActor,
+  ): Promise<{
     ok: boolean;
     skipped?: boolean;
   }> {
@@ -73,30 +103,49 @@ export class MysqlDumpBackupService {
     }
     this.running = true;
     const correlationId = randomUUID();
+    const actorCtx = this.resolveActor(trigger, actor);
+    try {
+      return await this.executeDump(trigger, correlationId, actorCtx);
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async executeDump(
+    trigger: 'cron' | 'manual',
+    correlationId: string,
+    actorCtx: { actorUserId: string | null; actorEmail: string },
+  ): Promise<{ ok: boolean; skipped?: boolean }> {
     const dumpExe = this.mysqldumpPath();
     const databaseUrl = this.config.get<string>('DATABASE_URL')?.trim() ?? '';
 
-    if (!dumpExe) {
+    if (!isSafeExternalExecutablePath(dumpExe)) {
       this.log.error(
-        'BACKUP_MYSQLDUMP_PATH no definido; no se puede ejecutar mysqldump.',
+        'BACKUP_MYSQLDUMP_PATH no definido o inválido; no se puede ejecutar mysqldump.',
       );
       await this.auditFail(
         correlationId,
         trigger,
+        actorCtx,
         'BACKUP_MYSQLDUMP_PATH no configurado',
       );
-      this.running = false;
       return { ok: false };
     }
 
     let conn: ReturnType<typeof parseMysqlDatabaseUrl>;
     try {
       conn = parseMysqlDatabaseUrl(databaseUrl);
+      if (!isSafeMysqlDatabaseName(conn.database)) {
+        throw new Error('DATABASE_NAME_UNSAFE');
+      }
+      if (!isSafeMysqlPort(conn.port)) {
+        throw new Error('DATABASE_PORT_UNSAFE');
+      }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'DATABASE_URL inválido';
+      const raw = e instanceof Error ? e.message : 'DATABASE_URL inválido';
+      const msg = sanitizeBackupErrorMessage(raw);
       this.log.error(msg);
-      await this.auditFail(correlationId, trigger, msg);
-      this.running = false;
+      await this.auditFail(correlationId, trigger, actorCtx, msg);
       return { ok: false };
     }
 
@@ -104,84 +153,99 @@ export class MysqlDumpBackupService {
     await fs.promises.mkdir(outDir, { recursive: true });
 
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const base = `backup-auto-${ts}`;
+    const base = `backup-auto-${ts}-${correlationId.slice(0, 8)}`;
     const sqlPath = path.join(outDir, `${base}.sql`);
+    const sqlTmp = `${sqlPath}.tmp`;
     const zipPath = this.includeStorageZip()
       ? path.join(outDir, `${base}-storage.zip`)
       : null;
+    const zipTmp = zipPath ? `${zipPath}.tmp` : null;
 
     const cnfPath = path.join(
       os.tmpdir(),
       `sgd-mysqldump-${correlationId}.cnf`,
     );
-    const cnfBody =
-      '[client]\n' +
-      `host=${conn.host}\n` +
-      `port=${conn.port}\n` +
-      `user=${conn.user}\n` +
-      `password=${conn.password}\n`;
 
     try {
-      await fs.promises.writeFile(cnfPath, cnfBody, { encoding: 'utf8' });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'No se pudo escribir .cnf';
-      await this.auditFail(correlationId, trigger, msg);
-      this.running = false;
-      return { ok: false };
-    }
-
-    try {
-      await this.runMysqldumpToFile(dumpExe, cnfPath, conn.database, sqlPath);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'mysqldump falló';
-      this.log.error(`mysqldump: ${msg}`);
-      await this.auditFail(correlationId, trigger, msg);
       try {
-        await fs.promises.unlink(sqlPath);
-      } catch {
-        /* ignore */
+        const cnfBody =
+          '[client]\n' +
+          `host=${quoteMysqlCnfValue(conn.host)}\n` +
+          `port=${conn.port}\n` +
+          `user=${quoteMysqlCnfValue(conn.user)}\n` +
+          `password=${quoteMysqlCnfValue(conn.password)}\n`;
+        await fs.promises.writeFile(cnfPath, cnfBody, {
+          encoding: 'utf8',
+          mode: 0o600,
+        });
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : 'No se pudo escribir .cnf';
+        await this.auditFail(
+          correlationId,
+          trigger,
+          actorCtx,
+          sanitizeBackupErrorMessage(raw),
+        );
+        return { ok: false };
       }
-      this.running = false;
-      return { ok: false };
+
+      try {
+        await this.runMysqldumpToFile(dumpExe, cnfPath, conn.database, sqlTmp);
+        const tmpStat = await fs.promises.stat(sqlTmp);
+        if (tmpStat.size <= 0) {
+          await unlinkQuiet(sqlTmp);
+          await this.auditFail(correlationId, trigger, actorCtx, 'DUMP_EMPTY');
+          return { ok: false };
+        }
+        await fs.promises.rename(sqlTmp, sqlPath);
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : 'mysqldump falló';
+        const msg = sanitizeBackupErrorMessage(raw);
+        this.log.error(`mysqldump: ${msg}`);
+        await unlinkQuiet(sqlTmp);
+        await unlinkQuiet(sqlPath);
+        await this.auditFail(correlationId, trigger, actorCtx, msg);
+        return { ok: false };
+      }
     } finally {
-      try {
-        await fs.promises.unlink(cnfPath);
-      } catch {
-        /* ignore */
-      }
+      await unlinkQuiet(cnfPath);
     }
 
     let zipBytes = 0;
-    if (zipPath) {
+    if (zipPath && zipTmp) {
       const storageRoot = this.storageRootAbs();
       try {
-        await this.zipDirectoryToFile(storageRoot, zipPath);
+        await this.zipDirectoryToFile(storageRoot, zipTmp);
+        const zst = await fs.promises.stat(zipTmp);
+        if (zst.size <= 0) {
+          throw new Error('ZIP_EMPTY');
+        }
+        await fs.promises.rename(zipTmp, zipPath);
         zipBytes = (await fs.promises.stat(zipPath)).size;
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'ZIP storage falló';
+        const raw = e instanceof Error ? e.message : 'ZIP storage falló';
+        const msg = sanitizeBackupErrorMessage(raw);
         this.log.error(msg);
-        try {
-          await fs.promises.unlink(sqlPath);
-        } catch {
-          /* ignore */
-        }
-        try {
-          await fs.promises.unlink(zipPath);
-        } catch {
-          /* ignore */
-        }
-        await this.auditFail(correlationId, trigger, msg);
-        this.running = false;
+        await unlinkQuiet(sqlPath);
+        await unlinkQuiet(zipTmp);
+        await unlinkQuiet(zipPath);
+        await this.auditFail(correlationId, trigger, actorCtx, msg);
         return { ok: false };
       }
     }
 
     const sqlBytes = (await fs.promises.stat(sqlPath)).size;
+    if (sqlBytes <= 0) {
+      await unlinkQuiet(sqlPath);
+      await unlinkQuiet(zipPath);
+      await this.auditFail(correlationId, trigger, actorCtx, 'DUMP_EMPTY');
+      return { ok: false };
+    }
     const totalBytes = sqlBytes + zipBytes;
 
-    this.pruneOldFiles(outDir, /^backup-auto-.*\.sql$/);
+    this.pruneOldFiles(outDir, AUTOMATED_SQL_BACKUP_NAME);
     if (this.includeStorageZip()) {
-      this.pruneOldFiles(outDir, /^backup-auto-.*-storage\.zip$/);
+      this.pruneOldFiles(outDir, AUTOMATED_STORAGE_ZIP_NAME);
     }
 
     const tipo = zipPath
@@ -191,8 +255,8 @@ export class MysqlDumpBackupService {
       action: AUDIT_ACTION_BACKUP_VERIFIED,
       result: 'OK',
       context: {
-        actorUserId: null,
-        actorEmail: 'system-scheduled-backup',
+        actorUserId: actorCtx.actorUserId,
+        actorEmail: actorCtx.actorEmail,
         correlationId,
       },
       meta: {
@@ -209,22 +273,22 @@ export class MysqlDumpBackupService {
     this.log.log(
       `Respaldo automático OK (${tipo}, ${totalBytes} bytes, trigger=${trigger}).`,
     );
-    this.running = false;
     return { ok: true };
   }
 
   private async auditFail(
     correlationId: string,
     trigger: string,
+    actorCtx: { actorUserId: string | null; actorEmail: string },
     message: string,
   ): Promise<void> {
-    const safe = message.slice(0, 500);
+    const safe = sanitizeBackupErrorMessage(message);
     await this.audit.log({
       action: AUDIT_ACTION_BACKUP_VERIFIED,
       result: 'FAIL',
       context: {
-        actorUserId: null,
-        actorEmail: 'system-scheduled-backup',
+        actorUserId: actorCtx.actorUserId,
+        actorEmail: actorCtx.actorEmail,
         correlationId,
       },
       meta: {
@@ -241,14 +305,7 @@ export class MysqlDumpBackupService {
     database: string,
     outFile: string,
   ): Promise<void> {
-    const args = [
-      `--defaults-extra-file=${cnfPath}`,
-      '--single-transaction',
-      '--routines',
-      '--events',
-      '--default-character-set=utf8mb4',
-      database,
-    ];
+    const args = buildMysqldumpArgs(cnfPath, database);
 
     const ws = fs.createWriteStream(outFile);
     await new Promise<void>((resolve, reject) => {
@@ -276,8 +333,10 @@ export class MysqlDumpBackupService {
           else
             rej(
               new Error(
-                stderr.trim().slice(0, 500) ||
-                  `mysqldump salió con código ${code}`,
+                sanitizeBackupErrorMessage(
+                  stderr.trim().slice(0, 500) ||
+                    `mysqldump salió con código ${code}`,
+                ),
               ),
             );
         });
@@ -317,22 +376,41 @@ export class MysqlDumpBackupService {
     try {
       rows = fs
         .readdirSync(dir)
-        .filter((f) => pattern.test(f))
-        .map((name) => ({
-          name,
-          mtime: fs.statSync(path.join(dir, name)).mtimeMs,
-        }))
+        .filter((f) => isRecognizedBackupArtifactName(f, pattern))
+        .map((name) => {
+          const abs = safeJoinUnderRoot(dir, name);
+          if (!abs) return null;
+          try {
+            const st = fs.lstatSync(abs);
+            if (!st.isFile() && !st.isSymbolicLink()) return null;
+            return { name, mtime: st.mtimeMs };
+          } catch {
+            return null;
+          }
+        })
+        .filter((row): row is { name: string; mtime: number } => row !== null)
         .sort((a, b) => b.mtime - a.mtime);
     } catch {
       return;
     }
     for (const row of rows.slice(keep)) {
+      const abs = safeJoinUnderRoot(dir, row.name);
+      if (!abs) continue;
       try {
-        fs.unlinkSync(path.join(dir, row.name));
+        fs.unlinkSync(abs);
         this.log.log(`Rotación: eliminado respaldo antiguo ${row.name}`);
       } catch {
         /* ignore */
       }
     }
+  }
+}
+
+async function unlinkQuiet(filePath: string | null): Promise<void> {
+  if (!filePath) return;
+  try {
+    await fs.promises.unlink(filePath);
+  } catch {
+    /* ignore */
   }
 }

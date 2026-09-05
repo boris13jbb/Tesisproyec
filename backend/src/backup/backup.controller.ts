@@ -36,6 +36,9 @@ export class BackupController {
     if (!jwtUserIsAdmin(req.user)) {
       throw new ForbiddenException();
     }
-    return this.dump.runAutomatedBackup('manual');
+    return this.dump.runAutomatedBackup('manual', {
+      userId: req.user.id,
+      email: req.user.email,
+    });
   }
 }

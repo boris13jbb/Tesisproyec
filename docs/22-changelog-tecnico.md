@@ -24,6 +24,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-03 — Hardening backups / recuperación (acceso y filesystem)
+
+- **Operativo existente:** `mysqldump` vía `spawn` (sin shell) + cron opcional + `POST /backup/admin/run-now`. **No** hay API de list/download/delete/restore.
+- **Endurecido:** lock `try/finally`; dump vacío no queda como válido; escritura `.tmp`→`rename`; `.cnf` citado + `mode: 0o600`; actor JWT en trigger manual; stderr/notas sanitizados; nombre de BD anti-flag; prune anclado al root.
+- **Git:** ignore `*.dump`/`*.bak`/`*.tmp` bajo `/backups/**` (sin tocar migrations Prisma).
+- Matriz: `MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md`. `BACKUP_VERIFIED` del job = exit 0 + size > 0 (no SHA-256).
+
 ### 2026-09-03 — Auditoría transversal (trazabilidad / privacidad / integridad)
 
 - **Redacción:** claves compuestas (`setupChallengeToken`, `otpauthUrl`, `Set-Cookie`, etc.) además del set exacto; sigue aplicándose **antes de persistir**.

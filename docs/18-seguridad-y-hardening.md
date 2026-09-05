@@ -64,6 +64,7 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 - Los volcados **MySQL** (`.sql`) y **ZIP opcional de `storage/`** pueden generarse desde el proceso Nest (`BACKUP_*` en `backend/.env`).
 - **Contienen datos completos:** aplicar controles ISO 27001 (mínimo privilegio en NTFS/Linux, sin exposición web, sin versionar en git — ver `.gitignore` y `backups/automated/README.md`).
 - La **restauración** no se ejecuta desde la aplicación web; debe ser procedimiento institucional acotado.
+- Matriz de controles: `docs/MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md`. `BACKUP_VERIFIED` del job no es integridad criptográfica (exit 0 + tamaño > 0).
 
 ## ngrok (temporal)
 

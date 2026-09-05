@@ -36,7 +36,7 @@ Variables en `backend/.env` — detalle completo en `backend/.env.example`:
 
 
 
-Los eventos se registran en **auditoría** (`audit_logs`) con acción **`BACKUP_VERIFIED`**, resultado **OK/FAIL**, `meta.source=scheduled_mysqldump`. El administrador también puede lanzar **`POST /api/v1/backup/admin/run-now`** o el botón **Ejecutar mysqldump ahora** en pantalla Respaldos.
+Los eventos se registran en **auditoría** (`audit_logs`) con acción **`BACKUP_VERIFIED`**, resultado **OK/FAIL**, `meta.source=scheduled_mysqldump`. **OK del job** = `mysqldump` código 0 y archivo SQL con tamaño > 0 (no es checksum SHA-256 ni prueba de restore). El administrador también puede lanzar **`POST /api/v1/backup/admin/run-now`** (JWT + `BACKUP_RUN`) o el botón **Ejecutar mysqldump ahora** en pantalla Respaldos.
 
 
 

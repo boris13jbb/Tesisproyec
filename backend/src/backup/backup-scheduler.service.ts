@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
+import { sanitizeBackupErrorMessage } from './backup-safety.util';
 import { MysqlDumpBackupService } from './mysql-dump-backup.service';
 
 @Injectable()
@@ -45,7 +46,9 @@ export class BackupSchedulerService implements OnModuleInit {
             : typeof err === 'string'
               ? err
               : 'error';
-        this.log.error(`Respaldo automático no controlado: ${msg}`);
+        this.log.error(
+          `Respaldo automático no controlado: ${sanitizeBackupErrorMessage(msg)}`,
+        );
       });
     });
     this.registry.addCronJob(jobName, job);
