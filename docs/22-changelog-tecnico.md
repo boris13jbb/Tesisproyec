@@ -24,6 +24,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-04 — Tooling / dev dependency hardening
+
+- Backend full HIGH 5 → **0**; frontend full HIGH 6 → **0** (overrides por major + Vite **8.0.16**). Runtime HIGH sigue **0**.
+- Node: backend/runtime **≥20**; **build frontend Vite 8.0.16** exige `^20.19.0` o `>=22.12.0` (20.0–20.18 no basta).
+- No Jest/ESLint/TypeScript major. No `audit fix --force`. Residual: exceljs/uuid, xmldom, body-parser, `@babel/core` low.
+- Matriz: `MATRIZ_TOOLING_DEPENDENCY_HARDENING.md`.
+
 ### 2026-09-04 — Dependency hardening / npm audit
 
 - Backend prod HIGH 5 → **0** (Nest 11.2.3 + multer 2.2.0; nodemailer 10; overrides `tmp`/`qs`/`brace-expansion@1|2`).
