@@ -10,6 +10,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+import { ToSafeBoolean } from '../../common/strict-boolean.util';
 import { ESTADOS_DOCUMENTO } from '../documento-estado.util';
 import { NIVELES_CONFIDENCIALIDAD } from './create-documento.dto';
 
@@ -39,6 +40,7 @@ export class UpdateDocumentoDto {
   estado?: string;
 
   @IsOptional()
+  @ToSafeBoolean()
   @IsBoolean()
   activo?: boolean;
 

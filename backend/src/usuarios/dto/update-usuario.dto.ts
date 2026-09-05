@@ -7,6 +7,7 @@ import {
   IsUUID,
   MinLength,
 } from 'class-validator';
+import { ToSafeBoolean } from '../../common/strict-boolean.util';
 
 export class UpdateUsuarioDto {
   @IsOptional()
@@ -35,6 +36,7 @@ export class UpdateUsuarioDto {
   cargoId?: string | null;
 
   @IsOptional()
+  @ToSafeBoolean()
   @IsBoolean()
   activo?: boolean;
 

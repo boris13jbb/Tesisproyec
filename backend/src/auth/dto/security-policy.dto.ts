@@ -6,6 +6,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { ToSafeBoolean } from '../../common/strict-boolean.util';
 
 /**
  * Política institucional persistida (gobierno/ISO 15489).
@@ -17,6 +18,7 @@ export class UpdateSecurityPolicyDto {
   @Max(128)
   desiredPasswordMinLength!: number;
 
+  @ToSafeBoolean()
   @IsBoolean()
   desiredLockoutEnabled!: boolean;
 
@@ -44,6 +46,7 @@ export class UpdateSecurityPolicyDto {
   @Max(24)
   desiredPasswordHistoryCount!: number;
 
+  @ToSafeBoolean()
   @IsBoolean()
   desiredAdminStepUpAuth!: boolean;
 

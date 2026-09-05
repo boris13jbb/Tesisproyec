@@ -5,6 +5,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { ToSafeBoolean } from '../../common/strict-boolean.util';
 
 export class UpdateTipoDocumentalDto {
   @IsOptional()
@@ -19,6 +20,7 @@ export class UpdateTipoDocumentalDto {
   descripcion?: string | null;
 
   @IsOptional()
+  @ToSafeBoolean()
   @IsBoolean()
   activo?: boolean;
 }

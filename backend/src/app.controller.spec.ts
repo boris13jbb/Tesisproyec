@@ -28,5 +28,18 @@ describe('AppController', () => {
       });
       expect(mockPrisma.$queryRaw).toHaveBeenCalled();
     });
+
+    it('DB down no filtra credenciales ni env', async () => {
+      mockPrisma.$queryRaw.mockRejectedValueOnce(
+        new Error('P1001 mysql://root:secret@127.0.0.1:3306/sgd'),
+      );
+      const result = await appController.health();
+      expect(result).toEqual({
+        status: 'ok',
+        service: 'sgd-gadpr-lm-api',
+        database: 'down',
+      });
+      expect(JSON.stringify(result)).not.toMatch(/secret|mysql:\/\/|P1001/i);
+    });
   });
 });

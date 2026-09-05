@@ -40,12 +40,17 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 
 ## Controles implementados (resumen)
 
-- **Headers seguridad**: Helmet en `backend/src/main.ts`.
+- **Headers seguridad**: Helmet en bootstrap (`http-bootstrap.util.ts`); HSTS **solo** `NODE_ENV=production` (dev/test off; efectivo con HTTPS en proxy); `x-powered-by` deshabilitado; nosniff; `X-Frame-Options: SAMEORIGIN`.
+- **CORS:** allowlist exacta `CORS_ORIGIN` + `credentials` (sin wildcard). Sin Origin: permitido. `Origin: null`: denegado.
+- **Errores no-HTTP:** `SafeExceptionFilter` (sin stack/SQL/credenciales). HttpException conserva status.
+- **Booleanos DTO:** `ToSafeBoolean` (`"false"` → false). `enableImplicitConversion` permanece **true** para números de query.
+- Matriz operativa: `docs/MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md`.
+- **Dependencias:** `npm audit --omit=dev` muestra HIGH preexistentes; no se actualizó lockfile. Fase futura: DEPENDENCY HARDENING.
 - **Rate limiting**: `ThrottlerModule` global (`app.module.ts`); rutas **`/auth`** con `@Throttle` más estricto (`auth.controller.ts`); excesos registrados como `AUTH_RATE_LIMITED` (`throttler-audit.filter.ts`).
 - **Lockout por cuenta**: contador e intervalo en `users` (`AUTH_LOCKOUT_MAX_ATTEMPTS`, `AUTH_LOCKOUT_MINUTES`); complementa el throttling por IP.
 - **403 auditado**: intentos contra endpoints con rol insuficiente generan **`AUTHZ_FORBIDDEN`** (`forbidden-audit.filter.ts`).
 - **Cookies refresh**: `HttpOnly`, `secure` en producción, `sameSite=lax`, `path=/`; `clearCookie` con mismos flags.
-- **Validación API**: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`).
+- **Validación API**: `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`, `enableImplicitConversion: true`).
 - **RBAC por rol**: `RolesGuard` + `@Roles(...)`; mutaciones y reportes típicamente **ADMIN**; excepción documentada: export **pendientes de revisión** permite **ADMIN** o **REVISOR** (`reportes.controller.ts`).
 - **Archivos**: lista blanca MIME, tamaño máximo, nombres seguros, descarga controlada vía API.
 - **Trazabilidad**:

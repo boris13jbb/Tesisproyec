@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { ToSafeBoolean } from '../../common/strict-boolean.util';
 
 export class UpdateContraparteDto {
   @IsOptional()
@@ -53,6 +54,7 @@ export class UpdateContraparteDto {
   direccion?: string | null;
 
   @IsOptional()
+  @ToSafeBoolean()
   @IsBoolean()
   activo?: boolean;
 }

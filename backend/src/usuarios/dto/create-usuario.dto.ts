@@ -7,6 +7,7 @@ import {
   IsUUID,
   MinLength,
 } from 'class-validator';
+import { ToSafeBoolean } from '../../common/strict-boolean.util';
 
 export class CreateUsuarioDto {
   @IsEmail()
@@ -33,6 +34,7 @@ export class CreateUsuarioDto {
   cargoId?: string;
 
   @IsOptional()
+  @ToSafeBoolean()
   @IsBoolean()
   activo?: boolean;
 
@@ -53,6 +55,7 @@ export class CreateUsuarioDto {
    * para que el usuario defina su contraseña (misma mecánica que recuperación, token de un solo uso).
    */
   @IsOptional()
+  @ToSafeBoolean()
   @IsBoolean()
   invitarPorCorreo?: boolean;
 }

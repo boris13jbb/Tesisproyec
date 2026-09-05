@@ -24,6 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { RbacModule } from './rbac/rbac.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ConfigService } from '@nestjs/config';
+import { isProductionNodeEnv } from './common/http-bootstrap.util';
 
 @Injectable()
 class StartupConfigGuard implements OnModuleInit {
@@ -31,8 +32,8 @@ class StartupConfigGuard implements OnModuleInit {
 
   onModuleInit() {
     const nodeEnv = String(this.config.get('NODE_ENV') ?? 'development');
-    const isProd = nodeEnv === 'production';
-    const isTest = nodeEnv === 'test';
+    const isProd = isProductionNodeEnv(nodeEnv);
+    const isTest = nodeEnv.trim().toLowerCase() === 'test';
 
     const access = String(this.config.get<string>('JWT_ACCESS_SECRET') ?? '');
     const refresh = String(this.config.get<string>('JWT_REFRESH_SECRET') ?? '');

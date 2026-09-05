@@ -24,6 +24,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-04 — Hardening operativo / CORS / headers / errores
+
+- **Operativo existente:** `main.ts` (Helmet, cookie-parser, ValidationPipe, CORS, prefijo `api/v1`) + `GET /health` + Throttler. **No** hay Docker, Nginx, Swagger ni static.
+- **Endurecido:** allowlist CORS exacta (sin `*` / substring); HSTS solo `production` (efectivo con HTTPS en proxy); PORT sanitizado; 500 internos sin stack/SQL/credenciales (`SafeExceptionFilter`); booleanos DTO con `ToSafeBoolean` (`"false"` ≠ true). `enableImplicitConversion` **sigue true** (query numbers).
+- **npm audit (--omit=dev, solo diagnóstico):** 0 critical, 5 high, 3 moderate, 1 low — preexistente, lockfile sin cambios. Fase futura: DEPENDENCY HARDENING.
+- Matriz: `MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md`.
+
 ### 2026-09-04 — Hardening notificaciones / SLA / SMTP
 
 - **Operativo existente:** in-app (`user_notifications`) + `MailService` (nodemailer) + cron `NOTIFY_EXPIRY_*` + SLA de revisión. **No** hay cola, send manual, GET `:id` ni provider externo.

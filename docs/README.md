@@ -75,6 +75,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md](./MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md) | **Auth / sesiones / MFA / reset** (JWT, refresh, enumeration, rate limit) |
 | [MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md](./MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md) | **Backups / recuperación** (mysqldump, RBAC, path, sin restore web) |
 | [MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md](./MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md) | **Notificaciones / SLA / SMTP** (destinatarios, IDOR, CRLF, dedup, audit) |
+| [MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md](./MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md) | **Hardening operativo** (CORS, Helmet/HSTS, errores, health, env) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |
