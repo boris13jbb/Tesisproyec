@@ -249,6 +249,8 @@ export function UserAccessDrawer({
 
   if (!usuario) return null;
 
+  const drawerPadX = { xs: 2, sm: 3 };
+
   return (
     <>
       <Drawer
@@ -258,183 +260,288 @@ export function UserAccessDrawer({
         slotProps={{
           paper: {
             sx: {
-              width: { xs: '100%', sm: 480, md: 560 },
+              width: {
+                xs: '100vw',
+                sm: 'min(420px, 92vw)',
+                md: 420,
+                lg: 440,
+                xl: 460,
+              },
               maxWidth: '100vw',
-              p: { xs: 2, sm: 3 },
+              height: '100vh',
+              maxHeight: '100vh',
+              '@supports (height: 100dvh)': {
+                height: '100dvh',
+                maxHeight: '100dvh',
+              },
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxSizing: 'border-box',
             },
           },
         }}
       >
-        <Stack direction="row" sx={{ mb: 2, justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box sx={{ minWidth: 0, pr: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, textTransform: 'uppercase' }}>
-              {displayUsuario(usuario)}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {usuario.email}
-            </Typography>
-            <Chip
-              size="small"
-              label={usuario.activo ? 'Activo' : 'Inactivo'}
-              color={usuario.activo ? 'success' : 'default'}
-              sx={{ mt: 1, fontWeight: 700 }}
-            />
-          </Box>
-          <IconButton aria-label="Cerrar gestión de acceso" onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-
-        {localError ? (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLocalError(null)}>
-            {localError}
-          </Alert>
-        ) : null}
-
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-          Roles asignados
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-          Los permisos efectivos son la unión de todos los roles activos más los permisos adicionales.
-        </Typography>
-
-        <Stack spacing={1} sx={{ mb: 2 }}>
-          {ASSIGNABLE_ROLE_SWITCHES.map((roleCode) => {
-            if (roleCode === 'ADMIN' && !isSuperAdmin) return null;
-            const checked = userHasAssignableRole(roleCodes, roleCode);
-            const pending = pendingRoles.has(roleCode);
-            const isPrivileged = roleCode === 'ADMIN';
-            return (
-              <Box
-                key={roleCode}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: isPrivileged && checked ? 'warning.main' : 'divider',
-                  bgcolor: checked ? 'action.selected' : 'background.paper',
-                }}
-              >
-                <FormControlLabel
-                  sx={{ m: 0, width: '100%', alignItems: 'flex-start', justifyContent: 'space-between' }}
-                  control={
-                    <Switch
-                      checked={checked}
-                      disabled={pending}
-                      onChange={(_, next) => handleRoleSwitch(roleCode, next)}
-                      color={isPrivileged ? 'warning' : 'primary'}
-                    />
-                  }
-                  label={
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                          {ROLE_DISPLAY_NAME[roleCode]}
-                        </Typography>
-                        {isPrivileged ? (
-                          <Chip
-                            size="small"
-                            icon={<WarningAmberOutlinedIcon />}
-                            label="Rol privilegiado"
-                            color="warning"
-                            variant="outlined"
-                            sx={{ height: 22, fontWeight: 700 }}
-                          />
-                        ) : null}
-                        {pending ? <CircularProgress size={16} /> : null}
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
-                        {roleHelpText(roleCode)}
-                      </Typography>
-                      {isPrivileged && checked ? (
-                        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                          Este rol permite administrar usuarios, configuración y funciones sensibles del sistema.
-                        </Typography>
-                      ) : null}
-                    </Box>
-                  }
-                  labelPlacement="start"
-                />
-              </Box>
-            );
-          })}
-        </Stack>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-          Acceso efectivo
-        </Typography>
-        {loadingPerms ? (
-          <Box sx={{ py: 3, display: 'flex', justifyContent: 'center' }}>
-            <CircularProgress size={28} />
-          </Box>
-        ) : (
-          <EffectivePermissionsPanel
-            rolePermissionMap={rolePermissionMap}
-            directPermissionCodes={directPermCodes}
-          />
-        )}
-
-        <Divider sx={{ my: 2 }} />
-
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>
-          Permisos adicionales
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-          Excepciones concedidas solo a esta cuenta. Los permisos heredados del rol no pueden revocarse aquí.
-        </Typography>
-        <Alert severity="info" sx={{ mb: 1.5 }}>
-          Cambios en roles o permisos requieren nueva sesión o renovación del token para aplicarse por completo.
-        </Alert>
-
+        {/* Header fijo: no participa del scroll del contenido */}
         <Box
           sx={{
-            maxHeight: 320,
-            overflow: 'auto',
-            border: '1px solid',
+            flexShrink: 0,
+            px: drawerPadX,
+            pt: { xs: 2, sm: 3 },
+            pb: 1.5,
+            borderBottom: '1px solid',
             borderColor: 'divider',
-            borderRadius: 2,
-            p: 1,
+            bgcolor: 'background.paper',
+            zIndex: (t) => t.zIndex.appBar,
           }}
         >
-          {PERMISSION_MODULE_ORDER.map((mod) => {
-            const codes = groupedDirect.get(mod);
-            if (!codes?.length) return null;
-            return (
-              <Box key={mod} sx={{ mb: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
-                  {mod.toUpperCase()}
-                </Typography>
-                {codes.map((codigo) => {
-                  const row = catalog.find((p) => p.codigo === codigo);
-                  const isInherited = inheritedSet.has(codigo);
-                  const checked = isInherited || directPermCodes.includes(codigo);
-                  return (
-                    <PermissionRow
-                      key={codigo}
-                      codigo={codigo}
-                      serverDescription={row?.descripcion}
-                      checked={checked}
-                      disabled={isInherited || pendingDirect.has(codigo)}
-                      onToggle={() => handleDirectToggle(codigo, !directPermCodes.includes(codigo))}
-                      useSwitch
-                      originHint={
-                        isInherited
-                          ? `Heredado del rol (${roleCodes
-                              .filter((r) => (rolePermissionMap.get(r) ?? []).includes(codigo))
-                              .map((r) => ROLE_DISPLAY_NAME[r as AssignableRoleSwitch] ?? r)
-                              .join(', ') || 'rol'})`
-                          : directPermCodes.includes(codigo)
-                            ? 'Permiso adicional'
-                            : undefined
-                      }
-                    />
-                  );
-                })}
-              </Box>
-            );
-          })}
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+            <Box sx={{ minWidth: 0, flex: 1, pr: 0.5 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {displayUsuario(usuario)}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+              >
+                {usuario.email}
+              </Typography>
+              <Chip
+                size="small"
+                label={usuario.activo ? 'Activo' : 'Inactivo'}
+                color={usuario.activo ? 'success' : 'default'}
+                sx={{ mt: 1, fontWeight: 700 }}
+              />
+            </Box>
+            <IconButton
+              aria-label="Cerrar gestión de acceso"
+              onClick={onClose}
+              sx={{ flexShrink: 0, width: 44, height: 44 }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+
+          {localError ? (
+            <Alert severity="error" sx={{ mt: 1.5, width: '100%' }} onClose={() => setLocalError(null)}>
+              {localError}
+            </Alert>
+          ) : null}
+        </Box>
+
+        {/* Único scroll vertical del Drawer */}
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            px: drawerPadX,
+            pt: 2,
+            pb: { xs: 4, sm: 3 },
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+            Roles asignados
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', mb: 1.5, overflowWrap: 'anywhere' }}
+          >
+            Los permisos efectivos son la unión de todos los roles activos más los permisos adicionales.
+          </Typography>
+
+          <Stack spacing={1} sx={{ mb: 2 }}>
+            {ASSIGNABLE_ROLE_SWITCHES.map((roleCode) => {
+              if (roleCode === 'ADMIN' && !isSuperAdmin) return null;
+              const checked = userHasAssignableRole(roleCodes, roleCode);
+              const pending = pendingRoles.has(roleCode);
+              const isPrivileged = roleCode === 'ADMIN';
+              return (
+                <Box
+                  key={roleCode}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: isPrivileged && checked ? 'warning.main' : 'divider',
+                    bgcolor: checked ? 'action.selected' : 'background.paper',
+                    minWidth: 0,
+                  }}
+                >
+                  <FormControlLabel
+                    sx={{
+                      m: 0,
+                      width: '100%',
+                      minWidth: 0,
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                    }}
+                    control={
+                      <Switch
+                        checked={checked}
+                        disabled={pending}
+                        onChange={(_, next) => handleRoleSwitch(roleCode, next)}
+                        color={isPrivileged ? 'warning' : 'primary'}
+                        sx={{ flexShrink: 0 }}
+                      />
+                    }
+                    label={
+                      <Box sx={{ flex: 1, minWidth: 0, pr: 0.5 }}>
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                            {ROLE_DISPLAY_NAME[roleCode]}
+                          </Typography>
+                          {isPrivileged ? (
+                            <Chip
+                              size="small"
+                              icon={<WarningAmberOutlinedIcon />}
+                              label="Rol privilegiado"
+                              color="warning"
+                              variant="outlined"
+                              sx={{ height: 22, fontWeight: 700 }}
+                            />
+                          ) : null}
+                          {pending ? <CircularProgress size={16} /> : null}
+                        </Stack>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            display: 'block',
+                            lineHeight: 1.35,
+                            whiteSpace: 'normal',
+                            overflowWrap: 'anywhere',
+                          }}
+                        >
+                          {roleHelpText(roleCode)}
+                        </Typography>
+                        {isPrivileged && checked ? (
+                          <Typography
+                            variant="caption"
+                            color="warning.main"
+                            sx={{ display: 'block', mt: 0.5, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                          >
+                            Este rol permite administrar usuarios, configuración y funciones sensibles del sistema.
+                          </Typography>
+                        ) : null}
+                      </Box>
+                    }
+                    labelPlacement="start"
+                  />
+                </Box>
+              );
+            })}
+          </Stack>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+            Acceso efectivo
+          </Typography>
+          {loadingPerms ? (
+            <Box sx={{ py: 3, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <EffectivePermissionsPanel
+              rolePermissionMap={rolePermissionMap}
+              directPermissionCodes={directPermCodes}
+            />
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>
+            Permisos adicionales
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', mb: 1.5, overflowWrap: 'anywhere' }}
+          >
+            Excepciones concedidas solo a esta cuenta. Los permisos heredados del rol no pueden revocarse aquí.
+          </Typography>
+          <Alert
+            severity="info"
+            sx={{
+              mb: 1.5,
+              width: '100%',
+              boxSizing: 'border-box',
+              alignItems: 'flex-start',
+              '& .MuiAlert-message': {
+                minWidth: 0,
+                overflowWrap: 'anywhere',
+                whiteSpace: 'normal',
+              },
+            }}
+          >
+            Cambios en roles o permisos requieren nueva sesión o renovación del token para aplicarse por completo.
+          </Alert>
+
+          <Box
+            sx={{
+              width: '100%',
+              minWidth: 0,
+              maxHeight: { xs: 'min(40vh, 280px)', sm: 320 },
+              overflow: 'auto',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 1,
+              mb: 1,
+            }}
+          >
+            {PERMISSION_MODULE_ORDER.map((mod) => {
+              const codes = groupedDirect.get(mod);
+              if (!codes?.length) return null;
+              return (
+                <Box key={mod} sx={{ mb: 1.5, minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                    {mod.toUpperCase()}
+                  </Typography>
+                  {codes.map((codigo) => {
+                    const row = catalog.find((p) => p.codigo === codigo);
+                    const isInherited = inheritedSet.has(codigo);
+                    const checked = isInherited || directPermCodes.includes(codigo);
+                    return (
+                      <PermissionRow
+                        key={codigo}
+                        codigo={codigo}
+                        serverDescription={row?.descripcion}
+                        checked={checked}
+                        disabled={isInherited || pendingDirect.has(codigo)}
+                        onToggle={() => handleDirectToggle(codigo, !directPermCodes.includes(codigo))}
+                        useSwitch
+                        originHint={
+                          isInherited
+                            ? `Heredado del rol (${roleCodes
+                                .filter((r) => (rolePermissionMap.get(r) ?? []).includes(codigo))
+                                .map((r) => ROLE_DISPLAY_NAME[r as AssignableRoleSwitch] ?? r)
+                                .join(', ') || 'rol'})`
+                            : directPermCodes.includes(codigo)
+                              ? 'Permiso adicional'
+                              : undefined
+                        }
+                      />
+                    );
+                  })}
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
       </Drawer>
 

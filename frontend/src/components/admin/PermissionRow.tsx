@@ -39,9 +39,9 @@ export function PermissionRow({
   const desc = permissionDescription(codigo, serverDescription);
 
   const control = useSwitch ? (
-    <Switch size="small" checked={checked} onChange={() => onToggle()} disabled={disabled} />
+    <Switch size="small" checked={checked} onChange={() => onToggle()} disabled={disabled} sx={{ flexShrink: 0 }} />
   ) : (
-    <Checkbox size="small" checked={checked} onChange={onToggle} sx={{ mt: 0.25 }} disabled={disabled} />
+    <Checkbox size="small" checked={checked} onChange={onToggle} sx={{ mt: 0.25, flexShrink: 0 }} disabled={disabled} />
   );
 
   return (
@@ -54,8 +54,9 @@ export function PermissionRow({
         py: 0.5,
         px: 0.5,
         borderRadius: 1,
+        minWidth: 0,
         bgcolor: checked ? 'action.selected' : 'transparent',
-        ...(useSwitch ? { justifyContent: 'space-between', width: '100%' } : {}),
+        ...(useSwitch ? { justifyContent: 'space-between', width: '100%', gap: 1 } : {}),
       }}
       disabled={disabled}
       control={control}
@@ -63,7 +64,7 @@ export function PermissionRow({
       label={
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
               {permissionLabel(codigo)}
             </Typography>
             {critical ? (
@@ -83,12 +84,20 @@ export function PermissionRow({
             ) : null}
           </Stack>
           {desc ? (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', lineHeight: 1.35, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+            >
               {desc}
             </Typography>
           ) : null}
           {originHint ? (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 0.25, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+            >
               {originHint}
             </Typography>
           ) : null}
