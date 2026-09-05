@@ -26,12 +26,12 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import Grid from '@mui/material/Grid';
-import Paper from '@mui/material/Paper';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { userHasAdminAccess } from '../../auth/role-utils';
+import { AuditStatsDashboard } from '../../components/admin/auditoria/AuditStatsDashboard';
+import type { AuditStatsResponse } from '../../components/admin/auditoria/audit-stats.types';
 import { FilterPanel } from '../../components/FilterPanel';
 import { ListPanel } from '../../components/ListPanel';
 import { listTableContainerSx } from '../../components/listSurfaces';
@@ -46,12 +46,6 @@ import {
 import { getApiErrorMessage } from '../../utils/api-error-message';
 import { humanizeAuditMetaRows } from '../../utils/audit-meta-format';
 import { formatIpOrigenLabel } from '../../utils/file-meta-format';
-import {
-  trafficLightColor,
-  trafficLightEmoji,
-  trafficLightLabel,
-  type TrafficLightLevel,
-} from '../../utils/traffic-light';
 
 type AuditRow = {
   id: string;
@@ -75,27 +69,6 @@ type UsuarioListItem = {
   email: string;
   nombres: string | null;
   apellidos: string | null;
-};
-
-type AuditStatsResponse = {
-  totales: { registros: number; ok: number; fail: number };
-  documentos: {
-    creados: number;
-    modificados: number;
-    archivosEliminados: number;
-    desactivados: number;
-  };
-  porUsuario: {
-    actorUserId: string | null;
-    actorEmail: string | null;
-    count: number;
-  }[];
-  sensiblesPorUsuario: {
-    actorUserId: string | null;
-    actorEmail: string | null;
-    count: number;
-    nivel: TrafficLightLevel;
-  }[];
 };
 
 type AuditoriaPagedResponse = {
@@ -516,89 +489,8 @@ export function AuditoriaPage() {
         </Alert>
       ) : null}
 
-      {stats ? (
-        <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
-            Estadísticas del período filtrado
-          </Typography>
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">
-                Registros
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {stats.totales.registros}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">
-                OK / Fallo
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {stats.totales.ok} / {stats.totales.fail}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">
-                Docs creados (auditoría)
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {stats.documentos.creados}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">
-                Docs desactivados
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {stats.documentos.desactivados ?? 0}
-              </Typography>
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <Typography variant="caption" color="text.secondary">
-                Archivos eliminados
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {stats.documentos.archivosEliminados}
-              </Typography>
-            </Grid>
-          </Grid>
-          {(stats.porUsuario?.length ?? 0) > 0 ? (
-            <>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                Acciones por usuario
-              </Typography>
-              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                {stats.porUsuario!.map((s) => (
-                  <Chip
-                    key={`${s.actorUserId ?? 'na'}-${s.actorEmail ?? ''}`}
-                    label={`${s.actorEmail ?? '—'} · ${s.count}`}
-                    variant="outlined"
-                    size="small"
-                  />
-                ))}
-              </Stack>
-            </>
-          ) : null}
-          {stats.sensiblesPorUsuario.length > 0 ? (
-            <>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                Acciones sensibles por usuario (semáforo)
-              </Typography>
-              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
-                {stats.sensiblesPorUsuario.map((s) => (
-                  <Chip
-                    key={`${s.actorUserId ?? 'na'}-${s.actorEmail ?? ''}`}
-                    label={`${trafficLightEmoji(s.nivel)} ${s.actorEmail ?? '—'} · ${s.count} · ${trafficLightLabel(s.nivel)}`}
-                    color={trafficLightColor(s.nivel)}
-                    variant="outlined"
-                    size="small"
-                  />
-                ))}
-              </Stack>
-            </>
-          ) : null}
-        </Paper>
+      {loading || stats ? (
+        <AuditStatsDashboard stats={stats} loading={Boolean(loading && !stats)} />
       ) : null}
 
       {/* Filtros */}
