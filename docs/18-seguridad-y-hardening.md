@@ -66,6 +66,11 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 - La **restauración** no se ejecuta desde la aplicación web; debe ser procedimiento institucional acotado.
 - Matriz de controles: `docs/MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md`. `BACKUP_VERIFIED` del job no es integridad criptográfica (exit 0 + tamaño > 0).
 
+## Notificaciones / SLA / SMTP
+
+- Destinatarios y `From` se resuelven en servidor (BD / env). No hay envío manual ni destinatario desde el cliente.
+- Matriz: `docs/MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md`. `NOTIFICATION_DISPATCHED` es intento de despacho, no confirmación de lectura.
+
 ## ngrok (temporal)
 
 Detalle operativo, CORS y cookies: `23-entorno-local-xampp-ngrok.md`. Cada sesión debe registrarse en `22-changelog-tecnico.md`.

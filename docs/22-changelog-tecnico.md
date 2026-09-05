@@ -24,6 +24,12 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-04 — Hardening notificaciones / SLA / SMTP
+
+- **Operativo existente:** in-app (`user_notifications`) + `MailService` (nodemailer) + cron `NOTIFY_EXPIRY_*` + SLA de revisión. **No** hay cola, send manual, GET `:id` ni provider externo.
+- **Endurecido:** destinatario solo desde BD (se ignoran emails del caller); envío SMTP uno a uno; CRLF en subject/to; HTML de usuario escapado; `APP_PUBLIC_URL` http(s); dedup SLA 23 h **dentro** del servicio; usuarios inactivos omitidos; error SMTP sanitizado; campana solo navega UUID interno.
+- Matriz: `MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md`. `NOTIFICATION_DISPATCHED` = intento de despacho (no “entregado al usuario”).
+
 ### 2026-09-03 — Hardening backups / recuperación (acceso y filesystem)
 
 - **Operativo existente:** `mysqldump` vía `spawn` (sin shell) + cron opcional + `POST /backup/admin/run-now`. **No** hay API de list/download/delete/restore.

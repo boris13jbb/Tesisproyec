@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditService } from '../auditoria/audit.service';
+import {
+  escapeHtmlText,
+  filterSafeEmailAddresses,
+  isDocumentoUuid,
+  isSafePublicHttpUrl,
+  NOTIFICATION_DEDUP_MS,
+  sanitizeEmailSubject,
+} from '../mail/mail-safety.util';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -23,7 +31,8 @@ type NotifyRevisionResolvedInput = {
   decision: 'APROBADO' | 'RECHAZADO';
   motivo?: string;
   creatorUserId: string;
-  creatorEmail: string;
+  /** Ignorado: el correo se resuelve en BD. Se mantiene por compatibilidad de llamada. */
+  creatorEmail?: string;
 };
 
 type NotifyDocumentExpiringInput = {
@@ -33,7 +42,8 @@ type NotifyDocumentExpiringInput = {
   fechaVencimiento: Date;
   diasRestantes: number;
   creatorUserId: string;
-  creatorEmail: string;
+  /** Ignorado: el correo se resuelve en BD. */
+  creatorEmail?: string;
 };
 
 type NotifySlaOverdueInput = {
@@ -42,8 +52,11 @@ type NotifySlaOverdueInput = {
   asunto: string;
   fechaLimiteSla: Date;
   recipientUserIds: string[];
-  recipientEmails: string[];
+  /** Ignorado: destinatarios se resuelven por userId activo en BD. */
+  recipientEmails?: string[];
 };
+
+type ActiveRecipient = { id: string; email: string | null };
 
 @Injectable()
 export class NotificationService {
@@ -67,27 +80,43 @@ export class NotificationService {
 
   private documentoUrl(documentoId: string): string | undefined {
     const base = this.publicBaseUrl();
-    if (!base) return undefined;
+    if (!base || !isSafePublicHttpUrl(base) || !isDocumentoUuid(documentoId)) {
+      return undefined;
+    }
     return `${base}/documentos/${documentoId}`;
-  }
-
-  private escapeHtml(s: string): string {
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 
   private buildHtml(bodyLines: string[], link?: string): string {
     const paragraphs = bodyLines
       .filter((l) => l !== '')
-      .map((l) => `<p>${this.escapeHtml(l)}</p>`)
+      .map((l) => `<p>${escapeHtmlText(l)}</p>`)
       .join('');
-    const linkBlock = link
-      ? `<p><a href="${link.replace(/&/g, '&amp;')}">Abrir en el sistema</a></p>`
+    const safeLink = link && isSafePublicHttpUrl(link) ? link : undefined;
+    const linkBlock = safeLink
+      ? `<p><a href="${safeLink.replace(/&/g, '&amp;')}">Abrir en el sistema</a></p>`
       : '';
-    return `${paragraphs}${linkBlock}<p style="color:#666;font-size:12px">Mensaje automático de ${this.escapeHtml(this.appName())}.</p>`;
+    return `${paragraphs}${linkBlock}<p style="color:#666;font-size:12px">Mensaje automático de ${escapeHtmlText(this.appName())}.</p>`;
+  }
+
+  private async resolveActiveUsers(
+    userIds: string[],
+  ): Promise<ActiveRecipient[]> {
+    const unique = [...new Set(userIds.filter(Boolean))];
+    if (!unique.length) return [];
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: unique }, activo: true },
+      select: { id: true, email: true },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      email: r.email?.trim().toLowerCase() || null,
+    }));
+  }
+
+  private emailsOf(users: ActiveRecipient[]): string[] {
+    return filterSafeEmailAddresses(
+      users.map((u) => u.email).filter((e): e is string => Boolean(e)),
+    );
   }
 
   private async createInAppMany(
@@ -125,6 +154,23 @@ export class NotificationService {
     });
   }
 
+  private async recentDedup(where: {
+    tipo: DocumentoNotificationTipo;
+    resourceId: string;
+    userId?: string;
+  }): Promise<boolean> {
+    const found = await this.prisma.userNotification.findFirst({
+      where: {
+        tipo: where.tipo,
+        resourceId: where.resourceId,
+        ...(where.userId ? { userId: where.userId } : {}),
+        createdAt: { gte: new Date(Date.now() - NOTIFICATION_DEDUP_MS) },
+      },
+      select: { id: true },
+    });
+    return Boolean(found);
+  }
+
   async notifyRevisionSubmitted(
     input: NotifyRevisionSubmittedInput,
   ): Promise<void> {
@@ -138,13 +184,17 @@ export class NotificationService {
       select: { id: true, email: true },
       take: 200,
     });
-    const emails = recipients
-      .map((r) => r.email.trim().toLowerCase())
-      .filter(Boolean);
-    const userIds = recipients.map((r) => r.id);
+    const users: ActiveRecipient[] = recipients.map((r) => ({
+      id: r.id,
+      email: r.email?.trim().toLowerCase() || null,
+    }));
+    const emails = this.emailsOf(users);
+    const userIds = users.map((r) => r.id);
 
     const link = this.documentoUrl(input.documentoId);
-    const subject = `${this.appName()} — Pendiente de revisión: ${input.codigo}`;
+    const subject = sanitizeEmailSubject(
+      `${this.appName()} — Pendiente de revisión: ${input.codigo}`,
+    );
     const textLines = [
       'Se ha enviado un documento a revisión.',
       '',
@@ -155,12 +205,14 @@ export class NotificationService {
       'Acción: revise la bandeja de trámites o filtre Documentos por estado «En revisión».',
     ];
 
-    const { sent } = await this.mail.sendIfConfigured({
-      to: emails,
-      subject,
-      text: textLines.join('\n'),
-      html: this.buildHtml(textLines, link),
-    });
+    const { sent } = emails.length
+      ? await this.mail.sendIfConfigured({
+          to: emails,
+          subject,
+          text: textLines.join('\n'),
+          html: this.buildHtml(textLines, link),
+        })
+      : { sent: false };
 
     await this.createInAppMany(userIds, {
       tipo: 'REVISION_PENDING',
@@ -174,7 +226,7 @@ export class NotificationService {
       channel: 'email+in_app',
       tipo: 'REVISION_PENDING',
       documentoId: input.documentoId,
-      recipientCount: emails.length,
+      recipientCount: userIds.length,
       smtpSent: sent,
     });
   }
@@ -182,8 +234,17 @@ export class NotificationService {
   async notifyRevisionResolved(
     input: NotifyRevisionResolvedInput,
   ): Promise<void> {
+    const users = await this.resolveActiveUsers([input.creatorUserId]);
+    if (!users.length) {
+      this.log.warn('Notificación omitida: destinatario no elegible');
+      return;
+    }
+    const emails = this.emailsOf(users);
+
     const link = this.documentoUrl(input.documentoId);
-    const subject = `${this.appName()} — Revisión resuelta: ${input.codigo} (${input.decision})`;
+    const subject = sanitizeEmailSubject(
+      `${this.appName()} — Revisión resuelta: ${input.codigo} (${input.decision})`,
+    );
     const textLines = [
       'Se resolvió la revisión de su documento.',
       '',
@@ -196,23 +257,28 @@ export class NotificationService {
       ...(link ? ['', `Enlace: ${link}`] : []),
     ];
 
-    const { sent } = await this.mail.sendIfConfigured({
-      to: input.creatorEmail,
-      subject,
-      text: textLines.join('\n'),
-      html: this.buildHtml(textLines, link),
-    });
+    const { sent } = emails.length
+      ? await this.mail.sendIfConfigured({
+          to: emails,
+          subject,
+          text: textLines.join('\n'),
+          html: this.buildHtml(textLines, link),
+        })
+      : { sent: false };
 
-    await this.createInAppMany([input.creatorUserId], {
-      tipo: 'REVISION_RESOLVED',
-      titulo: `Revisión ${input.decision.toLowerCase()}: ${input.codigo}`,
-      mensaje:
-        input.decision === 'RECHAZADO' && input.motivo
-          ? input.motivo
-          : input.asunto,
-      resourceType: 'Documento',
-      resourceId: input.documentoId,
-    });
+    await this.createInAppMany(
+      users.map((u) => u.id),
+      {
+        tipo: 'REVISION_RESOLVED',
+        titulo: `Revisión ${input.decision.toLowerCase()}: ${input.codigo}`,
+        mensaje:
+          input.decision === 'RECHAZADO' && input.motivo
+            ? input.motivo
+            : input.asunto,
+        resourceType: 'Documento',
+        resourceId: input.documentoId,
+      },
+    );
 
     await this.logNotification(sent ? 'OK' : 'SKIP', {
       channel: 'email+in_app',
@@ -226,20 +292,27 @@ export class NotificationService {
   async notifyDocumentExpiring(
     input: NotifyDocumentExpiringInput,
   ): Promise<void> {
-    const dedup = await this.prisma.userNotification.findFirst({
-      where: {
-        userId: input.creatorUserId,
+    const users = await this.resolveActiveUsers([input.creatorUserId]);
+    if (!users.length) {
+      this.log.warn('Notificación omitida: destinatario no elegible');
+      return;
+    }
+    if (
+      await this.recentDedup({
         tipo: 'DOCUMENT_EXPIRING',
         resourceId: input.documentoId,
-        createdAt: { gte: new Date(Date.now() - 23 * 60 * 60 * 1000) },
-      },
-      select: { id: true },
-    });
-    if (dedup) return;
+        userId: users[0].id,
+      })
+    ) {
+      return;
+    }
 
+    const emails = this.emailsOf(users);
     const link = this.documentoUrl(input.documentoId);
     const fv = input.fechaVencimiento.toISOString().slice(0, 10);
-    const subject = `${this.appName()} — Vencimiento próximo: ${input.codigo}`;
+    const subject = sanitizeEmailSubject(
+      `${this.appName()} — Vencimiento próximo: ${input.codigo}`,
+    );
     const textLines = [
       `El documento vence en ${input.diasRestantes} día(s).`,
       '',
@@ -249,20 +322,25 @@ export class NotificationService {
       ...(link ? ['', `Enlace: ${link}`] : []),
     ];
 
-    const { sent } = await this.mail.sendIfConfigured({
-      to: input.creatorEmail,
-      subject,
-      text: textLines.join('\n'),
-      html: this.buildHtml(textLines, link),
-    });
+    const { sent } = emails.length
+      ? await this.mail.sendIfConfigured({
+          to: emails,
+          subject,
+          text: textLines.join('\n'),
+          html: this.buildHtml(textLines, link),
+        })
+      : { sent: false };
 
-    await this.createInAppMany([input.creatorUserId], {
-      tipo: 'DOCUMENT_EXPIRING',
-      titulo: `Vence en ${input.diasRestantes}d: ${input.codigo}`,
-      mensaje: `Vencimiento ${fv}`,
-      resourceType: 'Documento',
-      resourceId: input.documentoId,
-    });
+    await this.createInAppMany(
+      users.map((u) => u.id),
+      {
+        tipo: 'DOCUMENT_EXPIRING',
+        titulo: `Vence en ${input.diasRestantes}d: ${input.codigo}`,
+        mensaje: `Vencimiento ${fv}`,
+        resourceType: 'Documento',
+        resourceId: input.documentoId,
+      },
+    );
 
     await this.logNotification(sent ? 'OK' : 'SKIP', {
       channel: 'email+in_app',
@@ -274,11 +352,24 @@ export class NotificationService {
   }
 
   async notifySlaOverdue(input: NotifySlaOverdueInput): Promise<void> {
-    if (!input.recipientUserIds.length) return;
+    if (
+      await this.recentDedup({
+        tipo: 'SLA_OVERDUE',
+        resourceId: input.documentoId,
+      })
+    ) {
+      return;
+    }
 
+    const users = await this.resolveActiveUsers(input.recipientUserIds);
+    if (!users.length) return;
+
+    const emails = this.emailsOf(users);
     const link = this.documentoUrl(input.documentoId);
     const limite = input.fechaLimiteSla.toISOString().slice(0, 10);
-    const subject = `${this.appName()} — SLA vencido: ${input.codigo}`;
+    const subject = sanitizeEmailSubject(
+      `${this.appName()} — SLA vencido: ${input.codigo}`,
+    );
     const textLines = [
       'Un documento en revisión superó el plazo operativo de SLA.',
       '',
@@ -288,26 +379,31 @@ export class NotificationService {
       ...(link ? ['', `Enlace: ${link}`] : []),
     ];
 
-    const { sent } = await this.mail.sendIfConfigured({
-      to: input.recipientEmails,
-      subject,
-      text: textLines.join('\n'),
-      html: this.buildHtml(textLines, link),
-    });
+    const { sent } = emails.length
+      ? await this.mail.sendIfConfigured({
+          to: emails,
+          subject,
+          text: textLines.join('\n'),
+          html: this.buildHtml(textLines, link),
+        })
+      : { sent: false };
 
-    await this.createInAppMany(input.recipientUserIds, {
-      tipo: 'SLA_OVERDUE',
-      titulo: `SLA vencido: ${input.codigo}`,
-      mensaje: input.asunto,
-      resourceType: 'Documento',
-      resourceId: input.documentoId,
-    });
+    await this.createInAppMany(
+      users.map((u) => u.id),
+      {
+        tipo: 'SLA_OVERDUE',
+        titulo: `SLA vencido: ${input.codigo}`,
+        mensaje: input.asunto,
+        resourceType: 'Documento',
+        resourceId: input.documentoId,
+      },
+    );
 
     await this.logNotification(sent ? 'OK' : 'SKIP', {
       channel: 'email+in_app',
       tipo: 'SLA_OVERDUE',
       documentoId: input.documentoId,
-      recipientCount: input.recipientEmails.length,
+      recipientCount: users.length,
       smtpSent: sent,
     });
   }

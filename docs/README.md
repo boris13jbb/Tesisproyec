@@ -13,7 +13,7 @@ Pendientes de alineación documental detectados durante la revisión: **`41-pend
 | **Autenticación** | JWT + refresh HttpOnly, rotación, inactividad (`last_used_at`), throttling global y en `/auth`, lockout por cuenta (`AUTH_LOCKOUT_*`), recuperación de contraseña. |
 | **RBAC** | Roles seed + **`@Roles`** para menú/UI; **`@Permissions` + `PermissionsGuard`** usando `permissions` / `role_permissions` (seed + UI «Matriz rol ↔ permiso» en Usuarios; API `/rbac/...`; ver **`07`**). |
 | **Documentos** | Estados normalizados y transiciones (`documento-estado.util`); flujo **enviar a revisión** / **resolver** (R-28); `dependencia_id` + `nivel_confidencialidad` + ACL; anti-IDOR con `documentoVisibilityWhere` (listado/detalle/archivos/upload/download). Matriz: **`MATRIZ_VISIBILIDAD_DOCUMENTOS_ROLES.md`**. |
-| **Notificaciones** | Correo SMTP opcional (nodemailer) en envío a revisión y al resolver (ver `12`, `28` R-44); sin SMTP el flujo sigue. |
+| **Notificaciones** | Correo SMTP opcional (nodemailer) + campana in-app + cron vencimiento/SLA (ver `MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md`, `28` R-44); sin SMTP el flujo documental sigue. |
 | **Auditoría** | `audit_logs`; API `GET /auditoria` (ADMIN); UI **`/admin/auditoria`**; `AUTHZ_FORBIDDEN` en 403 autenticados; export Excel/PDF de auditoría. |
 | **Reportes** | Documentos y auditoría → Excel/PDF (**ADMIN**); **pendientes de revisión** → Excel/PDF (**ADMIN** + **REVISOR**); cada export genera `REPORT_EXPORTED`. |
 | **UI institucional** | Solo controles **verificables** en pantalla; indicadores del panel = proxies operativos (30 días), no certificación ISO — ver **`45-principio-ui-controles-reales.md`**. |
@@ -74,6 +74,7 @@ Las fichas **29–39** (“cierre al 100 %”) son **evidencia de hito**; pueden
 | [MATRIZ_SEGURIDAD_ARCHIVOS.md](./MATRIZ_SEGURIDAD_ARCHIVOS.md) | **Seguridad de archivos** (upload/download/delete, IDOR, path, MIME, storage) |
 | [MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md](./MATRIZ_SEGURIDAD_AUTENTICACION_SESIONES.md) | **Auth / sesiones / MFA / reset** (JWT, refresh, enumeration, rate limit) |
 | [MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md](./MATRIZ_SEGURIDAD_BACKUPS_RECUPERACION.md) | **Backups / recuperación** (mysqldump, RBAC, path, sin restore web) |
+| [MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md](./MATRIZ_SEGURIDAD_NOTIFICACIONES_SLA_EMAIL.md) | **Notificaciones / SLA / SMTP** (destinatarios, IDOR, CRLF, dedup, audit) |
 | [13-modulo-archivos.md](./13-modulo-archivos.md) | Archivos y storage |
 | [14-modulo-busqueda.md](./14-modulo-busqueda.md) | Búsqueda |
 | [15-modulo-auditoria.md](./15-modulo-auditoria.md) | Auditoría |

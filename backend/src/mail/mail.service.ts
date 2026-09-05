@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
+import {
+  escapeHtmlText,
+  filterSafeEmailAddresses,
+  isSafeEmailAddress,
+  isSafePublicHttpUrl,
+  sanitizeEmailSubject,
+  stripHeaderInjection,
+} from './mail-safety.util';
 
 @Injectable()
 export class MailService {
@@ -22,7 +30,8 @@ export class MailService {
 
   private fromAddress(): string | undefined {
     const em = this.config.get<string>('SMTP_FROM_EMAIL')?.trim();
-    return em || undefined;
+    if (!em || !isSafeEmailAddress(em)) return undefined;
+    return em;
   }
 
   private createTransporter(): nodemailer.Transporter {
@@ -52,8 +61,9 @@ export class MailService {
       this.config.get<string>('SMTP_FROM_NAME')?.trim() ??
       this.config.get<string>('MAIL_FROM_NAME')?.trim();
     if (!rawName?.length) return email;
-    const escaped = rawName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}" <${email}>`;
+    const name = stripHeaderInjection(rawName).replace(/"/g, '');
+    if (!name) return email;
+    return `"${name}" <${email}>`;
   }
 
   async sendPasswordReset(input: {
@@ -61,47 +71,19 @@ export class MailService {
     resetUrl: string;
     expiresMinutes: number;
   }): Promise<void> {
-    if (!this.isConfigured()) {
-      throw new Error('Mail not configured');
-    }
-
-    const transporter = this.createTransporter();
-
-    const appName =
-      this.config.get<string>('APP_PUBLIC_NAME')?.trim() ?? 'SGD GADPR-LM';
-    const subject = `${appName} — Restablecimiento de contraseña`;
-
-    const text = [
-      `Recibió esta solicitud para restablecer la contraseña de su cuenta en ${appName}.`,
-      '',
-      `Enlace válido durante aproximadamente ${input.expiresMinutes} minutos:`,
-      input.resetUrl,
-      '',
-      'Si usted no solicitó este cambio, ignore este mensaje.',
-      '',
-      'Este es un mensaje automático; no responda a este correo.',
-    ].join('\n');
-
-    const html = `
-<p>Recibió una solicitud para restablecer la contraseña de su cuenta en <strong>${escapeHtml(appName)}</strong>.</p>
-<p><a href="${escapeHref(input.resetUrl)}">Restablecer contraseña</a></p>
-<p>Si no puede usar el enlace, copie y pegue la siguiente dirección en su navegador:</p>
-<pre style="white-space:pre-wrap;word-break:break-all">${escapeHtml(input.resetUrl)}</pre>
-<p>Este enlace caduca en aproximadamente ${input.expiresMinutes} minutos.</p>
-<p>Si no realizó esta solicitud, ignore este mensaje.</p>`;
-
-    try {
-      await transporter.sendMail({
-        from: this.fromHeader(),
-        to: input.to,
-        subject,
-        text,
-        html,
-      });
-    } catch (err: unknown) {
-      this.logger.warn('Envío SMTP de recuperación de contraseña falló');
-      throw err;
-    }
+    await this.sendTransactionalLinkMail({
+      to: input.to,
+      linkUrl: input.resetUrl,
+      expiresMinutes: input.expiresMinutes,
+      subjectSuffix: 'Restablecimiento de contraseña',
+      failLog: 'Envío SMTP de recuperación de contraseña falló',
+      textIntro:
+        'Recibió esta solicitud para restablecer la contraseña de su cuenta',
+      htmlIntro:
+        'Recibió una solicitud para restablecer la contraseña de su cuenta',
+      linkLabel: 'Restablecer contraseña',
+      ignoreHint: 'Si usted no solicitó este cambio, ignore este mensaje.',
+    });
   }
 
   /** Invitación tras alta administrativa: enlace a definir contraseña inicial. */
@@ -110,54 +92,23 @@ export class MailService {
     setupUrl: string;
     expiresMinutes: number;
   }): Promise<void> {
-    if (!this.isConfigured()) {
-      throw new Error('Mail not configured');
-    }
-
-    const transporter = this.createTransporter();
-
-    const appName =
-      this.config.get<string>('APP_PUBLIC_NAME')?.trim() ?? 'SGD GADPR-LM';
-    const subject = `${appName} — Activar su cuenta`;
-
-    const text = [
-      `Le han creado una cuenta en ${appName}.`,
-      '',
-      'Para establecer su contraseña y poder iniciar sesión, use el siguiente enlace:',
-      input.setupUrl,
-      '',
-      `Este enlace caduca en aproximadamente ${input.expiresMinutes} minutos.`,
-      '',
-      'Si no esperaba este mensaje, puede ignorarlo.',
-      '',
-      'Este es un mensaje automático; no responda.',
-    ].join('\n');
-
-    const html = `
-<p>Le han creado una cuenta en <strong>${escapeHtml(appName)}</strong>.</p>
-<p>Para <strong>definir su contraseña</strong> e iniciar sesión, use este enlace:</p>
-<p><a href="${escapeHref(input.setupUrl)}">Activar cuenta y definir contraseña</a></p>
-<pre style="white-space:pre-wrap;word-break:break-all">${escapeHtml(input.setupUrl)}</pre>
-<p>El enlace caduca en aproximadamente ${input.expiresMinutes} minutos.</p>
-<p>Si no esperaba este mensaje, ignore este correo.</p>`;
-
-    try {
-      await transporter.sendMail({
-        from: this.fromHeader(),
-        to: input.to,
-        subject,
-        text,
-        html,
-      });
-    } catch {
-      this.logger.warn('Envío SMTP de invitación de usuario falló');
-      throw new Error('SMTP invitation send failed');
-    }
+    await this.sendTransactionalLinkMail({
+      to: input.to,
+      linkUrl: input.setupUrl,
+      expiresMinutes: input.expiresMinutes,
+      subjectSuffix: 'Activar su cuenta',
+      failLog: 'Envío SMTP de invitación de usuario falló',
+      textIntro: 'Le han creado una cuenta',
+      htmlIntro: 'Le han creado una cuenta',
+      linkLabel: 'Activar cuenta y definir contraseña',
+      ignoreHint: 'Si no esperaba este mensaje, puede ignorarlo.',
+    });
   }
 
   /**
    * Envío genérico best-effort: si SMTP no está configurado, no hace nada.
    * Útil para notificaciones (R-44) sin romper flujos de negocio.
+   * Un destinatario por sendMail (no lista To: compartida).
    */
   async sendIfConfigured(input: {
     to: string | string[];
@@ -168,33 +119,92 @@ export class MailService {
     if (!this.isConfigured()) {
       return { sent: false };
     }
+    const recipients = filterSafeEmailAddresses(input.to);
+    if (!recipients.length) {
+      return { sent: false };
+    }
     const transporter = this.createTransporter();
-    const to = Array.isArray(input.to) ? input.to : [input.to];
+    const subject = sanitizeEmailSubject(input.subject);
+    const from = this.fromHeader();
+    let sentAny = false;
+    for (const to of recipients) {
+      try {
+        await transporter.sendMail({
+          from,
+          to,
+          subject,
+          text: input.text,
+          ...(input.html ? { html: input.html } : {}),
+        });
+        sentAny = true;
+      } catch {
+        this.logger.warn('Envío SMTP falló (notificación)');
+      }
+    }
+    return { sent: sentAny };
+  }
+
+  private async sendTransactionalLinkMail(input: {
+    to: string;
+    linkUrl: string;
+    expiresMinutes: number;
+    subjectSuffix: string;
+    failLog: string;
+    textIntro: string;
+    htmlIntro: string;
+    linkLabel: string;
+    ignoreHint: string;
+  }): Promise<void> {
+    if (!this.isConfigured()) {
+      throw new Error('Mail not configured');
+    }
+    const to = filterSafeEmailAddresses(input.to)[0];
+    if (!to || !isSafePublicHttpUrl(input.linkUrl)) {
+      throw new Error('Mail not configured');
+    }
+
+    const transporter = this.createTransporter();
+    const appName = stripHeaderInjection(
+      this.config.get<string>('APP_PUBLIC_NAME')?.trim() ?? 'SGD GADPR-LM',
+    );
+    const subject = sanitizeEmailSubject(`${appName} — ${input.subjectSuffix}`);
+    const href = escapeHref(input.linkUrl);
+
+    const text = [
+      `${input.textIntro} en ${appName}.`,
+      '',
+      `Enlace válido durante aproximadamente ${input.expiresMinutes} minutos:`,
+      input.linkUrl,
+      '',
+      input.ignoreHint,
+      '',
+      'Este es un mensaje automático; no responda a este correo.',
+    ].join('\n');
+
+    const html = `
+<p>${escapeHtmlText(input.htmlIntro)} en <strong>${escapeHtmlText(appName)}</strong>.</p>
+<p><a href="${href}">${escapeHtmlText(input.linkLabel)}</a></p>
+<p>Si no puede usar el enlace, copie y pegue la siguiente dirección en su navegador:</p>
+<pre style="white-space:pre-wrap;word-break:break-all">${escapeHtmlText(input.linkUrl)}</pre>
+<p>Este enlace caduca en aproximadamente ${input.expiresMinutes} minutos.</p>
+<p>${escapeHtmlText(input.ignoreHint)}</p>`;
+
     try {
       await transporter.sendMail({
         from: this.fromHeader(),
         to,
-        subject: input.subject,
-        text: input.text,
-        ...(input.html ? { html: input.html } : {}),
+        subject,
+        text,
+        html,
       });
-      return { sent: true };
-    } catch (err: unknown) {
-      this.logger.warn('Envío SMTP falló (notificación)');
-      this.logger.debug(String(err));
-      return { sent: false };
+    } catch {
+      this.logger.warn(input.failLog);
+      throw new Error('SMTP send failed');
     }
   }
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function escapeHref(url: string): string {
+  if (!isSafePublicHttpUrl(url)) return '#';
   return url.replace(/&/g, '&amp;');
 }

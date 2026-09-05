@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
+import { sanitizeSmtpErrorMessage } from '../mail/mail-safety.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from './notification.service';
 
@@ -33,7 +34,9 @@ export class ExpiryNotificationScheduler implements OnModuleInit {
     const job = new CronJob(cronExpr, () => {
       void this.runExpiryNotifications().catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.log.error(`Cron vencimientos falló: ${msg}`);
+        this.log.error(
+          `Cron vencimientos falló: ${sanitizeSmtpErrorMessage(msg)}`,
+        );
       });
     });
     this.registry.addCronJob(jobName, job);
@@ -86,13 +89,14 @@ export class ExpiryNotificationScheduler implements OnModuleInit {
           asunto: true,
           fechaVencimiento: true,
           createdById: true,
-          createdBy: { select: { email: true } },
+          createdBy: { select: { email: true, activo: true } },
         },
         take: 500,
       });
 
       for (const doc of docs) {
         if (!doc.fechaVencimiento) continue;
+        if (!doc.createdBy.activo) continue;
         await this.notifications.notifyDocumentExpiring({
           documentoId: doc.id,
           codigo: doc.codigo,
@@ -100,7 +104,6 @@ export class ExpiryNotificationScheduler implements OnModuleInit {
           fechaVencimiento: doc.fechaVencimiento,
           diasRestantes: days,
           creatorUserId: doc.createdById,
-          creatorEmail: doc.createdBy.email,
         });
         processed += 1;
       }
@@ -140,29 +143,15 @@ export class ExpiryNotificationScheduler implements OnModuleInit {
       take: 200,
     });
     const recipientUserIds = recipients.map((r) => r.id);
-    const recipientEmails = recipients
-      .map((r) => r.email.trim().toLowerCase())
-      .filter(Boolean);
 
     for (const doc of docs) {
       if (!doc.fechaLimiteSla) continue;
-      const recent = await this.prisma.userNotification.findFirst({
-        where: {
-          tipo: 'SLA_OVERDUE',
-          resourceId: doc.id,
-          createdAt: { gte: new Date(Date.now() - 23 * 60 * 60 * 1000) },
-        },
-        select: { id: true },
-      });
-      if (recent) continue;
-
       await this.notifications.notifySlaOverdue({
         documentoId: doc.id,
         codigo: doc.codigo,
         asunto: doc.asunto,
         fechaLimiteSla: doc.fechaLimiteSla,
         recipientUserIds,
-        recipientEmails,
       });
     }
   }

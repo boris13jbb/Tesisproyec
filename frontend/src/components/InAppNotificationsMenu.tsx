@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { documentoPathFromNotification } from '../utils/notification-link';
 
 type NotificationItem = {
   id: string;
@@ -74,8 +75,12 @@ export function InAppNotificationsMenu() {
       /* ignore */
     }
     handleClose();
-    if (item.resourceType === 'Documento' && item.resourceId) {
-      navigate(`/documentos/${item.resourceId}`);
+    const path = documentoPathFromNotification(
+      item.resourceType,
+      item.resourceId,
+    );
+    if (path) {
+      navigate(path);
     }
     void load();
   };

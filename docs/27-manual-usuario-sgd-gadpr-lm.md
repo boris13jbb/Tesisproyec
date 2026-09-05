@@ -315,6 +315,8 @@ En la barra de filtros puedes usar:
 - Al enviar a revisión: notificación a ADMIN/REVISOR (correo si SMTP configurado + campana in-app).
 - Al resolver: notificación al creador.
 - Vencimientos próximos: cron diario (si está activo en servidor) notifica al creador por correo e in-app.
+- SLA vencido (documento en revisión más allá de la fecha límite): aviso a ADMIN/REVISOR (mismo cron).
+- En la **campana** de la cabecera verá solo **sus** avisos. Pulse un ítem para marcarlo leído; si el aviso es de un documento, abre el detalle. **Marcar todas leídas** afecta únicamente las suyas. Un usuario no ve ni marca avisos de otra cuenta.
 
 ### 7.2.1 Trámites — tablero de flujo (Kanban)
 
