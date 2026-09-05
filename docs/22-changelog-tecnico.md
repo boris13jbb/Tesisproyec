@@ -24,6 +24,13 @@ Entradas breves enlazadas a módulos y a `18-seguridad-y-hardening.md` cuando ap
 
 ## Registro
 
+### 2026-09-04 — Dependency hardening / npm audit
+
+- Backend prod HIGH 5 → **0** (Nest 11.2.3 + multer 2.2.0; nodemailer 10; overrides `tmp`/`qs`/`brace-expansion@1|2`).
+- Frontend prod HIGH 4 → **0** (axios 1.20.0, react-router-dom 7.18.3, form-data 4.0.6; DOMPurify 3.4.14).
+- **No** `audit fix --force`. Nest **11** (no 12). Residual: exceljs/uuid moderate, xmldom via mammoth, HIGH solo dev.
+- Matriz: `MATRIZ_DEPENDENCY_HARDENING.md`.
+
 ### 2026-09-04 — Hardening operativo / CORS / headers / errores
 
 - **Operativo existente:** `main.ts` (Helmet, cookie-parser, ValidationPipe, CORS, prefijo `api/v1`) + `GET /health` + Throttler. **No** hay Docker, Nginx, Swagger ni static.

@@ -10,6 +10,28 @@ import {
   stripHeaderInjection,
 } from './mail-safety.util';
 
+/** Nodemailer 10 omite `types` en exports; nodenext no resuelve `Transporter`. */
+type SmtpTransport = {
+  sendMail: (mail: {
+    from: string;
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }) => Promise<unknown>;
+};
+
+type SmtpFactory = {
+  createTransport: (opts: {
+    host?: string;
+    port: number;
+    secure: boolean;
+    auth?: { user: string; pass: string };
+  }) => SmtpTransport;
+};
+
+const smtp = nodemailer as unknown as SmtpFactory;
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -34,7 +56,7 @@ export class MailService {
     return em;
   }
 
-  private createTransporter(): nodemailer.Transporter {
+  private createTransporter(): SmtpTransport {
     const port = Number(this.config.get<string>('SMTP_PORT') ?? '587');
     const secureEnv = this.config.get<string>('SMTP_SECURE') ?? '';
     const secure =
@@ -45,7 +67,7 @@ export class MailService {
     const user = this.config.get<string>('SMTP_USER')?.trim();
     const pass = this.config.get<string>('SMTP_PASSWORD')?.trim();
 
-    return nodemailer.createTransport({
+    return smtp.createTransport({
       host: this.smtpHost(),
       port,
       secure,

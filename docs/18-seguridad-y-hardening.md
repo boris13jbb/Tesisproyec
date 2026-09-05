@@ -45,7 +45,7 @@ Autenticación, autorización, datos, archivos, comunicaciones en desarrollo loc
 - **Errores no-HTTP:** `SafeExceptionFilter` (sin stack/SQL/credenciales). HttpException conserva status.
 - **Booleanos DTO:** `ToSafeBoolean` (`"false"` → false). `enableImplicitConversion` permanece **true** para números de query.
 - Matriz operativa: `docs/MATRIZ_HARDENING_OPERATIVO_CONFIGURACION.md`.
-- **Dependencias:** `npm audit --omit=dev` muestra HIGH preexistentes; no se actualizó lockfile. Fase futura: DEPENDENCY HARDENING.
+- **Dependencias:** runtime prod HIGH **0** (Nest 11.2.3 / multer 2.2.0 / nodemailer 10 / overrides acotados; frontend axios 1.20 + react-router 7.18). Residual moderate exceljs/uuid y xmldom. Matriz: `docs/MATRIZ_DEPENDENCY_HARDENING.md`. No afirmar “0 vulnerabilidades”.
 - **Rate limiting**: `ThrottlerModule` global (`app.module.ts`); rutas **`/auth`** con `@Throttle` más estricto (`auth.controller.ts`); excesos registrados como `AUTH_RATE_LIMITED` (`throttler-audit.filter.ts`).
 - **Lockout por cuenta**: contador e intervalo en `users` (`AUTH_LOCKOUT_MAX_ATTEMPTS`, `AUTH_LOCKOUT_MINUTES`); complementa el throttling por IP.
 - **403 auditado**: intentos contra endpoints con rol insuficiente generan **`AUTHZ_FORBIDDEN`** (`forbidden-audit.filter.ts`).
